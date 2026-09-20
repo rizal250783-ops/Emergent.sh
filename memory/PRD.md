@@ -55,6 +55,18 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
   combined achievement trend line chart. Backend /compare de-duplicates ids, caps at 3. Chart Y-axis clamped to 300%.
 - Tested: backend 11/11 new (44/45 combined; 1 pre-existing dup-user legacy test), frontend 4/4 (iteration_3.json).
 
+## Iteration 4 (2026-06-20) — 4 features added
+- **Export PDF Tim:** /reports/team-pdf — bank-wide summary + full rankings (Pembiayaan/Funding/Recovery) in one
+  management PDF; button on Executive Dashboard (Direktur & Admin). Periode format validated.
+- **Notifikasi Target:** calc.check_target_notifications notifies the AO when a component crosses 90% (mendekati)
+  or 100% (tercapai); dedup via target_notify_state per (ao_id, periode, komponen). Triggered on transaction
+  create, target edit, and import commit. Message clamps display when achievement > 200%.
+- **Filter Perbandingan:** /compare accepts optional komponen (Pembiayaan/Funding/Recovery); Compare page has a
+  component selector — shows a single-component KPI + component trend per AO.
+- **Ekspor Excel Rekap AO:** /reports/ao-excel/{ao_id} — 2-sheet xlsx (Ringkasan + Riwayat); Excel buttons next to
+  PDF on Personal Dashboard and Riwayat.
+- Tested: backend 17/17 new, frontend 4/4 (iteration_4.json).
+
 ## Backlog / Next
 - P1: Per-jenis schema validation + preview/error-report for Data Import.
 - P1: Collection photo HEIC auto-convert edge cases; multi-photo compression >3MB.

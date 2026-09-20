@@ -233,8 +233,9 @@ async def check_target_notifications(ao_id, periode):
         if prev and rank.get(prev, 0) >= rank[milestone]:
             continue
         if milestone == "tercapai":
+            disp = "melebihi 200% target" if ach > 200 else f"{ach:.0f}% dari target"
             judul = f"Target {komponen} tercapai!"
-            pesan = f"Selamat! Pencapaian {komponen} Anda periode {per_label} sudah {ach:.0f}% dari target. Pertahankan!"
+            pesan = f"Selamat! Pencapaian {komponen} Anda periode {per_label} sudah {disp}. Pertahankan!"
         else:
             judul = f"Hampir capai target {komponen}"
             pesan = f"Pencapaian {komponen} Anda periode {per_label} sudah {ach:.0f}% — sedikit lagi menuju 100%!"

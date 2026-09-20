@@ -242,6 +242,12 @@ def _summary_table(title, komponen, rows):
 
 @router.get("/team-pdf")
 async def team_pdf(periode: str, user=Depends(require_roles("Direktur", "Admin"))):
+    try:
+        y, m = periode.split("-")
+        if not (1 <= int(m) <= 12):
+            raise ValueError
+    except Exception:
+        raise HTTPException(status_code=400, detail="Format periode harus YYYY-MM")
     styles = getSampleStyleSheet()
     sec = ParagraphStyle("sec", parent=styles["Heading2"], textColor=EMERALD, fontSize=13, spaceBefore=10, spaceAfter=6)
     small = ParagraphStyle("small", parent=styles["Normal"], fontSize=9, textColor=colors.HexColor("#64748b"))
@@ -336,7 +342,7 @@ async def ao_excel(ao_id: str, periode: str, user=Depends(get_current_user)):
         cell = ws.cell(row=5, column=i); cell.fill = head_fill; cell.font = head_font
     for k in kpis:
         ws.append([k["komponen"], k["target"], k["realisasi"],
-                   ("N/A" if k["achievement"] is None else k["achievement"]), STATUS_ID.get(k["status"], "-")])
+                   ("" if k["achievement"] is None else k["achievement"]), STATUS_ID.get(k["status"], "-")])
     for col in "ABCDE":
         ws.column_dimensions[col].width = 20
 
@@ -347,7 +353,7 @@ async def ao_excel(ao_id: str, periode: str, user=Depends(get_current_user)):
         cell = ws2.cell(row=1, column=i); cell.fill = head_fill; cell.font = head_font
     for r in riwayat:
         ws2.append([periode_label(r["bulan"]), r["target"], r["realisasi"],
-                    ("N/A" if r["achievement"] is None else r["achievement"]), STATUS_ID.get(r["status"], "-")])
+                    ("" if r["achievement"] is None else r["achievement"]), STATUS_ID.get(r["status"], "-")])
     for col in "ABCDE":
         ws2.column_dimensions[col].width = 20
 

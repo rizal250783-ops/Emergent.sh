@@ -1,0 +1,44 @@
+{
+  "summary": "Iter-4 testing of 4 new features + regression. Backend: created /app/backend/tests/test_iter4_features.py with 17 tests — 17/17 PASS. Covers: (a) Export PDF Tim /reports/team-pdf (Direktur+Admin get application/pdf; AO 403). (b) Notifikasi Target — 100% ('tercapai') and 90-99% ('mendekati') notifications emitted to AO's kode via check_target_notifications; dedup verified (same-milestone re-trigger does NOT duplicate). (c) Filter Perbandingan /compare?komponen=Pembiayaan/Funding/Recovery — returns single-KPI list per AO; invalid komponen → 400; 'Semua' (no param) still returns role-based multi-KPI. (d) Ekspor Excel /reports/ao-excel/{id} — 200 with correct spreadsheetml MIME, PK-header xlsx; AO cannot download other AO (403); invalid id 400. Regression: per-AO PDF and compare min-2 still enforced. Frontend Playwright: (1) Login as Direktur (001) → /executive → team-pdf-btn triggers PDF download 'Laporan_Tim_2026-06.pdf'. (2) /compare — added 2 AOs via compare-add-select, selected Komponen='Funding' via compare-komponen-select, clicked compare-run-btn → both compare-card-0/1 show a Funding-only KPI; switching back to empty (Semua) re-runs and cards show both Pembiayaan + Funding. (3) Login as AO 003 → download-excel-btn on Personal Dashboard triggers /api/reports/ao-excel/{id}?periode=... returning 200 + spreadsheetml. Notification bell (notif-bell) shows unread badge '2'; panel contains 'Hampir capai target Pembiayaan' (mendekati 2026-05) AND 'Target Pembiayaan tercapai!' (2026-04) — both created by the notification tests above. (4) Login as Admin (002) → /riwayat, selected an AO via riwayat-user-select → download-excel-btn returns 200 xlsx and download-pdf-btn returns 200 application/pdf; sonner shows 'XLSX diunduh'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "AO Notification panel (target_progress)", "issues": ["The notification body prints raw achievement %, e.g. 'Pencapaian Pembiayaan Anda periode 2026-04 sudah 1840% dari target'. When a small target combines with pre-existing bulk demo transactions the % can be absurdly high — consider clamping the display to e.g. '>=500%' or 'melebihi target' when ach>200%."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter4_features.py",
+    "/app/test_reports/pytest/iter4_results.xml"
+  ],
+  "action_items": [
+    "(Optional / cosmetic) Clamp displayed achievement in target_progress notifikasi pesan when ach > 200% to a friendlier message.",
+    "(Optional / carried over from iter-3) Cap Compare trend Y-axis so extreme months don't reach 10000%."
+  ],
+  "critical_code_review_comments": [
+    "routers/reports.py team_pdf: sums lending_achievement_details 'jumlah_pencairan' without filtering is_write_off / status like recovery does — align with executive() logic if any lending record can be excluded. Currently mirrors executive endpoint so OK.",
+    "routers/reports.py ao_excel: writes 'N/A' string into a numeric-looking Achievement (%) column, mixing types in same column — Excel-side sorting/filtering will misbehave. Prefer leaving the cell empty and using a separate 'Note' column.",
+    "routers/reports.py team_pdf: no periode format validation — invalid periode like '2026-13' will KeyError from MONTHS[int(m)-1] in periode_label; wrap with try/except → 400.",
+    "routers/views.py /compare with komponen: item is still included even when jabatan not in COMPONENT_MAP roles (returns 'Tidak berlaku'). Frontend must handle this to avoid confusing 'N/A' cards; verified UI renders it acceptably.",
+    "calc.py check_target_notifications: state doc key excludes ao role — if an AO is reassigned jabatan the milestone remains, so switching from AO Pembiayaan to AO Funding would suppress a legit new-role notification for the same periode+komponen (edge case).",
+    "calc.py check_target_notifications: pesan format string uses '{ach:.0f}%' without clamp; combined with the small-target/demo-data scenario yields '1840%'. Consider capping.",
+    "routers/reports.py ao_excel imports openpyxl inside handler on every call — move to module top-level import for perf.",
+    "routers/reports.py: three near-identical Table styles duplicated; refactor to a helper to keep DRY."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter4_features.py",
+    "/app/test_reports/iteration_4.json",
+    "/app/test_reports/pytest/iter4_results.xml"
+  ],
+  "success_rate": {"backend": "100% (17/17 new iter-4)", "frontend": "4/4 iter-4 features exercised end-to-end via Playwright + Riwayat page download buttons"},
+  "test_credentials": "kode_marketing + BprsHM2026 (default). All accounts requires_password_reset=true on first login → tests change to 'NewPass2026'. Reset via /app/backend/tests/_reset_pw.py (run before/after module).",
+  "seed_data_creation": "test_iter4_features.py inserts TGT-100/TGT-90 lending rows for AO 003 in 2026-04/2026-05 (and clears prior 2026-05 lending) plus small targets to trigger 90/100% notifications. Reset script called at module setup + teardown to restore user passwords.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All 4 iter-4 features working. Gotchas observed: (a) Login inputs have no name attribute — use ordered input selectors or placeholder='mis. 002' for kode_marketing. (b) Excel/PDF downloads on Personal & Riwayat use fetch+Blob (not <a download>) so use page.expect_response('/api/reports/ao-excel/...') instead of expect_download. Team-PDF button on Executive uses expect_download (works). (c) Notification bell: after login, sonner welcome/download toast can overlay top-right briefly — wait ~4s before clicking. (d) When testing 90% mendekati threshold, wipe pre-existing lending for the AO/periode first — 003 has demo data in 2026-01..2026-06. (e) Notification dedup keyed by (ao_id, periode, komponen) in target_notify_state; deleting from notifications alone will not re-fire.",
+  "rca of the issue": "N/A — no functional bugs. Only cosmetic finding: target_progress notification message can print ach% > 500% because check_target_notifications reuses compute_achievement raw value; mitigation: clamp or replace with 'melebihi target' when ach > 200%."
+}
