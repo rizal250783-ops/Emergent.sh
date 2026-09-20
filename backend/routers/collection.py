@@ -133,13 +133,20 @@ async def get_photo(path: str = Query(...), auth: str = Query(None), authorizati
     token = auth or (authorization[7:] if authorization and authorization.startswith("Bearer ") else None)
     if not token:
         raise HTTPException(status_code=401, detail="Tidak terautentikasi")
-    try:
-        jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-    except Exception:
-        raise HTTPException(status_code=401, detail="Token tidak valid")
     rec = await db.collection_activity_photos.find_one({"foto_url": path})
     if not rec:
         raise HTTPException(status_code=404, detail="Foto tidak ditemukan")
+    payload = None
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
+    except Exception:
+        raise HTTPException(status_code=401, detail="Token tidak valid")
+    jabatan = payload.get("jabatan")
+    if jabatan not in ("Admin", "Direktur"):
+        act = await db.collection_activity.find_one({"_id": ObjectId(rec["collection_activity_id"])})
+        uid = payload.get("sub")
+        if not act or (act.get("assigned_to") != uid and act.get("created_by") != payload.get("kode")):
+            raise HTTPException(status_code=403, detail="Akses ditolak")
     data, ctype = get_object(path)
     return Response(content=data, media_type=ctype)
 

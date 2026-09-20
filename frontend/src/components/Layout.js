@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from "react";
+import React, { createContext, useContext, useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Trophy, History, ShieldCheck, ScrollText, ClipboardList,
@@ -6,7 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Select, Pill } from "./ui";
-import { periodeOptions, currentPeriode } from "../lib/api";
+import { api, periodeOptions, currentPeriode } from "../lib/api";
 
 const PeriodContext = createContext(null);
 export const usePeriod = () => useContext(PeriodContext);
@@ -66,6 +66,10 @@ export default function Layout() {
   const location = useLocation();
   const menu = MENUS[user?.jabatan] || [];
   const opts = periodeOptions();
+
+  useEffect(() => {
+    api.get("/meta/latest-periode").then(({ data }) => { if (data.latest) setPeriode(data.latest); }).catch(() => {});
+  }, []);
 
   const NavItems = () => (
     <nav className="flex flex-col gap-1">

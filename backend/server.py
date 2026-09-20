@@ -31,6 +31,16 @@ async def root():
     return {"app": "AO-360", "org": "PT BPRS Haji Miskin", "status": "ok"}
 
 
+@api_router.get("/meta/latest-periode")
+async def latest_periode():
+    latest = None
+    for coll, field in [("lending_achievement_details", "periode"), ("funding_achievement_details", "periode"), ("recovery_achievement_details", "periode")]:
+        doc = await db[coll].find_one(sort=[(field, -1)])
+        if doc and doc.get(field) and (latest is None or doc[field] > latest):
+            latest = doc[field]
+    return {"latest": latest}
+
+
 @api_router.get("/meta/constants")
 async def constants():
     from routers.collection import STATUS_OPTIONS
