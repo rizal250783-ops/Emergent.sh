@@ -1,0 +1,137 @@
+{
+  "project_name": "AO-360 (AO Achievement Dashboard)",
+  "organization": "PT. BPRS HAJI MISKIN",
+  "app_type": "dashboard",
+  "context": "Enterprise Islamic Rural Banking (BPR Syariah) Performance Monitoring & Field AO Operations Dashboard",
+  "language": "Indonesian (Bahasa Indonesia)",
+  "design_archetype": "Islamic Banking Premium (Emerald Green, Champagne Gold, Pearl White, Slate Charcoal)",
+  "theme_strategy": "Light mode default with dark-toned executive card options & high contrast readable mobile interface for field AOs",
+
+  "typography": {
+    "font_families": {
+      "heading": "Outfit, Plus Jakarta Sans, sans-serif",
+      "body": "Plus Jakarta Sans, Inter, sans-serif",
+      "mono": "JetBrains Mono, SF Mono, monospace"
+    },
+    "scale": {
+      "h1_hero": "text-3xl sm:text-4xl lg:text-5xl font-extrabold tracking-tight",
+      "h2_section": "text-2xl sm:text-3xl font-bold tracking-tight",
+      "h3_card_title": "text-lg sm:text-xl font-semibold tracking-normal",
+      "h4_widget": "text-base sm:text-lg font-medium",
+      "body": "text-sm sm:text-base leading-relaxed",
+      "small_label": "text-xs font-semibold uppercase tracking-wider",
+      "currency_stat": "font-mono font-bold text-2xl sm:text-3xl tracking-tight"
+    }
+  },
+
+  "colors": {
+    "primary": {
+      "emerald_900": "#064E3B",
+      "emerald_800": "#065F46",
+      "emerald_700": "#047857",
+      "emerald_600": "#059669",
+      "emerald_500": "#10B981",
+      "emerald_100": "#D1FAE5",
+      "emerald_50": "#ECFDF5"
+    },
+    "accent_gold": {
+      "gold_700": "#B45309",
+      "gold_600": "#D97706",
+      "gold_500": "#F59E0B",
+      "gold_400": "#FBBF24",
+      "gold_100": "#FEF3C7",
+      "gold_50": "#FFFBEB"
+    },
+    "neutrals": {
+      "bg_light": "#F8FAFC",
+      "card_bg": "#FFFFFF",
+      "surface_border": "#E2E8F0",
+      "text_dark": "#0F172A",
+      "text_muted": "#64748B",
+      "dark_surface": "#062319"
+    },
+    "status_badges": {
+      "excellent": { "bg": "#ECFDF5", "text": "#047857", "border": "#A7F3D0", "label": "Sangat Baik" },
+      "good": { "bg": "#EFF6FF", "text": "#1D4ED8", "border": "#BFDBFE", "label": "Baik" },
+      "need_attention": { "bg": "#FFFBEB", "text": "#B45309", "border": "#FDE68A", "label": "Perlu Perhatian" },
+      "critical": { "bg": "#FEF2F2", "text": "#B91C1C", "border": "#FECACA", "label": "Kritis" },
+      "na": { "bg": "#F1F5F9", "text": "#475569", "border": "#E2E8F0", "label": "N/A" }
+    }
+  },
+
+  "layout_and_spacing": {
+    "dashboard_grid": "grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 sm:gap-6 p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto",
+    "mobile_optimization": "Sticky bottom bar for quick field action input on mobile, expandable filter drawer, touch-friendly tap targets (minimum 44px height)",
+    "kpi_card_padding": "p-5 sm:p-6 rounded-2xl shadow-sm border border-slate-200/80 hover:shadow-md transition-all",
+    "header_strategy": "Sticky glassmorphism navigation with backdrop blur (backdrop-blur-md bg-white/90 dark:bg-slate-900/90), logo badge, quick role switcher, and period selector"
+  },
+
+  "roles_and_views": {
+    "roles": [
+      "Executive (Direktur)",
+      "Admin (Input & Target Management)",
+      "AO Pembiayaan (Account Officer Financing)",
+      "AO Funding (Account Officer DPK)",
+      "Collection & Remedial (Penagihan & Asset Recovery)"
+    ],
+    "key_views": [
+      "Login Page with Islamic Banking Geometry & PT BPRS Haji Miskin Logo",
+      "Executive Dashboard (Bank-wide KPI, Target vs Realisasi, High-level Charts, Approval Requests)",
+      "Admin Control Panel (Transaction Entry Form, Target Setter, Incentive Calculator, User Management, Audit Trail)",
+      "AO Pembiayaan Dashboard (Realisasi Rp, Target %, NPF Ratio, Leaderboard Rank, Incentive Forecast)",
+      "AO Funding Dashboard (Pertumbuhan DPK, Tabungan, Deposito, Top Client Accounts)",
+      "Collection Activity Portal (Jadwal Kunjungan, Bukti Foto Lapangan Upload, Restrukturisasi Status)",
+      "Leaderboard / Peringkat AO (Filter Pembiayaan, Funding, Recovery with Badges)",
+      "Approval Center (Pending Incentive & User Permissions with Batch Approve/Reject)",
+      "Riwayat Bulanan (Monthly Trend Charts & Export Data capabilities)"
+    ]
+  },
+
+  "image_urls": {
+    "bank_logo_emblem": "https://images.unsplash.com/photo-1707430393809-784967fe6fee?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwzfHxlbWVyYWxkJTIwZ3JlZW4lMjBhYnN0cmFjdCUyMGx1eHVyeSUyMGFyY2hpdGVjdHVyZSUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzg5OTE2MjIxfDA&ixlib=rb-4.1.0&q=85",
+    "executive_avatar_male": "https://images.unsplash.com/photo-1772301685774-a4f0e81e032e?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwxfHxpbmRvbmVzaWFuJTIwcHJvZmVzc2lvbmFsJTIwYmFua2VyJTIwZXhlY3V0aXZlJTIwb2ZmaWNlfGVufDB8fHx8MTc4OTkxNjIyMXww&ixlib=rb-4.1.0&q=85",
+    "executive_avatar_female": "https://images.unsplash.com/photo-1657303201020-1db0b5299cc7?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1NTJ8MHwxfHNlYXJjaHwyfHxpbmRvbmVzaWFuJTIwcHJvZmVzc2lvbmFsJTIwYmFua2VyJTIwZXhlY3V0aXZlJTIwb2ZmaWNlfGVufDB8fHx8MTc4OTkxNjIyMXww&ixlib=rb-4.1.0&q=85",
+    "financial_growth_chart_bg": "https://images.unsplash.com/photo-1591696205602-2f950c417cb9?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MDV8MHwxfHNlYXJjaHwyfHxmaW5hbmNpYWwlMjBncm93dGglMjBjaGFydCUyMGJhbmtpbmclMjBvdmVybGF5fGVufDB8fHx8MTc4OTkxNjIzMXww&ixlib=rb-4.1.0&q=85",
+    "emerald_texture_bg": "https://images.unsplash.com/photo-1689443111287-5c2e129ec756?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Njd8MHwxfHNlYXJjaHwxfHxlbWVyYWxkJTIwZ3JlZW4lMjBhYnN0cmFjdCUyMGx1eHVyeSUyMGFyY2hpdGVjdHVyZSUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzg5OTE2MjIxfDA&ixlib=rb-4.1.0&q=85"
+  },
+
+  "component_guidelines": {
+    "login_screen": "Split screen layout with left emerald gold branding pattern & right clean login form (Kode Marketing + Password + Role Quick Preset selector for smooth testing).",
+    "kpi_cards": "Use bold Rupiah formatting (e.g., 'Rp 4.850.000.000'), target completion progress bar, indicator badge (+12% vs bulan lalu), and gold accent trim.",
+    "tables": "Shadcn-style data tables with sticky headers, search filter, period filter dropdown (Bulan & Tahun), status pills, and action dropdowns (Edit, Approve, Detail).",
+    "charts": "Recharts AreaChart for monthly trend with Emerald Green gradient fill and Gold line highlight; BarChart for target vs actual breakdown.",
+    "photo_upload": "Field collection documentation modal with drag & drop or image preview, geotag location tag, and notes field.",
+    "toast": "Use Sonner for confirmation messages (e.g. 'Transaksi pencapaian berhasil disimpan', 'Insentif telah disetujui')."
+  },
+
+  "testing_and_accessibility": {
+    "data_testid_requirement": "EVERY interactive element (buttons, tabs, inputs, selects, filter switches, export buttons, modal triggers) MUST include a kebab-case data-testid attribute.",
+    "examples": [
+      "data-testid=\"login-submit-button\"",
+      "data-testid=\"role-selector-dropdown\"",
+      "data-testid=\"period-filter-month\"",
+      "data-testid=\"kpi-realisasi-card\"",
+      "data-testid=\"leaderboard-tab-pembiayaan\"",
+      "data-testid=\"transaction-input-form\"",
+      "data-testid=\"approval-approve-btn\"",
+      "data-testid=\"collection-photo-upload-input\""
+    ]
+  },
+
+  "instructions_to_main_agent": [
+    "Build a complete, fully interactive enterprise web application in JavaScript React.",
+    "Ensure all user roles (Direktur, Admin, AO Pembiayaan, AO Funding, Collection) can be easily previewed using a prominent top-bar Role Switcher.",
+    "Ensure total visual delight with Emerald Green (#047857) dominance, Gold (#D97706) highlights, and clean modern card styling.",
+    "Implement real currency formatting in Indonesian Rupiah (Rp) and percentage calculations for targets.",
+    "Provide modal dialogs for transaction input, photo upload documentation for collection, and approval actions.",
+    "Make sure mobile viewport (< 768px) is fully usable with responsive tables, touchable buttons, and collapsible navigation."
+  ],
+
+  "UNIVERSAL GUIDELINES FOR MAIN AGENT": {
+    "avoid_ai_slop": "Do not create plain gray centered boxes. Use rich layered cards, emerald gradient subtle backdrops, and crisp gold accent lines.",
+    "no_universal_transition": "Never use transition: all. Use specific property transitions like transition-colors or transition-shadow.",
+    "no_emoji_icons": "Use Lucide React icons instead of emoji characters.",
+    "data_testid": "Must attach data-testid to all interactive components.",
+    "react_js": "This is a JavaScript project (.js/.jsx). Do not use TypeScript type annotations in code files."
+  }
+}
