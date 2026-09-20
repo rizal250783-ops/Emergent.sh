@@ -113,16 +113,36 @@ async def approve_incentives(body: ApprovalBody, user=Depends(require_roles("Dir
             "status_approval": status, "approved_by": user["kode_marketing"],
             "approved_at": now_iso(), "reject_reason": body.reason,
         }})
-        if status == "rejected" and inc:
-            u = users.get(inc.get("ao_id"))
-            nama = u["nama"] if u else "-"
-            kat = KATEGORI_LABEL.get(inc.get("kategori"), inc.get("kategori"))
+        if not inc:
+            continue
+        u = users.get(inc.get("ao_id"))
+        nama = u["nama"] if u else "-"
+        kode = u["kode_marketing"] if u else None
+        kat = KATEGORI_LABEL.get(inc.get("kategori"), inc.get("kategori"))
+        nominal = f"Rp {int(inc.get('nominal_terhitung', 0)):,}".replace(",", ".")
+        periode = inc.get("periode")
+        ref = {"incentive_id": iid, "ao_id": inc.get("ao_id"), "periode": periode}
+        if status == "rejected":
+            # notify Admin (to correct & resubmit)
             await write_notification(
-                "Admin", "insentif_ditolak",
-                "Insentif ditolak Direktur",
-                f"Insentif {kat} untuk {nama} periode {inc.get('periode')} sebesar Rp {int(inc.get('nominal_terhitung', 0)):,} ditolak. Alasan: {body.reason or '-'}. Silakan koreksi & ajukan ulang.".replace(",", "."),
-                {"incentive_id": iid, "ao_id": inc.get("ao_id"), "periode": inc.get("periode")},
+                "insentif_ditolak", "Insentif ditolak Direktur",
+                f"Insentif {kat} untuk {nama} periode {periode} sebesar {nominal} ditolak. Alasan: {body.reason or '-'}. Silakan koreksi & ajukan ulang.",
+                recipient_role="Admin", ref=ref,
             )
+            # notify the AO
+            if kode:
+                await write_notification(
+                    "insentif_ditolak", "Insentif Anda ditolak",
+                    f"Insentif {kat} periode {periode} sebesar {nominal} ditolak Direktur. Alasan: {body.reason or '-'}.",
+                    recipient_kode=kode, ref=ref,
+                )
+        else:  # approved → notify the AO
+            if kode:
+                await write_notification(
+                    "insentif_disetujui", "Insentif Anda disetujui",
+                    f"Selamat! Insentif {kat} periode {periode} sebesar {nominal} telah disetujui Direktur dan kini tampil di menu Insentif Anda.",
+                    recipient_kode=kode, ref=ref,
+                )
     await write_audit(user, f"{'Approve' if status=='approved' else 'Reject'} insentif oleh Direktur", sesudah={"ids": body.ids})
     return {"message": f"{len(body.ids)} insentif di-{status}"}
 

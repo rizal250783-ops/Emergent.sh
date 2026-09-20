@@ -10,6 +10,10 @@ from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.platypus import (SimpleDocTemplate, Table, TableStyle, Paragraph,
                                 Spacer, Image)
+from reportlab.graphics.shapes import Drawing, String
+from reportlab.graphics.charts.linecharts import HorizontalLineChart
+from reportlab.graphics.charts.barcharts import VerticalBarChart
+from reportlab.graphics.charts.textlabels import Label
 
 from database import db
 from security import get_current_user
@@ -38,6 +42,54 @@ def periode_label(p):
         return ""
     y, m = p.split("-")
     return f"{MONTHS[int(m) - 1]} {y}"
+
+
+def _short_month(p):
+    return MONTHS[int(p.split("-")[1]) - 1][:3]
+
+
+def build_trend_charts(riwayat):
+    """Return a Drawing with achievement line chart + realisasi bar chart."""
+    labels = [_short_month(r["bulan"]) for r in riwayat]
+    ach = [(r["achievement"] or 0) for r in riwayat]
+    real = [(r["realisasi"] or 0) for r in riwayat]
+
+    d = Drawing(500, 190)
+    # Line chart: achievement %
+    lc = HorizontalLineChart()
+    lc.x = 30
+    lc.y = 20
+    lc.width = 200
+    lc.height = 140
+    lc.data = [ach]
+    lc.categoryAxis.categoryNames = labels
+    lc.categoryAxis.labels.fontSize = 7
+    lc.valueAxis.valueMin = 0
+    lc.valueAxis.valueMax = max(120, (max(ach) if ach else 0) + 20)
+    lc.valueAxis.labels.fontSize = 7
+    lc.lines[0].strokeColor = GOLD
+    lc.lines[0].strokeWidth = 2
+    lc.lines.symbol = None
+    d.add(String(30, 172, "Tren Achievement (%)", fontSize=9, fillColor=EMERALD_DARK, fontName="Helvetica-Bold"))
+    d.add(lc)
+
+    # Bar chart: realisasi (in juta)
+    real_juta = [round(v / 1_000_000, 1) for v in real]
+    bc = VerticalBarChart()
+    bc.x = 300
+    bc.y = 20
+    bc.width = 180
+    bc.height = 140
+    bc.data = [real_juta]
+    bc.categoryAxis.categoryNames = labels
+    bc.categoryAxis.labels.fontSize = 7
+    bc.valueAxis.valueMin = 0
+    bc.valueAxis.labels.fontSize = 7
+    bc.bars[0].fillColor = EMERALD
+    bc.barWidth = 6
+    d.add(String(300, 172, "Realisasi (Juta Rp)", fontSize=9, fillColor=EMERALD_DARK, fontName="Helvetica-Bold"))
+    d.add(bc)
+    return d
 
 
 @router.get("/ao-pdf/{ao_id}")
@@ -125,6 +177,14 @@ async def ao_pdf(ao_id: str, periode: str, user=Depends(get_current_user)):
         ("ALIGN", (1, 0), (-1, -1), "CENTER"),
     ]))
     elems.append(kt)
+
+    # Trend charts
+    if riwayat:
+        elems.append(Paragraph("Grafik Tren Performa", sec))
+        try:
+            elems.append(build_trend_charts(riwayat))
+        except Exception:
+            pass
 
     # Riwayat table
     elems.append(Paragraph("Riwayat Performance Bulanan", sec))

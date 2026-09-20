@@ -20,6 +20,7 @@ import Targets from "./pages/admin/Targets";
 import Incentives from "./pages/admin/Incentives";
 import Users from "./pages/admin/Users";
 import DataManagement from "./pages/admin/DataManagement";
+import Compare from "./pages/Compare";
 
 function Protected({ children }) {
   const { user, loading, needsReset } = useAuth();
@@ -55,6 +56,7 @@ export default function App() {
             <Route path="/dashboard" element={<Guard roles={["AO Pembiayaan", "AO Funding", "Collection & Remedial"]}><PersonalDashboard /></Guard>} />
             <Route path="/rekap" element={<Rekap />} />
             <Route path="/leaderboard" element={<Leaderboard />} />
+            <Route path="/compare" element={<Guard roles={["Direktur", "Admin"]}><Compare /></Guard>} />
             <Route path="/riwayat" element={<Riwayat />} />
             <Route path="/my-incentives" element={<MyIncentives />} />
             <Route path="/collection" element={<Collection />} />

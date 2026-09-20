@@ -1,6 +1,6 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Download, Upload, DatabaseBackup, FileSpreadsheet, RotateCcw, CheckCircle2, AlertTriangle } from "lucide-react";
+import { Download, Upload, DatabaseBackup, FileSpreadsheet, RotateCcw, CheckCircle2, AlertTriangle, History } from "lucide-react";
 import { api, apiError } from "../../lib/api";
 import { usePeriod } from "../../components/Layout";
 import { Card, SectionTitle, Button, Select, Pill, Modal, Table, Spinner } from "../../components/ui";
@@ -25,8 +25,12 @@ export default function DataManagement() {
   const [busy, setBusy] = useState(false);
   const [wizard, setWizard] = useState(null);
   const [restoreFile, setRestoreFile] = useState(null);
+  const [history, setHistory] = useState([]);
   const importRef = useRef();
   const restoreRef = useRef();
+
+  const loadHistory = () => api.get("/data/import-history").then(({ data }) => setHistory(data)).catch(() => {});
+  useEffect(() => { loadHistory(); }, []);
 
   const download = async (url, filename) => {
     setBusy(true);
@@ -61,6 +65,7 @@ export default function DataManagement() {
       const { data } = await api.post(`/data/import-commit/${wizard.jenis}`, { rows: validRows });
       toast.success(`${data.imported} baris berhasil diimpor`);
       setWizard(null);
+      loadHistory();
     } catch (err) { toast.error(apiError(err.response?.data?.detail)); }
     finally { setBusy(false); }
   };
@@ -127,6 +132,21 @@ export default function DataManagement() {
           <Button className="w-full mt-4" variant="danger" disabled={busy} onClick={() => restoreRef.current?.click()} data-testid="restore-btn"><RotateCcw size={16} /> Pilih File Backup</Button>
         </Card>
       </div>
+
+      <Card className="p-5 sm:p-6">
+        <div className="flex items-center gap-2 text-slate-600 mb-4"><History size={18} className="text-emerald-600" /> Riwayat Import</div>
+        <Table
+          testid="import-history-table"
+          empty="Belum ada aktivitas import"
+          columns={[
+            { header: "Waktu", render: (r) => <span className="font-mono text-xs text-slate-500">{r.waktu?.slice(0, 19).replace("T", " ")}</span> },
+            { header: "Oleh", render: (r) => <div><div className="font-semibold text-sm">{r.user_nama}</div><div className="text-xs text-slate-400">{r.user_kode}</div></div> },
+            { header: "Jenis", render: (r) => <Pill tone="gold">{(r.aktivitas || "").replace("Import data: ", "")}</Pill> },
+            { header: "Jumlah Baris", render: (r) => <span className="font-mono font-semibold">{r.data_sesudah?.jumlah ?? "—"}</span> },
+          ]}
+          rows={history}
+        />
+      </Card>
 
       {wizard && <ImportWizardModal wizard={wizard} busy={busy} onClose={() => setWizard(null)} onCommit={commitImport} />}
       {restoreFile && (

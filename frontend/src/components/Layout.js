@@ -2,7 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Trophy, History, ShieldCheck, ScrollText, ClipboardList,
-  Target, Coins, MapPin, Users2, Database, LogOut, Menu, X, Wallet, Gift, ListChecks,
+  Target, Coins, MapPin, Users2, Database, LogOut, Menu, X, Wallet, Gift, ListChecks, GitCompare,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Select, Pill } from "./ui";
@@ -15,13 +15,14 @@ export const usePeriod = () => useContext(PeriodContext);
 const ICONS = {
   dashboard: LayoutDashboard, leaderboard: Trophy, riwayat: History, approval: ShieldCheck,
   audit: ScrollText, input: ClipboardList, target: Target, incentive: Coins, collection: MapPin,
-  users: Users2, data: Database, rekap: Wallet, myincentive: Gift, requests: ListChecks,
+  users: Users2, data: Database, rekap: Wallet, myincentive: Gift, requests: ListChecks, compare: GitCompare,
 };
 
 const MENUS = {
   "Direktur": [
     { to: "/executive", label: "Executive Dashboard", icon: "dashboard" },
     { to: "/leaderboard", label: "Ranking / Leaderboard", icon: "leaderboard" },
+    { to: "/compare", label: "Perbandingan AO", icon: "compare" },
     { to: "/riwayat", label: "Riwayat Performance", icon: "riwayat" },
     { to: "/approval", label: "Approval Center", icon: "approval" },
     { to: "/audit", label: "Audit Log", icon: "audit" },
@@ -33,6 +34,7 @@ const MENUS = {
     { to: "/incentives", label: "Perhitungan Insentif", icon: "incentive" },
     { to: "/collection", label: "Collection Activity", icon: "collection" },
     { to: "/leaderboard", label: "Ranking / Leaderboard", icon: "leaderboard" },
+    { to: "/compare", label: "Perbandingan AO", icon: "compare" },
     { to: "/riwayat", label: "Riwayat Performance", icon: "riwayat" },
     { to: "/users", label: "User Management", icon: "users" },
     { to: "/data", label: "Data Management", icon: "data" },
