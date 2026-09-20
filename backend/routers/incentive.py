@@ -109,12 +109,14 @@ async def approve_incentives(body: ApprovalBody, user=Depends(require_roles("Dir
     users = {str(u["_id"]): u for u in await db.users.find().to_list(500)}
     for iid in body.ids:
         inc = await db.incentive_settings.find_one({"_id": ObjectId(iid)})
+        if not inc:
+            continue
+        if inc.get("status_approval") in ("approved", "rejected"):
+            continue  # already decided; skip to avoid duplicate notifications
         await db.incentive_settings.update_one({"_id": ObjectId(iid)}, {"$set": {
             "status_approval": status, "approved_by": user["kode_marketing"],
             "approved_at": now_iso(), "reject_reason": body.reason,
         }})
-        if not inc:
-            continue
         u = users.get(inc.get("ao_id"))
         nama = u["nama"] if u else "-"
         kode = u["kode_marketing"] if u else None

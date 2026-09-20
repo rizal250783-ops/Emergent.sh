@@ -45,6 +45,16 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
   Buttons on Personal Dashboard and Riwayat (managers pick any AO; AO gets own).
 - Tested: backend 8/8 new + regression, frontend 5/5 features (iteration_2.json).
 
+## Iteration 3 (2026-06-20) — 4 features added
+- **Notifikasi Multi-Peran:** incentive approve/reject also notifies the affected AO (recipient_kode); Admin still
+  notified on reject. Notifications keyed by recipient_role and/or recipient_kode; bell shows for all roles.
+  Approve/reject now skips already-decided incentives to avoid duplicate notifications.
+- **Riwayat Import:** Data Management shows an import-history table (waktu/oleh/jenis/jumlah baris) from audit logs.
+- **Grafik PDF:** ao-pdf now embeds reportlab charts (achievement line + realisasi bar) above the history table.
+- **Perbandingan Antar-AO:** new /compare page (Direktur & Admin) — pick 2-3 AOs, side-by-side KPI cards +
+  combined achievement trend line chart. Backend /compare de-duplicates ids, caps at 3. Chart Y-axis clamped to 300%.
+- Tested: backend 11/11 new (44/45 combined; 1 pre-existing dup-user legacy test), frontend 4/4 (iteration_3.json).
+
 ## Backlog / Next
 - P1: Per-jenis schema validation + preview/error-report for Data Import.
 - P1: Collection photo HEIC auto-convert edge cases; multi-photo compression >3MB.

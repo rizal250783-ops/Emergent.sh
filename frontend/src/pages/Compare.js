@@ -46,7 +46,8 @@ export default function Compare() {
       const row = { bulan: periodeLabel(m).split(" ")[0].slice(0, 3) };
       data.items.forEach((it, i) => {
         const r = it.riwayat.find((x) => x.bulan === m);
-        row[`ao${i}`] = r ? (r.achievement || 0) : 0;
+        const val = r ? (r.achievement || 0) : 0;
+        row[`ao${i}`] = Math.min(val, 300); // clamp for readable axis (extreme % from tiny targets)
       });
       trend.push(row);
     });
@@ -119,8 +120,8 @@ export default function Compare() {
               <LineChart data={trend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" vertical={false} />
                 <XAxis dataKey="bulan" tick={{ fontSize: 11, fill: "#64748b" }} />
-                <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10, fill: "#94a3b8" }} width={45} />
-                <Tooltip formatter={(v) => formatPct(v)} />
+                <YAxis tickFormatter={(v) => `${v}%`} tick={{ fontSize: 10, fill: "#94a3b8" }} width={45} domain={[0, 300]} />
+                <Tooltip formatter={(v) => (v >= 300 ? "≥300%" : formatPct(v))} />
                 <Legend />
                 {data.items.map((it, i) => (
                   <Line key={i} type="monotone" dataKey={`ao${i}`} name={it.user.nama} stroke={COLORS[i]} strokeWidth={2.5} dot={{ r: 3 }} />

@@ -1,0 +1,47 @@
+{
+  "summary": "Iter-3 testing focused on 4 new features (Notifikasi Multi-Peran, Riwayat Import, Grafik PDF, Perbandingan Antar-AO) + light regression. Backend pytest suite (11 new tests in test_iter3_features.py) 11/11 passing. Combined suite: 44/45 passing (1 pre-existing failure in backend_test.py::TestUserManagement::test_add_user_request_and_approve — 'T99' user already exists from prior runs; unrelated to iter-3). Frontend Playwright end-to-end: (1) Direktur approves → AO 003 notification panel shows 'Insentif Anda disetujui' with red badge; Direktur rejects → both Admin (002) sees 'Insentif ditolak Direktur' AND AO 003 sees 'Insentif Anda ditolak' via notif-bell / notif-panel. (2) Riwayat Import table (import-history-table) renders on Data Management with WAKTU / OLEH / JENIS / JUMLAH BARIS columns and populates immediately after a commit — verified 'RINTO', 'pencapaian_pembiayaan', jumlah_baris=1 appear. (3) Per-AO PDF returns application/pdf ~>10KB (backend test asserts >10KB confirming embedded charts). (4) Compare page (/compare) — compare-add-select adds up to 3 chips, compare-run-btn disabled with <2 selections, cards (compare-card-0/1) + 'Tren Achievement Bulanan' recharts LineChart render for 2 and 3 AOs; AO role receives 403.",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "/api/users/request-add", "issue": "Legacy test test_add_user_request_and_approve fails when kode_marketing 'T99' already exists from a prior run — either seed cleanup missing or endpoint returns 400 on duplicate without idempotent handling. Pre-existing, not iter-3."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Perbandingan Antar-AO — Tren Achievement chart", "issues": ["Y-axis tick can display extreme values like '10000%' when a month has ~0 target and non-zero realisasi (division inflates achievement). Not caused by iter-3 but very visible on this new chart. Consider clamping the achievement to a max (e.g., 500%) or using log/split axis in Compare only."]}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter3_features.py",
+    "/app/test_reports/pytest/iter3_results.xml"
+  ],
+  "action_items": [
+    "(Optional) Clamp / cap achievement % on the Compare trend chart so extreme months don't blow the Y-axis to 10000%.",
+    "(Optional / pre-existing) Make backend_test.py::TestUserManagement idempotent, or have /users/request-add return the existing pending request on duplicate."
+  ],
+  "critical_code_review_comments": [
+    "routers/notifications.py _filter uses recipient_role OR recipient_kode. A user whose kode_marketing happens to match another jabatan string would leak — currently impossible (kodes are numeric, roles are text), so acceptable.",
+    "routers/incentive.py approve_incentives iterates ids sequentially with per-id update+notify but never checks if the incentive was already approved/rejected — a duplicate submit could re-notify. Consider skipping if status_approval already terminal.",
+    "routers/views.py /compare truncates to 3 with ids[:3] but does not de-duplicate. Sending 'a,a,b' would compare AO 'a' twice. Consider list(dict.fromkeys(ids))[:3].",
+    "routers/data_mgmt.py /data/import-history returns raw audit_logs entries; the shape (aktivitas, data_sesudah.jumlah, user_nama, waktu) is coupled to display code. Consider a dedicated projection to decouple.",
+    "pages/Compare.js periodeLabel(...).split(' ')[0].slice(0,3) is fragile if periode formatting ever changes; use a date library or a dedicated month formatter.",
+    "Compare chart doesn't handle single-item riwayat well — line disappears; consider dot=true for 1-point series.",
+    "NotificationBell polling is 30s only; adding a re-fetch on window focus would improve UX (already noted in iter-2)."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter3_features.py",
+    "/app/test_reports/iteration_3.json"
+  ],
+  "success_rate": {
+    "backend": "100% (11/11 new + 33/34 legacy — 1 pre-existing dup-user test)",
+    "frontend": "4/4 iter-3 features exercised end-to-end via Playwright"
+  },
+  "test_credentials": "kode_marketing + password 'BprsHM2026' (requires_password_reset=true on first login → change to 'NewPass2026' in tests). Reset via /app/backend/tests/_reset_pw.py before/after each module.",
+  "seed_data_creation": "test_iter3_features.py: NTF-* lending rows and 2 incentives per test, HIST-1 import. Playwright: UI-NTF-410000/420000 incentives, UI-HIST-99 import. Passwords reset to pristine at module setup/teardown.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "All iter-3 features working. Two script-level gotchas to avoid: (a) after UI login the sonner welcome toast appears in top-right and can intercept force=True clicks on the notification bell — wait 4-5s after login OR use plain .click() rather than force=True. (b) When testing notif-panel, don't rely on force=True: the outside-click handler in NotificationBell.js closes the panel if a force-click bypasses layering. Regular .click() with a small settle-wait works. Compare page's Y-axis showing 10000% is a data-shape edge case (target=0, realisasi>0 on some months); consider clamping in a follow-up.",
+  "rca of the issue": "N/A — no functional bugs. Only cosmetic finding: Compare trend chart Y-axis can spike to 10000% when a per-AO monthly target is 0 with non-zero realisasi (division blowing up); appears because /riwayat returns raw achievement %. Mitigation: cap achievement at 500% (or null when target=0) in build_riwayat for Compare, or use max-clamped domain on the LineChart's YAxis."
+}

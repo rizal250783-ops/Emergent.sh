@@ -69,7 +69,8 @@ async def leaderboard(komponen: str = "Pembiayaan", periode: Optional[str] = Non
 @router.get("/compare")
 async def compare(ao_ids: str, periode: Optional[str] = None, user=Depends(require_roles("Direktur", "Admin"))):
     periode = periode or current_periode()
-    ids = [x for x in ao_ids.split(",") if x][:3]
+    ids = [x for x in ao_ids.split(",") if x]
+    ids = list(dict.fromkeys(ids))[:3]
     if len(ids) < 2:
         raise HTTPException(status_code=400, detail="Pilih minimal 2 AO untuk dibandingkan")
     result = []
