@@ -44,7 +44,11 @@ def periode_label(p):
 async def ao_pdf(ao_id: str, periode: str, user=Depends(get_current_user)):
     if user["jabatan"] not in ("Admin", "Direktur") and str(user["_id"]) != ao_id:
         raise HTTPException(status_code=403, detail="Akses ditolak")
-    target = await db.users.find_one({"_id": ObjectId(ao_id)})
+    try:
+        oid = ObjectId(ao_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID AO tidak valid")
+    target = await db.users.find_one({"_id": oid})
     if not target:
         raise HTTPException(status_code=404, detail="AO tidak ditemukan")
 

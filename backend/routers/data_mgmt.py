@@ -233,9 +233,14 @@ async def import_commit(jenis: str, payload: dict, user=Depends(admin_only)):
     if jenis not in IMPORT_SCHEMAS:
         raise HTTPException(status_code=400, detail="Jenis import tidak dikenal")
     coll, schema, _ = IMPORT_SCHEMAS[jenis]
-    rows = payload.get("rows", [])
-    if not rows:
+    submitted = payload.get("rows", [])
+    if not submitted:
         raise HTTPException(status_code=400, detail="Tidak ada baris valid untuk diimpor")
+    # Re-validate server-side (never trust client-resolved ids)
+    validated = await _validate_rows(jenis, submitted)
+    rows = [v["data"] for v in validated if v["valid"]]
+    if not rows:
+        raise HTTPException(status_code=400, detail="Tidak ada baris yang lolos validasi ulang")
     docs = []
     affected_recovery = set()
     for r in rows:
@@ -291,9 +296,10 @@ async def restore(file: UploadFile = File(...), user=Depends(admin_only)):
     except Exception:
         snap_path = None
 
-    # preserve current user passwords by _id
-    current_pw = {str(u["_id"]): (u.get("password_hash"), u.get("requires_password_reset", True))
-                  for u in await db.users.find().to_list(500)}
+    # preserve current user passwords by _id and by kode_marketing (cross-env fallback)
+    cur_users = await db.users.find().to_list(500)
+    current_pw = {str(u["_id"]): (u.get("password_hash"), u.get("requires_password_reset", True)) for u in cur_users}
+    current_pw_by_kode = {u.get("kode_marketing"): (u.get("password_hash"), u.get("requires_password_reset", True)) for u in cur_users}
     default_pw = hash_password(__import__("os").environ.get("DEFAULT_USER_PASSWORD", "BprsHM2026"))
 
     restored = {}
@@ -311,10 +317,12 @@ async def restore(file: UploadFile = File(...), user=Depends(admin_only)):
                     pass
             if coll == "users":
                 key = str(d.get("_id"))
-                pw, req = current_pw.get(key, (None, True))
+                pw, req = current_pw.get(key, (None, None))
+                if pw is None:
+                    pw, req = current_pw_by_kode.get(d.get("kode_marketing"), (None, True))
                 d["password_hash"] = pw or default_pw
                 if "requires_password_reset" not in d:
-                    d["requires_password_reset"] = req
+                    d["requires_password_reset"] = req if req is not None else True
             prepared.append(d)
         await db[coll].delete_many({})
         if prepared:

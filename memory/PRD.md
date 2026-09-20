@@ -33,6 +33,18 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 ## Testing
 - Backend 26/26 pytest passing. Frontend Playwright flows 100% passing (iteration_1.json).
 
+## Iteration 2 (2026-06-20) — 4 features added
+- **Import Wizard:** /data/import-preview + /data/import-commit. Accepts .xlsx/.csv/.json; per-row schema
+  validation with clear error messages; preview modal shows valid/error badges + counts; only valid rows commit.
+  Commit re-validates server-side (ignores client-sent resolved ids).
+- **Notifikasi Insentif:** notifications collection + bell in topbar (unread badge, mark-read). Rejecting an
+  incentive (Direktur) auto-creates an Admin notification with AO/period/amount + reason.
+- **Restore Database:** /data/restore uploads a backup JSON, auto-snapshots current DB to object storage first,
+  then replaces collections; user passwords preserved (match by _id then kode_marketing).
+- **Ekspor PDF Rekap:** /reports/ao-pdf/{ao_id} (reportlab) — branded per-AO PDF with KPI + monthly history.
+  Buttons on Personal Dashboard and Riwayat (managers pick any AO; AO gets own).
+- Tested: backend 8/8 new + regression, frontend 5/5 features (iteration_2.json).
+
 ## Backlog / Next
 - P1: Per-jenis schema validation + preview/error-report for Data Import.
 - P1: Collection photo HEIC auto-convert edge cases; multi-photo compression >3MB.
