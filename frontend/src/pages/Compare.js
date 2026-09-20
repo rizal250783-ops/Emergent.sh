@@ -12,6 +12,7 @@ export default function Compare() {
   const { periode } = usePeriod();
   const [users, setUsers] = useState([]);
   const [picked, setPicked] = useState([]);
+  const [komponen, setKomponen] = useState("");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -28,7 +29,8 @@ export default function Compare() {
   const runCompare = () => {
     if (picked.length < 2) return toast.error("Pilih minimal 2 AO");
     setLoading(true);
-    api.get(`/compare?ao_ids=${picked.join(",")}&periode=${periode}`)
+    const kq = komponen ? `&komponen=${komponen}` : "";
+    api.get(`/compare?ao_ids=${picked.join(",")}&periode=${periode}${kq}`)
       .then(({ data }) => setData(data))
       .catch((e) => toast.error(apiError(e.response?.data?.detail)))
       .finally(() => setLoading(false));
@@ -63,6 +65,14 @@ export default function Compare() {
             <Select label="Tambah AO (maks 3)" onChange={(e) => { addAO(e.target.value); e.target.value = ""; }} data-testid="compare-add-select" defaultValue="">
               <option value="" disabled>Pilih AO…</option>
               {users.filter((u) => !picked.includes(u.id)).map((u) => <option key={u.id} value={u.id}>{u.kode_marketing} · {u.nama} ({u.jabatan})</option>)}
+            </Select>
+          </div>
+          <div className="w-full sm:w-52">
+            <Select label="Komponen" value={komponen} onChange={(e) => setKomponen(e.target.value)} data-testid="compare-komponen-select">
+              <option value="">Semua (sesuai peran)</option>
+              <option value="Pembiayaan">Pembiayaan</option>
+              <option value="Funding">Funding</option>
+              <option value="Recovery">Recovery (Kol.3)</option>
             </Select>
           </div>
           <Button onClick={runCompare} disabled={picked.length < 2} data-testid="compare-run-btn"><GitCompare size={16} /> Bandingkan</Button>

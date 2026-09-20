@@ -5,7 +5,7 @@ from typing import Optional
 
 from database import db, clean, now_iso, write_audit
 from security import require_roles, get_current_user
-from calc import recompute_collection_incentives
+from calc import recompute_collection_incentives, check_target_notifications
 
 router = APIRouter(tags=["admin"])
 admin_only = require_roles("Admin")
@@ -43,6 +43,7 @@ async def create_lending(body: LendingBody, user=Depends(admin_only)):
     doc["input_by"] = user["kode_marketing"]
     doc["created_at"] = now_iso()
     res = await db.lending_achievement_details.insert_one(doc)
+    await check_target_notifications(body.ao_id, doc["periode"])
     await write_audit(user, "Input transaksi pembiayaan", sesudah={"nomor_kontrak": body.nomor_kontrak, "jumlah": body.jumlah_pencairan})
     return {"id": str(res.inserted_id)}
 
@@ -82,6 +83,7 @@ async def create_funding(body: FundingBody, user=Depends(admin_only)):
     doc["input_by"] = user["kode_marketing"]
     doc["created_at"] = now_iso()
     res = await db.funding_achievement_details.insert_one(doc)
+    await check_target_notifications(body.ao_id, doc["periode"])
     await write_audit(user, "Input transaksi funding", sesudah={"nasabah": body.nama_nasabah, "jumlah": body.jumlah_simpanan})
     return {"id": str(res.inserted_id)}
 
@@ -129,6 +131,7 @@ async def create_recovery(body: RecoveryBody, user=Depends(admin_only)):
     doc["created_at"] = now_iso()
     res = await db.recovery_achievement_details.insert_one(doc)
     await recompute_collection_incentives(body.pic_id, doc["periode"], user["kode_marketing"])
+    await check_target_notifications(body.pic_id, doc["periode"])
     await write_audit(user, "Input transaksi recovery", sesudah={"nomor_kontrak": body.nomor_kontrak, "kol": body.kolektibilitas, "wo": body.is_write_off, "jumlah": body.jumlah_recovery})
     return {"id": str(res.inserted_id)}
 
@@ -172,6 +175,7 @@ async def upsert_target(body: TargetBody, user=Depends(admin_only)):
     await db.targets.update_one({"ao_id": body.ao_id, "periode": body.periode}, {"$set": data}, upsert=True)
     # recompute kol3 incentive when recovery target changes
     await recompute_collection_incentives(body.ao_id, body.periode, user["kode_marketing"])
+    await check_target_notifications(body.ao_id, body.periode)
     await write_audit(user, "Set/Edit target", sebelum=clean(old) if old else None, sesudah=data)
     return {"message": "Target disimpan"}
 

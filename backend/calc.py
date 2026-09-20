@@ -1,3 +1,5 @@
+from bson import ObjectId
+
 from database import db, now_iso
 
 # Fixed incentive percentages (Bagian 8.1)
@@ -160,6 +162,89 @@ async def build_riwayat(ao_id, jabatan):
             res = compute_achievement(real, t.get("target_recovery", 0))
             result.append({"bulan": periode, "target": t.get("target_recovery", 0), "realisasi": real, **res})
     return result
+
+
+# ---------- component-specific helpers (for Perbandingan AO filter) ----------
+COMPONENT_MAP = {
+    "Pembiayaan": (sum_lending, "target_pencairan", ["AO Pembiayaan"]),
+    "Funding": (sum_funding, "target_funding", ["AO Pembiayaan", "AO Funding"]),
+    "Recovery": (sum_recovery_kol3, "target_recovery", ["Collection & Remedial"]),
+}
+
+
+async def component_kpi(user, komponen, periode):
+    sumfn, tkey, roles = COMPONENT_MAP[komponen]
+    ao_id = str(user["_id"])
+    if user["jabatan"] not in roles:
+        return {"komponen": komponen, "realisasi": 0, "target": 0, "achievement": None, "status": "na", "note": "Tidak berlaku"}
+    real = await sumfn(ao_id, periode)
+    t = await get_target(ao_id, periode)
+    return {"komponen": komponen, "realisasi": real, "target": t.get(tkey, 0), **compute_achievement(real, t.get(tkey, 0))}
+
+
+async def build_component_riwayat(ao_id, komponen, jabatan):
+    from datetime import date
+    sumfn, tkey, roles = COMPONENT_MAP[komponen]
+    months = []
+    y, m = 2026, 1
+    today = date.today()
+    while (y, m) <= (today.year, today.month):
+        months.append(f"{y:04d}-{m:02d}")
+        m += 1
+        if m > 12:
+            m = 1
+            y += 1
+    result = []
+    applicable = jabatan in roles
+    for periode in months:
+        if not applicable:
+            result.append({"bulan": periode, "target": 0, "realisasi": 0, "achievement": None, "status": "na", "note": "Tidak berlaku"})
+            continue
+        real = await sumfn(ao_id, periode)
+        t = await get_target(ao_id, periode)
+        result.append({"bulan": periode, "target": t.get(tkey, 0), "realisasi": real, **compute_achievement(real, t.get(tkey, 0))})
+    return result
+
+
+# ---------- target milestone notifications ----------
+async def check_target_notifications(ao_id, periode):
+    """Notify the AO when a component crosses 90% (mendekati) or 100% (tercapai) for a period."""
+    from database import write_notification
+    user = await db.users.find_one({"_id": ObjectId(ao_id)})
+    if not user:
+        return
+    kode = user["kode_marketing"]
+    per_label = periode
+    rank = {"mendekati": 1, "tercapai": 2}
+    for komponen, (sumfn, tkey, roles) in COMPONENT_MAP.items():
+        if user["jabatan"] not in roles:
+            continue
+        real = await sumfn(ao_id, periode)
+        t = await get_target(ao_id, periode)
+        res = compute_achievement(real, t.get(tkey, 0))
+        ach = res["achievement"]
+        if ach is None:
+            continue
+        milestone = "tercapai" if ach >= 100 else ("mendekati" if ach >= 90 else None)
+        if not milestone:
+            continue
+        state = await db.target_notify_state.find_one({"ao_id": ao_id, "periode": periode, "komponen": komponen})
+        prev = state["milestone"] if state else None
+        if prev and rank.get(prev, 0) >= rank[milestone]:
+            continue
+        if milestone == "tercapai":
+            judul = f"Target {komponen} tercapai!"
+            pesan = f"Selamat! Pencapaian {komponen} Anda periode {per_label} sudah {ach:.0f}% dari target. Pertahankan!"
+        else:
+            judul = f"Hampir capai target {komponen}"
+            pesan = f"Pencapaian {komponen} Anda periode {per_label} sudah {ach:.0f}% — sedikit lagi menuju 100%!"
+        await write_notification("target_progress", judul, pesan, recipient_kode=kode,
+                                 ref={"komponen": komponen, "periode": periode, "achievement": ach})
+        await db.target_notify_state.update_one(
+            {"ao_id": ao_id, "periode": periode, "komponen": komponen},
+            {"$set": {"milestone": milestone, "updated_at": now_iso()}}, upsert=True,
+        )
+
 
 
 async def recompute_collection_incentives(pic_id, periode, actor):

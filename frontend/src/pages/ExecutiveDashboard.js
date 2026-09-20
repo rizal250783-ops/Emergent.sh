@@ -1,19 +1,34 @@
 import React, { useEffect, useState } from "react";
-import { TrendingUp, PiggyBank, HandCoins, Users2, Clock, Trophy } from "lucide-react";
+import { toast } from "sonner";
+import { TrendingUp, PiggyBank, HandCoins, Users2, Clock, Trophy, FileDown } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, BarChart, Bar, CartesianGrid, Legend } from "recharts";
 import { api, formatRp, formatRpShort, formatPct, periodeLabel } from "../lib/api";
 import { usePeriod } from "../components/Layout";
-import { Card, KpiCard, Spinner, SectionTitle, Table, StatusBadge, Pill } from "../components/ui";
+import { Card, KpiCard, Spinner, SectionTitle, Table, StatusBadge, Pill, Button } from "../components/ui";
 
 export default function ExecutiveDashboard() {
   const { periode } = usePeriod();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [pdfBusy, setPdfBusy] = useState(false);
 
   useEffect(() => {
     setLoading(true);
     api.get(`/dashboard/executive?periode=${periode}`).then(({ data }) => setData(data)).finally(() => setLoading(false));
   }, [periode]);
+
+  const downloadTeamPdf = async () => {
+    setPdfBusy(true);
+    try {
+      const res = await api.get(`/reports/team-pdf?periode=${periode}`, { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url; a.download = `Laporan_Tim_${periode}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success("Laporan Tim PDF diunduh");
+    } catch (e) { toast.error("Gagal membuat PDF"); }
+    finally { setPdfBusy(false); }
+  };
 
   if (loading || !data) return <Spinner />;
 
@@ -32,7 +47,10 @@ export default function ExecutiveDashboard() {
 
   return (
     <div className="space-y-6">
-      <SectionTitle sub={`Ringkasan bank-wide · ${periodeLabel(periode)}`}>Executive Dashboard</SectionTitle>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <SectionTitle sub={`Ringkasan bank-wide · ${periodeLabel(periode)}`}>Executive Dashboard</SectionTitle>
+        <Button variant="outline" onClick={downloadTeamPdf} disabled={pdfBusy} data-testid="team-pdf-btn"><FileDown size={16} /> {pdfBusy ? "Menyiapkan…" : "Laporan Tim PDF"}</Button>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
         <KpiCard label="Total Pembiayaan" formatRp={formatRp} icon={<TrendingUp className="text-emerald-600" size={20} />} {...data.pembiayaan} />

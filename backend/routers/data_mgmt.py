@@ -11,7 +11,7 @@ from openpyxl import Workbook, load_workbook
 
 from database import db, clean, now_iso, write_audit
 from security import require_roles, hash_password
-from calc import recompute_collection_incentives
+from calc import recompute_collection_incentives, check_target_notifications
 from storage import put_object
 
 router = APIRouter(prefix="/data", tags=["data-management"])
@@ -272,6 +272,12 @@ async def import_commit(jenis: str, payload: dict, user=Depends(admin_only)):
 
     for uid, periode in affected_recovery:
         await recompute_collection_incentives(uid, periode, user["kode_marketing"])
+
+    # target milestone notifications for affected (ao_id/pic_id, periode)
+    affected = {(d.get("ao_id") or d.get("pic_id"), d.get("periode")) for d in docs}
+    for uid, periode in affected:
+        if uid and periode:
+            await check_target_notifications(uid, periode)
 
     await write_audit(user, f"Import data: {jenis}", sesudah={"jumlah": len(docs)})
     return {"success": True, "imported": len(docs)}

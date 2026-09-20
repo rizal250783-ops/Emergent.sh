@@ -25,15 +25,17 @@ export default function PersonalDashboard() {
 
   if (loading || !data) return <Spinner />;
 
-  const downloadPdf = async () => {
+  const downloadFile = async (kind) => {
     try {
-      const res = await api.get(`/reports/ao-pdf/${user.id}?periode=${periode}`, { responseType: "blob" });
+      const ext = kind === "excel" ? "xlsx" : "pdf";
+      const ep = kind === "excel" ? "ao-excel" : "ao-pdf";
+      const res = await api.get(`/reports/${ep}/${user.id}?periode=${periode}`, { responseType: "blob" });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a");
-      a.href = url; a.download = `Rekap_${periode}.pdf`; a.click();
+      a.href = url; a.download = `Rekap_${periode}.${ext}`; a.click();
       URL.revokeObjectURL(url);
-      toast.success("PDF diunduh");
-    } catch (e) { toast.error("Gagal membuat PDF"); }
+      toast.success(`${ext.toUpperCase()} diunduh`);
+    } catch (e) { toast.error("Gagal membuat file"); }
   };
 
   return (
@@ -45,9 +47,14 @@ export default function PersonalDashboard() {
             <h1 className="font-heading text-3xl font-extrabold mt-1">{user.nama}</h1>
             <div className="mt-2 text-emerald-50/90">{user.jabatan} · Kode {user.kode_marketing} · {periodeLabel(periode)}</div>
           </div>
-          <button onClick={downloadPdf} data-testid="download-pdf-btn" className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 text-sm font-semibold transition-colors">
-            <FileDown size={16} /> Rekap PDF
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+            <button onClick={() => downloadFile("pdf")} data-testid="download-pdf-btn" className="inline-flex items-center gap-2 rounded-xl bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 text-sm font-semibold transition-colors">
+              <FileDown size={16} /> PDF
+            </button>
+            <button onClick={() => downloadFile("excel")} data-testid="download-excel-btn" className="inline-flex items-center gap-2 rounded-xl bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 text-sm font-semibold transition-colors">
+              <FileDown size={16} /> Excel
+            </button>
+          </div>
         </div>
         <div className="absolute -bottom-16 -right-10 h-56 w-56 rounded-full bg-gold-500/20 blur-3xl" />
       </div>

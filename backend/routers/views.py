@@ -8,7 +8,8 @@ from pydantic import BaseModel
 from database import db, clean, now_iso, write_audit
 from security import get_current_user, require_roles
 from calc import (build_kpis, build_leaderboard, build_riwayat, sum_lending,
-                  sum_funding, sum_recovery_kol3, get_target, compute_achievement)
+                  sum_funding, sum_recovery_kol3, get_target, compute_achievement,
+                  component_kpi, build_component_riwayat)
 
 router = APIRouter(tags=["views"])
 
@@ -67,12 +68,15 @@ async def leaderboard(komponen: str = "Pembiayaan", periode: Optional[str] = Non
 
 # ---------- compare AOs ----------
 @router.get("/compare")
-async def compare(ao_ids: str, periode: Optional[str] = None, user=Depends(require_roles("Direktur", "Admin"))):
+async def compare(ao_ids: str, periode: Optional[str] = None, komponen: Optional[str] = None,
+                  user=Depends(require_roles("Direktur", "Admin"))):
     periode = periode or current_periode()
     ids = [x for x in ao_ids.split(",") if x]
     ids = list(dict.fromkeys(ids))[:3]
     if len(ids) < 2:
         raise HTTPException(status_code=400, detail="Pilih minimal 2 AO untuk dibandingkan")
+    if komponen and komponen not in ("Pembiayaan", "Funding", "Recovery"):
+        raise HTTPException(status_code=400, detail="Komponen tidak valid")
     result = []
     for aid in ids:
         try:
@@ -81,10 +85,14 @@ async def compare(ao_ids: str, periode: Optional[str] = None, user=Depends(requi
             u = None
         if not u:
             continue
-        kpis = await build_kpis(u, periode)
-        riwayat = await build_riwayat(aid, u["jabatan"])
+        if komponen:
+            kpis = [await component_kpi(u, komponen, periode)]
+            riwayat = await build_component_riwayat(aid, komponen, u["jabatan"])
+        else:
+            kpis = await build_kpis(u, periode)
+            riwayat = await build_riwayat(aid, u["jabatan"])
         result.append({"user": clean(u), "kpis": kpis, "riwayat": riwayat})
-    return {"periode": periode, "items": result}
+    return {"periode": periode, "komponen": komponen, "items": result}
 
 
 

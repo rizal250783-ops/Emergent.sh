@@ -19,17 +19,19 @@ export default function Riwayat() {
 
   const targetId = isManager ? selected : user.id;
 
-  const downloadPdf = async () => {
+  const downloadFile = async (kind) => {
     if (!targetId) return;
     setPdfBusy(true);
     try {
-      const res = await api.get(`/reports/ao-pdf/${targetId}?periode=${periode}`, { responseType: "blob" });
+      const ext = kind === "excel" ? "xlsx" : "pdf";
+      const ep = kind === "excel" ? "ao-excel" : "ao-pdf";
+      const res = await api.get(`/reports/${ep}/${targetId}?periode=${periode}`, { responseType: "blob" });
       const url = URL.createObjectURL(res.data);
       const a = document.createElement("a");
-      a.href = url; a.download = `Rekap_${periode}.pdf`; a.click();
+      a.href = url; a.download = `Rekap_${periode}.${ext}`; a.click();
       URL.revokeObjectURL(url);
-      toast.success("PDF diunduh");
-    } catch (e) { toast.error("Gagal membuat PDF"); }
+      toast.success(`${ext.toUpperCase()} diunduh`);
+    } catch (e) { toast.error("Gagal membuat file"); }
     finally { setPdfBusy(false); }
   };
 
@@ -67,7 +69,10 @@ export default function Riwayat() {
     <div className="space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-3">
         <SectionTitle sub="Histori bulanan sejak Januari 2026">Riwayat Performance Bulanan</SectionTitle>
-        <Button variant="outline" onClick={downloadPdf} disabled={pdfBusy || !targetId} data-testid="download-pdf-btn"><FileDown size={16} /> {pdfBusy ? "Menyiapkan…" : "Unduh Rekap PDF"}</Button>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={() => downloadFile("pdf")} disabled={pdfBusy || !targetId} data-testid="download-pdf-btn"><FileDown size={16} /> PDF</Button>
+          <Button variant="subtle" onClick={() => downloadFile("excel")} disabled={pdfBusy || !targetId} data-testid="download-excel-btn"><FileDown size={16} /> Excel</Button>
+        </div>
       </div>
 
       {isManager && (

@@ -16,8 +16,8 @@ from reportlab.graphics.charts.barcharts import VerticalBarChart
 from reportlab.graphics.charts.textlabels import Label
 
 from database import db
-from security import get_current_user
-from calc import build_kpis, build_riwayat
+from security import get_current_user, require_roles
+from calc import build_kpis, build_riwayat, build_leaderboard, compute_achievement
 
 router = APIRouter(prefix="/reports", tags=["reports"])
 
@@ -213,4 +213,147 @@ async def ao_pdf(ao_id: str, periode: str, user=Depends(get_current_user)):
     buf.seek(0)
     fname = f"Rekap_{target['kode_marketing']}_{periode}.pdf"
     return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f"attachment; filename={fname}"})
+
+
+
+def _summary_table(title, komponen, rows):
+    head = ["#", "Nama", "Kode", "Target", "Realisasi", "Ach.", "Status"]
+    data = [head]
+    for r in rows:
+        ach = "N/A" if r["achievement"] is None else f"{r['achievement']:.0f}%"
+        data.append([str(r.get("ranking", "-")), r["nama"], r["kode_marketing"],
+                     rupiah(r["target"]), rupiah(r["realisasi"]), ach, STATUS_ID.get(r["status"], "-")])
+    if len(data) == 1:
+        data.append(["-", "Belum ada data", "-", "-", "-", "-", "-"])
+    t = Table(data, colWidths=[8 * mm, 42 * mm, 16 * mm, 34 * mm, 34 * mm, 16 * mm, 28 * mm])
+    t.setStyle(TableStyle([
+        ("BACKGROUND", (0, 0), (-1, 0), EMERALD),
+        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+        ("FONTSIZE", (0, 0), (-1, -1), 8),
+        ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+        ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#E2E8F0")),
+        ("TOPPADDING", (0, 0), (-1, -1), 3), ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+        ("ALIGN", (3, 0), (-1, -1), "CENTER"),
+    ]))
+    return t
+
+
+@router.get("/team-pdf")
+async def team_pdf(periode: str, user=Depends(require_roles("Direktur", "Admin"))):
+    styles = getSampleStyleSheet()
+    sec = ParagraphStyle("sec", parent=styles["Heading2"], textColor=EMERALD, fontSize=13, spaceBefore=10, spaceAfter=6)
+    small = ParagraphStyle("small", parent=styles["Normal"], fontSize=9, textColor=colors.HexColor("#64748b"))
+    white = ParagraphStyle("white", parent=styles["Normal"], fontSize=9, textColor=colors.white)
+
+    total_pencairan = sum(d["jumlah_pencairan"] for d in await db.lending_achievement_details.find({"periode": periode}).to_list(5000))
+    total_funding = sum(d["jumlah_simpanan"] for d in await db.funding_achievement_details.find({"periode": periode}).to_list(5000))
+    rec_docs = await db.recovery_achievement_details.find({"periode": periode}).to_list(5000)
+    total_recovery = sum(d["jumlah_recovery"] for d in rec_docs if d.get("kolektibilitas") == 3 and not d.get("is_write_off"))
+    targets = await db.targets.find({"periode": periode}).to_list(500)
+    tp = sum(t.get("target_pencairan", 0) or 0 for t in targets)
+    tf = sum(t.get("target_funding", 0) or 0 for t in targets)
+    tr = sum(t.get("target_recovery", 0) or 0 for t in targets)
+
+    lb_p = await build_leaderboard("Pembiayaan", periode)
+    lb_f = await build_leaderboard("Funding", periode)
+    lb_r = await build_leaderboard("Recovery", periode)
+
+    buf = io.BytesIO()
+    doc = SimpleDocTemplate(buf, pagesize=A4, topMargin=16 * mm, bottomMargin=14 * mm,
+                            leftMargin=14 * mm, rightMargin=14 * mm, title=f"Laporan Tim {periode}")
+    elems = []
+    logo = Image(LOGO_PATH, width=16 * mm, height=16 * mm) if os.path.exists(LOGO_PATH) else ""
+    header = Table([[logo, [
+        Paragraph("<b>PT BPRS HAJI MISKIN</b>", ParagraphStyle("t", parent=styles["Normal"], fontSize=13, textColor=colors.white)),
+        Paragraph(f"AO-360 · Laporan Tim (Rapat Manajemen) · {periode_label(periode)}", white),
+    ]]], colWidths=[20 * mm, 162 * mm])
+    header.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, -1), EMERALD_DARK), ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                                ("LEFTPADDING", (0, 0), (-1, -1), 8), ("TOPPADDING", (0, 0), (-1, -1), 8), ("BOTTOMPADDING", (0, 0), (-1, -1), 8)]))
+    elems.append(header)
+    elems.append(Spacer(1, 10))
+
+    # bank-wide summary
+    elems.append(Paragraph("Ringkasan Bank-Wide", sec))
+    def line(nm, real, tgt):
+        r = compute_achievement(real, tgt)
+        ach = "N/A" if r["achievement"] is None else f"{r['achievement']:.0f}%"
+        return [nm, rupiah(tgt), rupiah(real), ach, STATUS_ID.get(r["status"], "-")]
+    st = Table([["Komponen", "Total Target", "Total Realisasi", "Achievement", "Status"],
+                line("Pembiayaan", total_pencairan, tp), line("Funding", total_funding, tf), line("Recovery Kol.3", total_recovery, tr)],
+               colWidths=[45 * mm, 40 * mm, 40 * mm, 28 * mm, 29 * mm])
+    st.setStyle(TableStyle([("BACKGROUND", (0, 0), (-1, 0), EMERALD), ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"), ("FONTSIZE", (0, 0), (-1, -1), 9),
+                            ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, colors.HexColor("#F8FAFC")]),
+                            ("GRID", (0, 0), (-1, -1), 0.3, colors.HexColor("#E2E8F0")),
+                            ("ALIGN", (1, 0), (-1, -1), "CENTER"), ("TOPPADDING", (0, 0), (-1, -1), 5), ("BOTTOMPADDING", (0, 0), (-1, -1), 5)]))
+    elems.append(st)
+
+    elems.append(Paragraph("Ranking Pembiayaan", sec)); elems.append(_summary_table("Pembiayaan", "Pembiayaan", lb_p))
+    elems.append(Paragraph("Ranking Funding", sec)); elems.append(_summary_table("Funding", "Funding", lb_f))
+    elems.append(Paragraph("Ranking Recovery (Kol.3)", sec)); elems.append(_summary_table("Recovery", "Recovery", lb_r))
+    elems.append(Spacer(1, 12))
+    elems.append(Paragraph(f"Dicetak oleh {user['nama']} ({user['jabatan']}) · AO-360 PT BPRS Haji Miskin", small))
+
+    doc.build(elems)
+    buf.seek(0)
+    return StreamingResponse(buf, media_type="application/pdf",
+                             headers={"Content-Disposition": f"attachment; filename=Laporan_Tim_{periode}.pdf"})
+
+
+@router.get("/ao-excel/{ao_id}")
+async def ao_excel(ao_id: str, periode: str, user=Depends(get_current_user)):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    if user["jabatan"] not in ("Admin", "Direktur") and str(user["_id"]) != ao_id:
+        raise HTTPException(status_code=403, detail="Akses ditolak")
+    try:
+        oid = ObjectId(ao_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="ID AO tidak valid")
+    target = await db.users.find_one({"_id": oid})
+    if not target:
+        raise HTTPException(status_code=404, detail="AO tidak ditemukan")
+
+    kpis = await build_kpis(target, periode)
+    riwayat = await build_riwayat(ao_id, target["jabatan"])
+
+    wb = Workbook()
+    head_fill = PatternFill("solid", fgColor="047857")
+    head_font = Font(bold=True, color="FFFFFF")
+
+    ws = wb.active
+    ws.title = "Ringkasan"
+    ws["A1"] = "PT BPRS HAJI MISKIN — Rekap Pencapaian AO"
+    ws["A1"].font = Font(bold=True, size=13, color="064E3B")
+    ws["A2"] = f"Nama: {target['nama']}"
+    ws["A3"] = f"Kode: {target['kode_marketing']}  |  Jabatan: {target['jabatan']}  |  Periode: {periode_label(periode)}"
+    hdr = ["Komponen", "Target", "Realisasi", "Achievement (%)", "Status"]
+    ws.append([])
+    ws.append(hdr)
+    for i, c in enumerate(hdr, 1):
+        cell = ws.cell(row=5, column=i); cell.fill = head_fill; cell.font = head_font
+    for k in kpis:
+        ws.append([k["komponen"], k["target"], k["realisasi"],
+                   ("N/A" if k["achievement"] is None else k["achievement"]), STATUS_ID.get(k["status"], "-")])
+    for col in "ABCDE":
+        ws.column_dimensions[col].width = 20
+
+    ws2 = wb.create_sheet("Riwayat Bulanan")
+    rhdr = ["Bulan", "Target", "Realisasi", "Achievement (%)", "Status"]
+    ws2.append(rhdr)
+    for i, c in enumerate(rhdr, 1):
+        cell = ws2.cell(row=1, column=i); cell.fill = head_fill; cell.font = head_font
+    for r in riwayat:
+        ws2.append([periode_label(r["bulan"]), r["target"], r["realisasi"],
+                    ("N/A" if r["achievement"] is None else r["achievement"]), STATUS_ID.get(r["status"], "-")])
+    for col in "ABCDE":
+        ws2.column_dimensions[col].width = 20
+
+    buf = io.BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+    fname = f"Rekap_{target['kode_marketing']}_{periode}.xlsx"
+    return StreamingResponse(buf, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
                              headers={"Content-Disposition": f"attachment; filename={fname}"})
