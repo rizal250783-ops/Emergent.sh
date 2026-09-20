@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { TrendingUp, PiggyBank, HandCoins } from "lucide-react";
+import { toast } from "sonner";
+import { TrendingUp, PiggyBank, HandCoins, FileDown } from "lucide-react";
 import { api, formatRp, periodeLabel } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
 import { usePeriod } from "../components/Layout";
-import { KpiCard, Spinner, SectionTitle, Card } from "../components/ui";
+import { KpiCard, Spinner, SectionTitle, Card, Button } from "../components/ui";
 
 const ICON = {
   "Pembiayaan": <TrendingUp className="text-emerald-600" size={20} />,
@@ -24,13 +25,29 @@ export default function PersonalDashboard() {
 
   if (loading || !data) return <Spinner />;
 
+  const downloadPdf = async () => {
+    try {
+      const res = await api.get(`/reports/ao-pdf/${user.id}?periode=${periode}`, { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url; a.download = `Rekap_${periode}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success("PDF diunduh");
+    } catch (e) { toast.error("Gagal membuat PDF"); }
+  };
+
   return (
     <div className="space-y-6">
       <div className="rounded-2xl gradient-emerald grid-pattern p-6 sm:p-8 text-white relative overflow-hidden">
-        <div className="relative z-10">
-          <div className="text-emerald-100/80 text-sm">Selamat datang kembali,</div>
-          <h1 className="font-heading text-3xl font-extrabold mt-1">{user.nama}</h1>
-          <div className="mt-2 text-emerald-50/90">{user.jabatan} · Kode {user.kode_marketing} · {periodeLabel(periode)}</div>
+        <div className="relative z-10 flex items-start justify-between gap-3">
+          <div>
+            <div className="text-emerald-100/80 text-sm">Selamat datang kembali,</div>
+            <h1 className="font-heading text-3xl font-extrabold mt-1">{user.nama}</h1>
+            <div className="mt-2 text-emerald-50/90">{user.jabatan} · Kode {user.kode_marketing} · {periodeLabel(periode)}</div>
+          </div>
+          <button onClick={downloadPdf} data-testid="download-pdf-btn" className="shrink-0 inline-flex items-center gap-2 rounded-xl bg-white/15 hover:bg-white/25 text-white px-4 py-2.5 text-sm font-semibold transition-colors">
+            <FileDown size={16} /> Rekap PDF
+          </button>
         </div>
         <div className="absolute -bottom-16 -right-10 h-56 w-56 rounded-full bg-gold-500/20 blur-3xl" />
       </div>

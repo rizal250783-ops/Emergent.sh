@@ -6,6 +6,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Select, Pill } from "./ui";
+import NotificationBell from "./NotificationBell";
 import { api, periodeOptions, currentPeriode } from "../lib/api";
 
 const PeriodContext = createContext(null);
@@ -160,6 +161,7 @@ export default function Layout() {
                     {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </Select>
                 </div>
+                <NotificationBell />
                 <div className="hidden sm:block"><Pill tone="gold">{user?.kode_marketing}</Pill></div>
               </div>
             </div>

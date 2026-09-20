@@ -10,7 +10,7 @@ from database import db
 from seed import seed_users, seed_settings
 from demo_seed import seed_demo
 from storage import init_storage
-from routers import auth, admin, incentive, collection, views, data_mgmt
+from routers import auth, admin, incentive, collection, views, data_mgmt, notifications, reports
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("ao360")
@@ -24,6 +24,8 @@ api_router.include_router(incentive.router)
 api_router.include_router(collection.router)
 api_router.include_router(views.router)
 api_router.include_router(data_mgmt.router)
+api_router.include_router(notifications.router)
+api_router.include_router(reports.router)
 
 
 @api_router.get("/")

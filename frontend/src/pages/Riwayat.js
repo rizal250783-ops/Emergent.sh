@@ -1,16 +1,37 @@
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { FileDown } from "lucide-react";
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Line, LineChart } from "recharts";
 import { api, formatRp, formatRpShort, formatPct, periodeLabel } from "../lib/api";
 import { useAuth } from "../context/AuthContext";
-import { Card, Spinner, SectionTitle, Table, StatusBadge, Select } from "../components/ui";
+import { usePeriod } from "../components/Layout";
+import { Card, Spinner, SectionTitle, Table, StatusBadge, Select, Button } from "../components/ui";
 
 export default function Riwayat() {
   const { user } = useAuth();
+  const { periode } = usePeriod();
   const isManager = user.jabatan === "Admin" || user.jabatan === "Direktur";
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [users, setUsers] = useState([]);
   const [selected, setSelected] = useState("");
+  const [pdfBusy, setPdfBusy] = useState(false);
+
+  const targetId = isManager ? selected : user.id;
+
+  const downloadPdf = async () => {
+    if (!targetId) return;
+    setPdfBusy(true);
+    try {
+      const res = await api.get(`/reports/ao-pdf/${targetId}?periode=${periode}`, { responseType: "blob" });
+      const url = URL.createObjectURL(res.data);
+      const a = document.createElement("a");
+      a.href = url; a.download = `Rekap_${periode}.pdf`; a.click();
+      URL.revokeObjectURL(url);
+      toast.success("PDF diunduh");
+    } catch (e) { toast.error("Gagal membuat PDF"); }
+    finally { setPdfBusy(false); }
+  };
 
   useEffect(() => {
     if (isManager) {
@@ -44,7 +65,10 @@ export default function Riwayat() {
 
   return (
     <div className="space-y-6">
-      <SectionTitle sub="Histori bulanan sejak Januari 2026">Riwayat Performance Bulanan</SectionTitle>
+      <div className="flex items-start justify-between flex-wrap gap-3">
+        <SectionTitle sub="Histori bulanan sejak Januari 2026">Riwayat Performance Bulanan</SectionTitle>
+        <Button variant="outline" onClick={downloadPdf} disabled={pdfBusy || !targetId} data-testid="download-pdf-btn"><FileDown size={16} /> {pdfBusy ? "Menyiapkan…" : "Unduh Rekap PDF"}</Button>
+      </div>
 
       {isManager && (
         <div className="max-w-xs">

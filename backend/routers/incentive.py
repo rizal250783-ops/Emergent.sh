@@ -3,7 +3,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import Optional, List
 
-from database import db, clean, now_iso, write_audit
+from database import db, clean, now_iso, write_audit, write_notification
 from security import require_roles, get_current_user
 
 router = APIRouter(prefix="/incentives", tags=["incentives"])
@@ -106,11 +106,23 @@ class ApprovalBody(BaseModel):
 @router.post("/approve")
 async def approve_incentives(body: ApprovalBody, user=Depends(require_roles("Direktur"))):
     status = "approved" if body.action == "approve" else "rejected"
+    users = {str(u["_id"]): u for u in await db.users.find().to_list(500)}
     for iid in body.ids:
+        inc = await db.incentive_settings.find_one({"_id": ObjectId(iid)})
         await db.incentive_settings.update_one({"_id": ObjectId(iid)}, {"$set": {
             "status_approval": status, "approved_by": user["kode_marketing"],
             "approved_at": now_iso(), "reject_reason": body.reason,
         }})
+        if status == "rejected" and inc:
+            u = users.get(inc.get("ao_id"))
+            nama = u["nama"] if u else "-"
+            kat = KATEGORI_LABEL.get(inc.get("kategori"), inc.get("kategori"))
+            await write_notification(
+                "Admin", "insentif_ditolak",
+                "Insentif ditolak Direktur",
+                f"Insentif {kat} untuk {nama} periode {inc.get('periode')} sebesar Rp {int(inc.get('nominal_terhitung', 0)):,} ditolak. Alasan: {body.reason or '-'}. Silakan koreksi & ajukan ulang.".replace(",", "."),
+                {"incentive_id": iid, "ao_id": inc.get("ao_id"), "periode": inc.get("periode")},
+            )
     await write_audit(user, f"{'Approve' if status=='approved' else 'Reject'} insentif oleh Direktur", sesudah={"ids": body.ids})
     return {"message": f"{len(body.ids)} insentif di-{status}"}
 

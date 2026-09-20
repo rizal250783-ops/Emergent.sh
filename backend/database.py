@@ -69,3 +69,15 @@ async def write_audit(user: dict, aktivitas: str, sebelum=None, sesudah=None):
         "data_sesudah": sesudah,
         "waktu": now_iso(),
     })
+
+
+async def write_notification(recipient_role: str, tipe: str, judul: str, pesan: str, ref: dict = None):
+    await db.notifications.insert_one({
+        "recipient_role": recipient_role,
+        "tipe": tipe,
+        "judul": judul,
+        "pesan": pesan,
+        "ref": ref,
+        "is_read": False,
+        "created_at": now_iso(),
+    })
