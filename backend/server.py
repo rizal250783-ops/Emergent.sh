@@ -8,7 +8,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import db
 from seed import seed_users, seed_settings
-from demo_seed import seed_demo
 from storage import init_storage
 from routers import auth, admin, incentive, collection, views, data_mgmt, notifications, reports
 
@@ -72,7 +71,6 @@ app.add_middleware(
 async def startup():
     await seed_users()
     await seed_settings()
-    await seed_demo()
     try:
         init_storage()
         logger.info("Object storage initialized")

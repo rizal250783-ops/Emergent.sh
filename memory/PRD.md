@@ -125,6 +125,18 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Klik gambar preview (foto-zoom-{i}, cursor-zoom-in) membuka lightbox fullscreen (foto-lightbox) agar AO bisa
   memastikan teks watermark terbaca sebelum unggah; tutup via tombol X (foto-lightbox-close) atau klik overlay.
 - Teruji E2E: lightbox terbuka, gambar ter-render 693x924 (portrait), tertutup normal.
+
+## Iteration 7 (2026-09-21) — Persiapan deploy
+- Semua 19 user di-set ke password standar `BprsHM2026` dengan `requires_password_reset=false` (tanpa paksaan
+  ganti password saat login; akan diganti saat publish).
+- Database dikosongkan kecuali `users` (kredensial) & `settings` (session config): dibersihkan
+  lending/funding/recovery_achievement_details, targets, incentive_settings, collection_activity(+photos),
+  audit_logs — untuk percobaan input.
+- `demo_seed.seed_demo()` DINONAKTIFKAN di server.py startup (import + call dihapus) agar DB tidak terisi ulang
+  saat restart/deploy. Startup kini hanya seed_users + seed_settings (idempoten).
+- .gitignore: tambah `memory/test_credentials.md`. Deployment readiness: cek kritis lolos (kompilasi, env,
+  CORS, port, supervisor, auth redirect). Restore endpoint delete_many & saran optimasi query bersifat
+  non-blocking (fitur admin disengaja / skala kecil).
   label tombol "Unggah 1" ikut menyesuaikan.
 - Akun dikembalikan ke kondisi pristine (BprsHM2026 + requires_password_reset) setelah pengujian.
   hingga <= 1MB — upload foto di jaringan lapangan lambat lebih cepat. Frontend compiled successfully.

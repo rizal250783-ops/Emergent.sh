@@ -6,12 +6,9 @@ Endpoint: `POST /api/auth/login` body `{ "kode_marketing": "...", "password": ".
 ## Default password (all 18/19 fixed accounts)
 `BprsHM2026`
 
-> IMPORTANT: Every fixed account has `requires_password_reset = true`. On first login the app
-> redirects to `/change-password`. To continue, call `POST /api/auth/change-password`
-> `{ "old_password": "BprsHM2026", "new_password": "<NewPass8+letters+digits>" }` (min 8 chars,
-> must contain letters AND numbers). After that, login with the new password.
-> If a test run already changed a password, run the reset snippet at the bottom to restore all
-> accounts to `BprsHM2026` + force-reset state.
+> IMPORTANT (updated 2026-09-21): Semua akun kini memakai password standar `BprsHM2026` dengan
+> `requires_password_reset = false` — TIDAK ada paksaan ganti password saat login (akan diganti saat publish).
+> Database dikosongkan (kecuali `users` & `settings`) untuk percobaan input; demo seed dinonaktifkan.
 
 ## Key accounts by role
 | Kode | Nama | Jabatan | Password |
