@@ -6,7 +6,7 @@ import {
   ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
-import { Select, Pill } from "./ui";
+import { Select, Pill, Button } from "./ui";
 import NotificationBell from "./NotificationBell";
 import { api, currentPeriode, periodeLabel } from "../lib/api";
 
@@ -71,6 +71,7 @@ export default function Layout() {
   const { user, logout } = useAuth();
   const [periode, setPeriode] = useState(currentPeriode());
   const [open, setOpen] = useState(false);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const location = useLocation();
   const menu = MENUS[user?.jabatan] || [];
 
@@ -187,7 +188,7 @@ export default function Layout() {
                       {TAHUN_OPTIONS.map((t) => <option key={t} value={String(t)}>{t}</option>)}
                     </Select>
                   </div>
-                  <div className="sm:hidden px-1 text-sm font-semibold text-ink whitespace-nowrap" data-testid="period-label-mobile">{periodeLabel(periode)}</div>
+                  <button type="button" onClick={() => setSheetOpen(true)} className="sm:hidden px-1 text-sm font-semibold text-ink whitespace-nowrap" data-testid="period-label-mobile" title="Ketuk untuk memilih bulan & tahun">{periodeLabel(periode)}</button>
                   <button type="button" onClick={() => shiftPeriode(1)} disabled={isMaxPeriode} data-testid="period-next-btn" title="Bulan berikutnya" className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     <ChevronRight size={16} />
                   </button>
@@ -202,6 +203,32 @@ export default function Layout() {
           </main>
         </div>
       </div>
+      {sheetOpen && (
+        <div className="fixed inset-0 z-50 sm:hidden" data-testid="period-sheet">
+          <div className="absolute inset-0 bg-ink/50" onClick={() => setSheetOpen(false)} />
+          <div className="absolute bottom-0 left-0 right-0 bg-white rounded-t-2xl p-5 space-y-4 shadow-2xl">
+            <div className="flex items-center justify-between">
+              <div className="font-heading font-bold text-ink">Pilih Periode</div>
+              <button type="button" onClick={() => setSheetOpen(false)} data-testid="period-sheet-close" title="Tutup" className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-slate-50 transition-colors">
+                <X size={16} />
+              </button>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500">Bulan</label>
+              <Select value={periode.slice(5, 7)} onChange={(e) => setPeriode(`${periode.slice(0, 4)}-${e.target.value}`)} data-testid="period-sheet-month">
+                {BULAN_OPTIONS.map((b, i) => <option key={b} value={String(i + 1).padStart(2, "0")}>{b}</option>)}
+              </Select>
+            </div>
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-500">Tahun</label>
+              <Select value={periode.slice(0, 4)} onChange={(e) => setPeriode(`${e.target.value}-${periode.slice(5, 7)}`)} data-testid="period-sheet-year">
+                {TAHUN_OPTIONS.map((t) => <option key={t} value={String(t)}>{t}</option>)}
+              </Select>
+            </div>
+            <Button className="w-full" onClick={() => setSheetOpen(false)} data-testid="period-sheet-done">Selesai</Button>
+          </div>
+        </div>
+      )}
     </PeriodContext.Provider>
   );
 }

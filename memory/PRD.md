@@ -159,6 +159,13 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Di layar <sm: dua droplist disembunyikan, diganti label teks periode lengkap (mis. "September 2026",
   data-testid period-label-mobile) di antara tombol ◀ ▶; layar >=sm tetap menampilkan kedua droplist.
 - Teruji mobile 390px nyata (Playwright lokal, viewport 390 — screenshot_tool ternyata selalu render 1920):
+
+## Iteration 8d (2026-09-21) — Bottom-sheet pemilih periode di mobile
+- Label periode mobile kini tombol: ketuk membuka bottom-sheet "Pilih Periode" (droplist Bulan + Tahun
+  2026-2056 + tombol Selesai; testid period-sheet/-month/-year/-close/-done) agar lompat jauh (mis. 2030)
+  tanpa menekan panah berkali-kali. Hanya tampil di <sm.
+- Teruji Playwright viewport 390: sheet terbuka, lompat ke Maret 2030 berhasil, label ter-update, sheet
+  tertutup, tanpa overflow.
   label tampil, droplist tersembunyi, tombol next mengubah label, tanpa overflow horizontal. Desktop tetap
   menampilkan droplist & menyembunyikan label.
   mobile 390px tanpa overflow.
