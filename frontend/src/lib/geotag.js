@@ -94,7 +94,13 @@ export function watermarkPhoto(file, { picName, latitude, longitude }) {
           ctx.fillText(ln, pad, h - stripH + pad / 2 + lineH * i + lineH / 2);
         });
 
-        const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
+        const MAX_BYTES = 1024 * 1024;
+        let quality = 0.85;
+        let dataUrl = canvas.toDataURL("image/jpeg", quality);
+        while (dataUrl.length * 0.75 > MAX_BYTES && quality > 0.5) {
+          quality = Math.round((quality - 0.1) * 10) / 10;
+          dataUrl = canvas.toDataURL("image/jpeg", quality);
+        }
         resolve({ dataUrl, base64: dataUrl.split(",")[1] });
       } catch (e) {
         reject(e);

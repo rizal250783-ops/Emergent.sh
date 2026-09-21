@@ -108,6 +108,10 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
   <img>, sehingga foto portrait HP tidak lagi miring di preview/hasil watermark.
 - Server: storage.process_photo memakai ImageOps.exif_transpose sebelum resize/watermark.
 - Verified: JPEG landscape dgn EXIF orientation 6 → output portrait 600x800; tanpa EXIF tetap 800x600;
+
+## Iteration 6c (2026-09-21) — Kompresi adaptif watermark klien
+- geotag.js: hasil canvas mulai JPEG q0.85; bila ukuran > 1MB, kualitas diturunkan bertahap (0.75→0.5)
+  hingga <= 1MB — upload foto di jaringan lapangan lambat lebih cepat. Frontend compiled successfully.
   frontend compiled successfully.
   (iteration_6.json). piexif ditambahkan ke requirements.txt.
 
