@@ -3,6 +3,7 @@ import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard, Trophy, History, ShieldCheck, ScrollText, ClipboardList,
   Target, Coins, MapPin, Users2, Database, LogOut, Menu, X, Wallet, Gift, ListChecks, GitCompare,
+  ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 import { Select, Pill } from "./ui";
@@ -76,6 +77,17 @@ export default function Layout() {
   useEffect(() => {
     api.get("/meta/latest-periode").then(({ data }) => { if (data.latest) setPeriode(data.latest); }).catch(() => {});
   }, []);
+
+  const isMinPeriode = periode <= "2026-01";
+  const isMaxPeriode = periode >= "2056-12";
+  const shiftPeriode = (delta) => {
+    if ((delta < 0 && isMinPeriode) || (delta > 0 && isMaxPeriode)) return;
+    let [y, m] = periode.split("-").map(Number);
+    m += delta;
+    if (m < 1) { m = 12; y -= 1; }
+    if (m > 12) { m = 1; y += 1; }
+    setPeriode(`${y}-${String(m).padStart(2, "0")}`);
+  };
 
   const NavItems = () => (
     <nav className="flex flex-col gap-1">
@@ -161,7 +173,10 @@ export default function Layout() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5">
+                  <button type="button" onClick={() => shiftPeriode(-1)} disabled={isMinPeriode} data-testid="period-prev-btn" title="Bulan sebelumnya" className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <ChevronLeft size={16} />
+                  </button>
                   <div className="w-32 sm:w-36">
                     <Select value={periode.slice(5, 7)} onChange={(e) => setPeriode(`${periode.slice(0, 4)}-${e.target.value}`)} data-testid="period-month-filter">
                       {BULAN_OPTIONS.map((b, i) => <option key={b} value={String(i + 1).padStart(2, "0")}>{b}</option>)}
@@ -172,6 +187,9 @@ export default function Layout() {
                       {TAHUN_OPTIONS.map((t) => <option key={t} value={String(t)}>{t}</option>)}
                     </Select>
                   </div>
+                  <button type="button" onClick={() => shiftPeriode(1)} disabled={isMaxPeriode} data-testid="period-next-btn" title="Bulan berikutnya" className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
+                    <ChevronRight size={16} />
+                  </button>
                 </div>
                 <NotificationBell />
                 <div className="hidden sm:block"><Pill tone="gold">{user?.kode_marketing}</Pill></div>

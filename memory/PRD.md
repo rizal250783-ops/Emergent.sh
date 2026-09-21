@@ -149,6 +149,12 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Pemilih periode di header dipecah: droplist Bulan (Januari–Desember, data-testid period-month-filter) +
   droplist Tahun (2026–2056, data-testid period-year-filter); state periode tetap "YYYY-MM" sehingga semua
   halaman tidak berubah. periodeOptions() tidak lagi dipakai Layout.
+
+## Iteration 8b (2026-09-21) — Tombol prev/next bulan cepat
+- Tombol ◀ (period-prev-btn) dan ▶ (period-next-btn) mengapit droplist Bulan/Tahun untuk pindah bulan tanpa
+  membuka dropdown; wrap antar-tahun (Des→Jan); nonaktif di batas rentang (2026-01 & 2056-12).
+- Teruji E2E: prev/next berantai benar, wrap 2026-12→2027-01 benar, tombol disabled tepat di kedua batas,
+  mobile 390px tanpa overflow.
 - Teruji E2E: 12 bulan & 31 tahun (2026..2056) sesuai, ganti ke Januari 2056 tanpa crash, mobile 390px tanpa
   horizontal overflow.
 - Data uji berlabel "Uji" (kontrak PBY-UJI-*, RCV-UJI-*) masih ada di DB periode 2026-09; dapat dihapus via UI
