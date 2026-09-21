@@ -87,6 +87,23 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Verified: GET /api -> 200 {"app":"AO-360","status":"ok"}; login 001/BprsHM2026 returns JWT + user;
   frontend login page renders (desktop + mobile).
 
+## Iteration 6 (2026-09-21) — Collection Activity: GPS geotagging + canvas watermark (koreksi form kunjungan)
+- Spec user (referensi PHP+SQLite) diadaptasi ke stack React/FastAPI: form_collection→Collection.js PhotoModal,
+  script/app.js→src/lib/geotag.js, collection.php (watermarkGd/prosesFoto/validasi)→routers/collection.py + storage.py.
+- GPS: tombol "Ambil Lokasi Saya" (getCurrentPosition highAccuracy/12s/15s), 6 desimal; status default/sukses
+  (hijau)/gagal (merah) sesuai teks spec; lokasi WAJIB bila ada foto — diblokir di klien (toast) DAN 400 di server.
+- Foto: input image/* TANPA capture (kamera/galeri); watermark canvas: strip gradient emerald + garis emas, 3 baris
+  (PT BPRS HAJI MISKIN — COLLECTION ACTIVITY / Tanggal dd Bulan yyyy · Jam HH:MM WIB · PIC / Lokasi), maks sisi
+  1500px, JPEG q0.85; dikirim base64 (foto_b64) ke POST /collection/{aid}/photos-b64; server simpan ke object
+  storage (hanya path di DB). Fallback file mentah: endpoint multipart lama tetap jalan, watermark digambar ulang
+  via Pillow dengan gaya baru (max side 1500, q85).
+- Cek tanggal: file.lastModified → tanggal_foto; beda hari → peringatan kuning di preview, submit tetap boleh,
+  status_validasi "Perlu Verifikasi Admin". Preview hasil watermark + guard submit bila base64 belum siap.
+- Riwayat: tombol "Lokasi" (toggle koordinat) & "Buka Google Maps" → https://maps.google.com/?q=<lat>,<lng>
+  (URL pendek sesuai spec baru, menggantikan URL kanonik iter-5).
+- Tested: backend 7/7 pytest (regresi multipart), 4/4 skenario curl photos-b64; frontend 5/5 Playwright
+  (iteration_6.json). piexif ditambahkan ke requirements.txt.
+
 ## Backlog / Next
 - P1: Per-jenis schema validation + preview/error-report for Data Import.
 - P1: Collection photo HEIC auto-convert edge cases; multi-photo compression >3MB.
