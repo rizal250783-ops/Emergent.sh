@@ -8,7 +8,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { Select, Pill } from "./ui";
 import NotificationBell from "./NotificationBell";
-import { api, currentPeriode } from "../lib/api";
+import { api, currentPeriode, periodeLabel } from "../lib/api";
 
 const PeriodContext = createContext(null);
 export const usePeriod = () => useContext(PeriodContext);
@@ -177,16 +177,17 @@ export default function Layout() {
                   <button type="button" onClick={() => shiftPeriode(-1)} disabled={isMinPeriode} data-testid="period-prev-btn" title="Bulan sebelumnya" className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     <ChevronLeft size={16} />
                   </button>
-                  <div className="w-32 sm:w-36">
+                  <div className="hidden sm:block w-32 sm:w-36">
                     <Select value={periode.slice(5, 7)} onChange={(e) => setPeriode(`${periode.slice(0, 4)}-${e.target.value}`)} data-testid="period-month-filter">
                       {BULAN_OPTIONS.map((b, i) => <option key={b} value={String(i + 1).padStart(2, "0")}>{b}</option>)}
                     </Select>
                   </div>
-                  <div className="w-24 sm:w-28">
+                  <div className="hidden sm:block w-24 sm:w-28">
                     <Select value={periode.slice(0, 4)} onChange={(e) => setPeriode(`${e.target.value}-${periode.slice(5, 7)}`)} data-testid="period-year-filter">
                       {TAHUN_OPTIONS.map((t) => <option key={t} value={String(t)}>{t}</option>)}
                     </Select>
                   </div>
+                  <div className="sm:hidden px-1 text-sm font-semibold text-ink whitespace-nowrap" data-testid="period-label-mobile">{periodeLabel(periode)}</div>
                   <button type="button" onClick={() => shiftPeriode(1)} disabled={isMaxPeriode} data-testid="period-next-btn" title="Bulan berikutnya" className="inline-flex items-center justify-center w-8 h-8 rounded-lg border border-slate-200 text-slate-500 hover:bg-emerald-50 hover:text-emerald-700 transition-colors disabled:opacity-40 disabled:cursor-not-allowed">
                     <ChevronRight size={16} />
                   </button>

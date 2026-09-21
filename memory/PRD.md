@@ -154,6 +154,13 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Tombol ◀ (period-prev-btn) dan ▶ (period-next-btn) mengapit droplist Bulan/Tahun untuk pindah bulan tanpa
   membuka dropdown; wrap antar-tahun (Des→Jan); nonaktif di batas rentang (2026-01 & 2056-12).
 - Teruji E2E: prev/next berantai benar, wrap 2026-12→2027-01 benar, tombol disabled tepat di kedua batas,
+
+## Iteration 8c (2026-09-21) — Label periode lengkap di mobile
+- Di layar <sm: dua droplist disembunyikan, diganti label teks periode lengkap (mis. "September 2026",
+  data-testid period-label-mobile) di antara tombol ◀ ▶; layar >=sm tetap menampilkan kedua droplist.
+- Teruji mobile 390px nyata (Playwright lokal, viewport 390 — screenshot_tool ternyata selalu render 1920):
+  label tampil, droplist tersembunyi, tombol next mengubah label, tanpa overflow horizontal. Desktop tetap
+  menampilkan droplist & menyembunyikan label.
   mobile 390px tanpa overflow.
 - Teruji E2E: 12 bulan & 31 tahun (2026..2056) sesuai, ganti ke Januari 2056 tanpa crash, mobile 390px tanpa
   horizontal overflow.
