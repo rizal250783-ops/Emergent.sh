@@ -42,6 +42,7 @@ export default function Leaderboard() {
           { value: "Pembiayaan", label: "Pembiayaan" },
           { value: "Funding", label: "Funding" },
           { value: "Recovery", label: "Recovery (Kol.3)" },
+          { value: "Recovery (Kol.4+5)", label: "Recovery (Kol.4+5)" },
         ]}
       />
       <Card className="p-5 sm:p-6">

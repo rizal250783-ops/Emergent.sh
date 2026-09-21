@@ -57,10 +57,15 @@ export default function Riwayat() {
 
   const chartData = rows.map((r) => ({ bulan: periodeLabel(r.bulan).split(" ")[0].slice(0, 3), Realisasi: r.realisasi, Achievement: r.achievement || 0 }));
 
+  const hasKol45 = rows.some((r) => "realisasi_kol45" in r);
   const columns = [
     { header: "Bulan", render: (r) => <span className="font-semibold">{periodeLabel(r.bulan)}</span> },
     { header: "Target", render: (r) => <span className="font-mono text-slate-600">{formatRp(r.target)}</span> },
     { header: "Realisasi", render: (r) => <span className="font-mono font-semibold">{formatRp(r.realisasi)}</span> },
+    ...(hasKol45 ? [
+      { header: "Realisasi Kol.4+5", render: (r) => <span className="font-mono text-slate-600">{formatRp(r.realisasi_kol45)}</span> },
+      { header: "Ach. Kol.4+5", render: (r) => <span className="font-heading font-bold text-emerald-700">{r.achievement_kol45 === null ? "—" : formatPct(r.achievement_kol45)}</span> },
+    ] : []),
     { header: "Achievement", render: (r) => <span className="font-heading font-bold text-emerald-700">{r.achievement === null ? (r.note || "—") : formatPct(r.achievement)}</span> },
     { header: "Status", render: (r) => <StatusBadge status={r.status} note={r.note} /> },
   ];

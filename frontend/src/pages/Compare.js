@@ -73,6 +73,7 @@ export default function Compare() {
               <option value="Pembiayaan">Pembiayaan</option>
               <option value="Funding">Funding</option>
               <option value="Recovery">Recovery (Kol.3)</option>
+              <option value="Recovery (Kol.4+5)">Recovery (Kol.4+5)</option>
             </Select>
           </div>
           <Button onClick={runCompare} disabled={picked.length < 2} data-testid="compare-run-btn"><GitCompare size={16} /> Bandingkan</Button>

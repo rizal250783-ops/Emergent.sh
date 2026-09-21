@@ -70,6 +70,16 @@ async def sum_recovery_kol3(pic_id, periode):
     return docs[0]["total"] if docs else 0
 
 
+async def sum_recovery_kol45(pic_id, periode):
+    """Gabungan recovery Kolektibilitas 4 & 5 (non write-off)."""
+    cur = db.recovery_achievement_details.aggregate([
+        {"$match": {"pic_id": pic_id, "periode": periode, "kolektibilitas": {"$in": [4, 5]}, "is_write_off": {"$ne": True}}},
+        {"$group": {"_id": None, "total": {"$sum": "$jumlah_recovery"}}},
+    ])
+    docs = await cur.to_list(1)
+    return docs[0]["total"] if docs else 0
+
+
 async def get_target(ao_id, periode):
     return await db.targets.find_one({"ao_id": ao_id, "periode": periode}) or {}
 
@@ -95,20 +105,15 @@ async def build_kpis(user, periode):
         real_r = await sum_recovery_kol3(ao_id, periode)
         res_r = compute_achievement(real_r, t.get("target_recovery", 0))
         kpis.append({"komponen": "Recovery (Kol.3)", "realisasi": real_r, "target": t.get("target_recovery", 0), **res_r})
+        real_r45 = await sum_recovery_kol45(ao_id, periode)
+        res_r45 = compute_achievement(real_r45, t.get("target_recovery_kol45", 0))
+        kpis.append({"komponen": "Recovery (Kol.4+5)", "realisasi": real_r45, "target": t.get("target_recovery_kol45", 0), **res_r45})
     return kpis
 
 
 async def build_leaderboard(komponen, periode):
-    """komponen: Pembiayaan | Funding | Recovery"""
-    if komponen == "Pembiayaan":
-        jabatans = ["AO Pembiayaan"]
-        sumfn, tkey = sum_lending, "target_pencairan"
-    elif komponen == "Funding":
-        jabatans = ["AO Pembiayaan", "AO Funding"]
-        sumfn, tkey = sum_funding, "target_funding"
-    else:
-        jabatans = ["Collection & Remedial"]
-        sumfn, tkey = sum_recovery_kol3, "target_recovery"
+    """komponen: Pembiayaan | Funding | Recovery | Recovery (Kol.4+5)"""
+    sumfn, tkey, jabatans = COMPONENT_MAP.get(komponen, COMPONENT_MAP["Pembiayaan"])
 
     users = await db.users.find({"jabatan": {"$in": jabatans}, "status": "aktif"}).to_list(200)
     rows = []
@@ -160,7 +165,11 @@ async def build_riwayat(ao_id, jabatan):
         elif jabatan == "Collection & Remedial":
             real = await sum_recovery_kol3(ao_id, periode)
             res = compute_achievement(real, t.get("target_recovery", 0))
-            result.append({"bulan": periode, "target": t.get("target_recovery", 0), "realisasi": real, **res})
+            real45 = await sum_recovery_kol45(ao_id, periode)
+            res45 = compute_achievement(real45, t.get("target_recovery_kol45", 0))
+            result.append({"bulan": periode, "target": t.get("target_recovery", 0), "realisasi": real, **res,
+                           "target_kol45": t.get("target_recovery_kol45", 0), "realisasi_kol45": real45,
+                           "achievement_kol45": res45["achievement"], "status_kol45": res45["status"]})
     return result
 
 
@@ -169,6 +178,7 @@ COMPONENT_MAP = {
     "Pembiayaan": (sum_lending, "target_pencairan", ["AO Pembiayaan"]),
     "Funding": (sum_funding, "target_funding", ["AO Pembiayaan", "AO Funding"]),
     "Recovery": (sum_recovery_kol3, "target_recovery", ["Collection & Remedial"]),
+    "Recovery (Kol.4+5)": (sum_recovery_kol45, "target_recovery_kol45", ["Collection & Remedial"]),
 }
 
 

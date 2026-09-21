@@ -60,7 +60,7 @@ async def riwayat_user(uid: str, user=Depends(require_roles("Admin", "Direktur")
 @router.get("/leaderboard")
 async def leaderboard(komponen: str = "Pembiayaan", periode: Optional[str] = None, user=Depends(get_current_user)):
     periode = periode or current_periode()
-    if komponen not in ("Pembiayaan", "Funding", "Recovery"):
+    if komponen not in ("Pembiayaan", "Funding", "Recovery", "Recovery (Kol.4+5)"):
         raise HTTPException(status_code=400, detail="Komponen tidak valid")
     rows = await build_leaderboard(komponen, periode)
     return {"komponen": komponen, "periode": periode, "rows": rows}
@@ -75,7 +75,7 @@ async def compare(ao_ids: str, periode: Optional[str] = None, komponen: Optional
     ids = list(dict.fromkeys(ids))[:3]
     if len(ids) < 2:
         raise HTTPException(status_code=400, detail="Pilih minimal 2 AO untuk dibandingkan")
-    if komponen and komponen not in ("Pembiayaan", "Funding", "Recovery"):
+    if komponen and komponen not in ("Pembiayaan", "Funding", "Recovery", "Recovery (Kol.4+5)"):
         raise HTTPException(status_code=400, detail="Komponen tidak valid")
     result = []
     for aid in ids:
@@ -104,11 +104,13 @@ async def executive(periode: Optional[str] = None, user=Depends(require_roles("D
     total_funding = sum(d["jumlah_simpanan"] for d in await db.funding_achievement_details.find({"periode": periode}).to_list(5000))
     recovery_docs = await db.recovery_achievement_details.find({"periode": periode}).to_list(5000)
     total_recovery_k3 = sum(d["jumlah_recovery"] for d in recovery_docs if d.get("kolektibilitas") == 3 and not d.get("is_write_off"))
+    total_recovery_k45 = sum(d["jumlah_recovery"] for d in recovery_docs if d.get("kolektibilitas") in (4, 5) and not d.get("is_write_off"))
 
     targets = await db.targets.find({"periode": periode}).to_list(500)
     tt_pencairan = sum(t.get("target_pencairan", 0) or 0 for t in targets)
     tt_funding = sum(t.get("target_funding", 0) or 0 for t in targets)
     tt_recovery = sum(t.get("target_recovery", 0) or 0 for t in targets)
+    tt_recovery_k45 = sum(t.get("target_recovery_kol45", 0) or 0 for t in targets)
 
     counts = {}
     for j in ["AO Pembiayaan", "AO Funding", "Collection & Remedial"]:
@@ -122,6 +124,7 @@ async def executive(periode: Optional[str] = None, user=Depends(require_roles("D
         "pembiayaan": {"realisasi": total_pencairan, "target": tt_pencairan, **compute_achievement(total_pencairan, tt_pencairan)},
         "funding": {"realisasi": total_funding, "target": tt_funding, **compute_achievement(total_funding, tt_funding)},
         "recovery": {"realisasi": total_recovery_k3, "target": tt_recovery, **compute_achievement(total_recovery_k3, tt_recovery)},
+        "recovery_kol45": {"realisasi": total_recovery_k45, "target": tt_recovery_k45, **compute_achievement(total_recovery_k45, tt_recovery_k45)},
         "jumlah_ao": counts,
         "pending_insentif": pending_inc,
         "pending_user_request": pending_um,

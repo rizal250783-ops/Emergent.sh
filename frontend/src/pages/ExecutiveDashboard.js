@@ -35,7 +35,8 @@ export default function ExecutiveDashboard() {
   const bars = [
     { name: "Pembiayaan", Target: data.pembiayaan.target, Realisasi: data.pembiayaan.realisasi },
     { name: "Funding", Target: data.funding.target, Realisasi: data.funding.realisasi },
-    { name: "Recovery", Target: data.recovery.target, Realisasi: data.recovery.realisasi },
+    { name: "Recovery Kol.3", Target: data.recovery.target, Realisasi: data.recovery.realisasi },
+    { name: "Recovery Kol.4+5", Target: data.recovery_kol45.target, Realisasi: data.recovery_kol45.realisasi },
   ];
 
   const lbCols = [
@@ -52,10 +53,11 @@ export default function ExecutiveDashboard() {
         <Button variant="outline" onClick={downloadTeamPdf} disabled={pdfBusy} data-testid="team-pdf-btn"><FileDown size={16} /> {pdfBusy ? "Menyiapkan…" : "Laporan Tim PDF"}</Button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         <KpiCard label="Total Pembiayaan" formatRp={formatRp} icon={<TrendingUp className="text-emerald-600" size={20} />} {...data.pembiayaan} />
         <KpiCard label="Total Funding (DPK)" formatRp={formatRp} icon={<PiggyBank className="text-emerald-600" size={20} />} {...data.funding} />
         <KpiCard label="Recovery Kol.3" formatRp={formatRp} icon={<HandCoins className="text-emerald-600" size={20} />} {...data.recovery} />
+        <KpiCard label="Recovery Kol.4+5" formatRp={formatRp} icon={<HandCoins className="text-gold-600" size={20} />} {...data.recovery_kol45} />
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">

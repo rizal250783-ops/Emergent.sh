@@ -153,6 +153,7 @@ class TargetBody(BaseModel):
     target_pencairan: Optional[float] = 0
     target_funding: Optional[float] = 0
     target_recovery: Optional[float] = 0
+    target_recovery_kol45: Optional[float] = 0
 
 
 @router.get("/targets")

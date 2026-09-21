@@ -10,6 +10,7 @@ const ICON = {
   "Pembiayaan": <TrendingUp className="text-emerald-600" size={20} />,
   "Funding": <PiggyBank className="text-emerald-600" size={20} />,
   "Recovery (Kol.3)": <HandCoins className="text-emerald-600" size={20} />,
+  "Recovery (Kol.4+5)": <HandCoins className="text-gold-600" size={20} />,
 };
 
 export default function PersonalDashboard() {

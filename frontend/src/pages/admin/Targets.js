@@ -29,6 +29,7 @@ export default function Targets() {
       target_pencairan: parseFloat(cur.target_pencairan ?? t.target_pencairan ?? 0) || 0,
       target_funding: parseFloat(cur.target_funding ?? t.target_funding ?? 0) || 0,
       target_recovery: parseFloat(cur.target_recovery ?? t.target_recovery ?? 0) || 0,
+      target_recovery_kol45: parseFloat(cur.target_recovery_kol45 ?? t.target_recovery_kol45 ?? 0) || 0,
     };
     try { await api.post("/targets", body); toast.success(`Target ${u.nama} disimpan`); load(); }
     catch (e) { toast.error(apiError(e.response?.data?.detail)); }
@@ -44,6 +45,7 @@ export default function Targets() {
     { header: "Target Pembiayaan", render: (u) => (u.jabatan === "AO Pembiayaan" ? field(u, "target_pencairan") : <span className="text-slate-300">—</span>) },
     { header: "Target Funding", render: (u) => (["AO Pembiayaan", "AO Funding"].includes(u.jabatan) ? field(u, "target_funding") : <span className="text-slate-300">—</span>) },
     { header: "Target Recovery (Kol.3)", render: (u) => (u.jabatan === "Collection & Remedial" ? field(u, "target_recovery") : <span className="text-slate-300">—</span>) },
+    { header: "Target Recovery (Kol.4+5)", render: (u) => (u.jabatan === "Collection & Remedial" ? field(u, "target_recovery_kol45") : <span className="text-slate-300">—</span>) },
     { header: "", render: (u) => <Button size="sm" onClick={() => save(u)} data-testid={`save-target-${u.kode_marketing}`}><Save size={14} /> Simpan</Button> },
   ];
 
