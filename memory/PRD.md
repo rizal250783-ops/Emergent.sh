@@ -120,6 +120,11 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 ## Iteration 6e (2026-09-21) — Tombol Hapus pada preview foto
 - Setiap kartu preview (sebelum unggah) punya tombol X merah (data-testid foto-remove-{i}) untuk membuang
   foto salah pilih tanpa menutup modal; nonaktif saat uploading. Teruji E2E: 2 preview → hapus 1 → sisa 1,
+
+## Iteration 6f (2026-09-21) — Lightbox preview watermark
+- Klik gambar preview (foto-zoom-{i}, cursor-zoom-in) membuka lightbox fullscreen (foto-lightbox) agar AO bisa
+  memastikan teks watermark terbaca sebelum unggah; tutup via tombol X (foto-lightbox-close) atau klik overlay.
+- Teruji E2E: lightbox terbuka, gambar ter-render 693x924 (portrait), tertutup normal.
   label tombol "Unggah 1" ikut menyesuaikan.
 - Akun dikembalikan ke kondisi pristine (BprsHM2026 + requires_password_reset) setelah pengujian.
   hingga <= 1MB — upload foto di jaringan lapangan lambat lebih cepat. Frontend compiled successfully.

@@ -158,6 +158,7 @@ function PhotoModal({ activity, readOnly, onClose, onDone }) {
   const [uploading, setUploading] = useState(false);
   const [photos, setPhotos] = useState(activity.photos || []);
   const [showCoord, setShowCoord] = useState({});
+  const [zoomSrc, setZoomSrc] = useState(null);
   const inputRef = useRef();
   const today = ymdLocal(new Date());
 
@@ -258,7 +259,7 @@ function PhotoModal({ activity, readOnly, onClose, onDone }) {
                       <X size={13} />
                     </button>
                     {it.dataUrl ? (
-                      <img src={it.dataUrl} alt="preview watermark" className="w-full h-32 object-cover" />
+                      <img src={it.dataUrl} alt="preview watermark" onClick={() => setZoomSrc(it.dataUrl)} data-testid={`foto-zoom-${i}`} title="Klik untuk memperbesar" className="w-full h-32 object-cover cursor-zoom-in" />
                     ) : (
                       <div className="h-32 flex items-center justify-center text-xs text-slate-400">{it.error ? "File tidak valid" : "Memproses watermark…"}</div>
                     )}
@@ -308,6 +309,14 @@ function PhotoModal({ activity, readOnly, onClose, onDone }) {
           })}
         </div>
       </div>
+      {zoomSrc && (
+        <div className="fixed inset-0 z-[70] bg-ink/85 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setZoomSrc(null)} data-testid="foto-lightbox">
+          <button type="button" onClick={() => setZoomSrc(null)} data-testid="foto-lightbox-close" title="Tutup" className="absolute top-4 right-4 inline-flex items-center justify-center w-9 h-9 rounded-full bg-white/95 text-slate-700 hover:bg-white transition-colors shadow">
+            <X size={18} />
+          </button>
+          <img src={zoomSrc} alt="preview diperbesar" className="max-w-full max-h-full rounded-lg shadow-2xl object-contain" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
     </Modal>
   );
 }
