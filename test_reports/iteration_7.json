@@ -1,0 +1,40 @@
+{
+  "summary": "Iter-7 verification of new Recovery (Kol.4+5) feature for Collection & Remedial. Backend regression via /app/backend/tests/test_iter7_kol45.py: 6/6 PASS (target set, dashboard 2 KPIs for 013 with 40% ach on 25jt target, leaderboard shows 013 + 086, executive.recovery_kol45=10jt/25jt, riwayat has target_kol45/realisasi_kol45/achievement_kol45/status_kol45, compare accepts new komponen). Frontend E2E via Playwright (5 scenarios): T1 Target Management (/targets not /admin/targets) shows column 'Target Recovery (Kol.4+5)', input only for CR users 013 & 086 (003/other non-CR shows —), save for 013 → 25000000 persists ✓; T2 013 dashboard shows both KPI cards 'Achievement Recovery (Kol.3)' 100% Sangat Baik + 'Achievement Recovery (Kol.4+5)' 40% Kritis ✓; T3 Leaderboard tab 'Recovery (Kol.4+5)' — INITIALLY FAILED with HTTP 400 due to Leaderboard.js line 17 & Compare.js line 32 not URL-encoding komponen ('+' decoded to space server-side → whitelist rejected). Applied encodeURIComponent fix; retest PASS: DEFI ROSI 013 rank 1 40% Kritis, TAUFIK CHANI 086 N/A ✓; T4 Executive dashboard: 4th KPI card 'Recovery Kol.4+5' Rp 10.000.000 / Rp 25.000.000 40% Kritis, chart Target vs Realisasi has 4 groups incl 'Recovery Kol.4+5' ✓; T5 Riwayat Admin picks 013 → columns 'Realisasi Kol.4+5' and 'Ach. Kol.4+5' present, Sep 2026 shows Rp 10.000.000 / 40% ✓.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "Leaderboard tab 'Recovery (Kol.4+5)' + Compare komponen filter", "issue": "Query param 'komponen' embedded via template string without encodeURIComponent. '+' character in 'Recovery (Kol.4+5)' is decoded to space by the server → whitelist check fails → HTTP 400 (also visible in browser as red 'Uncaught runtime error' overlay from Axios). Fixed by testing agent in Leaderboard.js:17 & Compare.js:32 using encodeURIComponent(komponen). Please review and keep fix.", "affected_selectors": ["button:has-text('Recovery (Kol.4+5)')", "compare-komponen-select"]}
+    ],
+    "design_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iter7_kol45.py",
+    "/app/test_reports/pytest/iter7_results.xml"
+  ],
+  "action_items": [
+    "Review the two-line frontend fix applied by testing agent (encodeURIComponent for komponen param) in /app/frontend/src/pages/Leaderboard.js and /app/frontend/src/pages/Compare.js — this unblocks the new Recovery (Kol.4+5) leaderboard tab.",
+    "Consider auditing all other places that manually construct query strings for values that may contain reserved characters (+, &, #, spaces) — prefer axios params object over template literals."
+  ],
+  "critical_code_review_comments": [
+    "Leaderboard.js/Compare.js used naked template-literal query strings for user-supplied komponen — a class-of-bug: `${komponen}` never gets URL-encoded so any '+', '&', '#' in future component names will silently break. Migrate to axios `params: { komponen, periode }` object across all api.get calls to eliminate this category.",
+    "backend routers/views.py:63 & 78 whitelist for komponen is hard-coded — consider extracting the list to a single constants file (also used by calc.COMPONENT_MAP) so adding a 5th component in future only requires editing one place.",
+    "calc.py build_riwayat C&R branch always emits target_kol45/realisasi_kol45/achievement_kol45/status_kol45 fields for ALL 12 months, even months where user is not C&R historically — currently fine because same user is CR throughout, but if role changes mid-year the columns would still show for months when the user wasn't CR. Consider gating by user role at that month.",
+    "Riwayat.js `hasKol45 = rows.some((r) => 'realisasi_kol45' in r)` reveals kol45 columns as soon as ANY row has the field — correct for CR users, but for a role-change user this would leak kol45 columns for pre-role months. Minor.",
+    "Frontend period selector is now two dropdowns (period-month-filter + period-year-filter). Any legacy test using old data-testid 'period-filter' will silently no-op. Ensure obsolete tests are updated."
+  ],
+  "updated_files": [
+    "/app/frontend/src/pages/Leaderboard.js",
+    "/app/frontend/src/pages/Compare.js",
+    "/app/backend/tests/test_iter7_kol45.py",
+    "/app/test_reports/iteration_7.json",
+    "/app/test_reports/pytest/iter7_results.xml"
+  ],
+  "success_rate": {"backend": "100% (6/6 iter7 pytest)", "frontend": "100% (5/5 E2E scenarios after applying encodeURIComponent fix)"},
+  "test_credentials": "All accounts password 'BprsHM2026' with requires_password_reset=false (per test_credentials.md updated 2026-09-21). No passwords were modified in this iteration. Admin=002, C&R=013 (DEFI ROSI) & 086 (TAUFIK CHANI).",
+  "seed_data_creation": "target_recovery_kol45 for user 013 periode 2026-09 was set to 25000000 (as instructed by the review request — spec allows this mutation). No other data changes.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "Route for Target Management is /targets (NOT /admin/targets). Leaderboard tab labels are 'Recovery (Kol.3)' and 'Recovery (Kol.4+5)'. When constructing test URLs from JS, remember '+' MUST be URL-encoded — after iter7 fix Leaderboard.js and Compare.js use encodeURIComponent. Executive chart labels detected via '.recharts-cartesian-axis-tick text' show 4 groups. Riwayat.js reveals kol45 columns whenever any row has 'realisasi_kol45' field. Test data on periode 2026-09: user 013 has recovery Kol3=50jt (target 50jt, 100%) and Kol4=10jt (target_kol45=25jt after iter7 → 40%).",
+  "rca of the issue": "Bug: Leaderboard tab 'Recovery (Kol.4+5)' returned HTTP 400. RCA: Leaderboard.js line 17 built URL via template literal `?komponen=${komponen}&…` with komponen='Recovery (Kol.4+5)'. The '+' character in URL query strings is defined by application/x-www-form-urlencoded to mean SPACE. FastAPI decoded komponen as 'Recovery (Kol.4 5)' which is not in the whitelist ('Pembiayaan','Funding','Recovery','Recovery (Kol.4+5)') so views.py line 63 raised HTTPException(400). Fix: wrap value in encodeURIComponent() so '+' becomes '%2B'. Same fix applied to Compare.js line 32. Verified fixed: leaderboard call now hits /api/leaderboard?komponen=Recovery%20(Kol.4%2B5)&periode=2026-09 → 200 with expected rows."
+}

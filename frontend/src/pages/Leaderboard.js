@@ -14,7 +14,7 @@ export default function Leaderboard() {
 
   useEffect(() => {
     setLoading(true);
-    api.get(`/leaderboard?komponen=${komponen}&periode=${periode}`).then(({ data }) => setData(data)).finally(() => setLoading(false));
+    api.get(`/leaderboard?komponen=${encodeURIComponent(komponen)}&periode=${periode}`).then(({ data }) => setData(data)).finally(() => setLoading(false));
   }, [komponen, periode]);
 
   const columns = [

@@ -164,6 +164,18 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Label periode mobile kini tombol: ketuk membuka bottom-sheet "Pilih Periode" (droplist Bulan + Tahun
   2026-2056 + tombol Selesai; testid period-sheet/-month/-year/-close/-done) agar lompat jauh (mis. 2030)
   tanpa menekan panah berkali-kali. Hanya tampil di <sm.
+
+## Iteration 9 (2026-09-21) — Target Recovery Kol.4+5 (digabung) untuk Collection & Remedial
+- Backend: field `target_recovery_kol45` di targets; `sum_recovery_kol45` (kol 4&5, non-WO); KPI kedua
+  "Recovery (Kol.4+5)" untuk C&R (build_kpis); riwayat C&R berisi target/realisasi/achievement/status kol45;
+  COMPONENT_MAP entry baru sehingga leaderboard, compare, dan notifikasi milestone target otomatis mendukung;
+  executive response punya `recovery_kol45`; whitelist komponen di views.py diperluas.
+- Frontend: kolom input "Target Recovery (Kol.4+5)" di Target Management (khusus C&R); tab leaderboard ke-4;
+  opsi komponen baru di Compare; kartu KPI ke-4 + bar ke-4 di Executive Dashboard; ikon KPI baru di Personal
+  Dashboard; kolom Realisasi & Ach. Kol.4+5 kondisional di Riwayat. PDF/Excel rekap otomatis menyertakan KPI baru.
+- Bug ditemukan & diperbaiki saat testing: query param komponen tidak di-encodeURIComponent (karakter '+' →
+  spasi → HTTP 400) di Leaderboard.js & Compare.js — diperbaiki, direview, dan dipertahankan.
+- Tested: backend 6/6 pytest (test_iter7_kol45.py), frontend 5/5 E2E (iteration_7.json).
 - Teruji Playwright viewport 390: sheet terbuka, lompat ke Maret 2030 berhasil, label ter-update, sheet
   tertutup, tanpa overflow.
   label tampil, droplist tersembunyi, tombol next mengubah label, tanpa overflow horizontal. Desktop tetap

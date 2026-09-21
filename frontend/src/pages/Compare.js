@@ -29,7 +29,7 @@ export default function Compare() {
   const runCompare = () => {
     if (picked.length < 2) return toast.error("Pilih minimal 2 AO");
     setLoading(true);
-    const kq = komponen ? `&komponen=${komponen}` : "";
+    const kq = komponen ? `&komponen=${encodeURIComponent(komponen)}` : "";
     api.get(`/compare?ao_ids=${picked.join(",")}&periode=${periode}${kq}`)
       .then(({ data }) => setData(data))
       .catch((e) => toast.error(apiError(e.response?.data?.detail)))
