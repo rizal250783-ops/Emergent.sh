@@ -115,59 +115,92 @@ def extract_exif(img: Image.Image):
     return dt, lat, lon
 
 
-def process_photo(data: bytes, pic_name: str, lat, lon, timestamp_str: str):
-    """Add watermark, return (jpeg_bytes)."""
-    img = Image.open(io.BytesIO(data)).convert("RGB")
-    max_w = 1600
-    if img.width > max_w:
-        ratio = max_w / img.width
-        img = img.resize((max_w, int(img.height * ratio)))
-    draw = ImageDraw.Draw(img, "RGBA")
-    lines = [
-        "PT BPRS HAJI MISKIN",
-        "Collection Activity",
-        timestamp_str,
-        f"PIC: {pic_name}",
-        f"Lokasi: {lat}, {lon}" if lat is not None and lon is not None else "Lokasi: Tidak tersedia",
-    ]
+BULAN_ID = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
+            "Agustus", "September", "Oktober", "November", "Desember"]
+
+
+def _fmt_tanggal_wib(timestamp_str: str):
     try:
-        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", 22)
+        dt = datetime.strptime(str(timestamp_str), "%Y:%m:%d %H:%M:%S")
+    except Exception:
+        dt = datetime.now()
+    return f"{dt.day} {BULAN_ID[dt.month - 1]} {dt.year}", f"{dt.hour:02d}:{dt.minute:02d}"
+
+
+def process_photo(data: bytes, pic_name: str, lat, lon, timestamp_str: str):
+    """Fallback watermark server-side: strip gradient emerald + garis emas, 3 baris."""
+    img = Image.open(io.BytesIO(data)).convert("RGB")
+    max_side = 1500
+    if max(img.width, img.height) > max_side:
+        ratio = max_side / max(img.width, img.height)
+        img = img.resize((max(1, int(img.width * ratio)), max(1, int(img.height * ratio))))
+    tgl, jam = _fmt_tanggal_wib(timestamp_str)
+    lines = [
+        "PT BPRS HAJI MISKIN — COLLECTION ACTIVITY",
+        f"Tanggal: {tgl}   Jam: {jam} WIB   PIC: {pic_name}",
+        f"Lokasi: {lat}, {lon}" if lat is not None and lon is not None else "Lokasi: (tidak tersedia)",
+    ]
+    font_size = max(14, img.width // 48)
+    try:
+        font = ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf", font_size)
     except Exception:
         font = ImageFont.load_default()
-    pad = 12
-    line_h = 30
-    box_h = line_h * len(lines) + pad
-    draw.rectangle([(0, img.height - box_h), (img.width, img.height)], fill=(4, 78, 87, 190))
-    y = img.height - box_h + pad // 2
+    line_h = int(font_size * 1.6)
+    pad = int(font_size * 0.9)
+    strip_h = line_h * len(lines) + pad
+    gold_h = max(3, font_size // 4)
+    overlay = Image.new("RGBA", img.size, (0, 0, 0, 0))
+    od = ImageDraw.Draw(overlay)
+    a0, a1 = 115, 235
+    for yy in range(strip_h):
+        alpha = max(0, min(255, int(a0 + (a1 - a0) * (yy / max(1, strip_h - 1)))))
+        od.line([(0, img.height - strip_h + yy), (img.width, img.height - strip_h + yy)],
+                fill=(6, 78, 59, alpha))
+    od.rectangle([(0, img.height - strip_h - gold_h), (img.width, img.height - strip_h)],
+                 fill=(212, 175, 55, 255))
+    img = Image.alpha_composite(img.convert("RGBA"), overlay)
+    draw = ImageDraw.Draw(img)
+    y = img.height - strip_h + pad // 2
     for ln in lines:
         draw.text((pad, y), ln, fill=(255, 255, 255, 255), font=font)
         y += line_h
     out = io.BytesIO()
-    img.save(out, format="JPEG", quality=82)
+    img.convert("RGB").save(out, format="JPEG", quality=85)
     return out.getvalue()
 
 
+def store_processed_photo(data: bytes, user_id: str) -> str:
+    """Simpan foto yang sudah di-watermark (client-side) ke object storage, return path."""
+    path = f"{APP_NAME}/collection/{user_id}/{uuid.uuid4()}.jpg"
+    put_object(path, data, "image/jpeg")
+    return path
+
+
 def upload_collection_photo(data: bytes, filename: str, user_id: str, pic_name: str,
-                            activity_date: str):
-    """Process one collection photo. Returns dict with storage_path + validation metadata."""
+                            activity_date: str, lat_override=None, lon_override=None,
+                            tanggal_foto=None):
+    """Process one raw collection photo (fallback). Returns storage_path + validation metadata."""
     try:
         src = Image.open(io.BytesIO(data))
         exif_dt, lat, lon = extract_exif(src)
     except Exception:
         exif_dt, lat, lon = None, None, None
 
+    if lat_override is not None and lon_override is not None:
+        lat, lon = round(float(lat_override), 6), round(float(lon_override), 6)
+
     exif_available = exif_dt is not None
-    if exif_dt:
-        norm = exif_dt.replace(":", "-", 2)
-        photo_date = norm.split(" ")[0]
-        timestamp_foto = exif_dt
+    if tanggal_foto:
+        photo_date = tanggal_foto
+    elif exif_dt:
+        photo_date = exif_dt.replace(":", "-", 2).split(" ")[0]
     else:
         photo_date = activity_date
-        timestamp_foto = datetime.now().strftime("%Y:%m:%d %H:%M:%S")
+    timestamp_foto = exif_dt or datetime.now().strftime("%Y:%m:%d %H:%M:%S")
 
     if lat is None or lon is None:
         status = "Lokasi Tidak Tersedia"
-    elif exif_available and photo_date != activity_date:
+    elif photo_date != activity_date:
         status = "Perlu Verifikasi Admin"
     else:
         status = "Valid"

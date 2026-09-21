@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
 import { MapPin, Plus, Camera, ExternalLink, CheckCircle2 } from "lucide-react";
-import { api, apiError, API, formatRp, currentPeriode } from "../lib/api";
+import { api, apiError, API, formatRp } from "../lib/api";
+import { getLocation, watermarkPhoto, tanggalFotoDariFile, ymdLocal } from "../lib/geotag";
 import { useAuth } from "../context/AuthContext";
 import { usePeriod } from "../components/Layout";
 import { Card, Spinner, SectionTitle, Table, Pill, Button, Modal, Input, Select } from "../components/ui";
@@ -148,22 +149,74 @@ function StatusModal({ activity, onClose, onDone }) {
 }
 
 function PhotoModal({ activity, readOnly, onClose, onDone }) {
+  const { user } = useAuth();
   const token = localStorage.getItem("ao360_token");
-  const [files, setFiles] = useState([]);
+  const [items, setItems] = useState([]);
+  const [loc, setLoc] = useState(null);
+  const [locState, setLocState] = useState("default");
+  const [locErr, setLocErr] = useState("");
   const [uploading, setUploading] = useState(false);
   const [photos, setPhotos] = useState(activity.photos || []);
+  const [showCoord, setShowCoord] = useState({});
   const inputRef = useRef();
+  const today = ymdLocal(new Date());
+
+  const processItems = (list, location) => {
+    list.forEach((it, idx) => {
+      watermarkPhoto(it.file, {
+        picName: user.nama,
+        latitude: location ? location.latitude : null,
+        longitude: location ? location.longitude : null,
+      })
+        .then(({ dataUrl, base64 }) => setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, dataUrl, base64, ready: true, error: false } : p))))
+        .catch(() => setItems((prev) => prev.map((p, i) => (i === idx ? { ...p, ready: true, error: true } : p))));
+    });
+  };
+
+  const ambilLokasi = async () => {
+    setLocState("loading");
+    try {
+      const l = await getLocation();
+      setLoc(l);
+      setLocState("ok");
+      if (items.length) {
+        const reset = items.map((p) => ({ ...p, ready: false }));
+        setItems(reset);
+        processItems(reset, l);
+      }
+    } catch (e) {
+      setLocErr(e.message || "tidak diketahui");
+      setLocState("err");
+    }
+  };
+
+  const onPick = (e) => {
+    const files = Array.from(e.target.files || []).slice(0, 5);
+    e.target.value = "";
+    if (!files.length) return;
+    const list = files.map((f) => ({ file: f, dataUrl: null, base64: null, tanggalFoto: tanggalFotoDariFile(f), ready: false, error: false }));
+    setItems(list);
+    processItems(list, loc);
+  };
 
   const upload = async () => {
-    if (!files.length) return toast.error("Pilih foto dulu");
+    if (!items.length) return toast.error("Pilih foto dulu");
+    if (!loc) return toast.error("Lokasi wajib diambil bila Anda mengunggah foto penagihan.");
+    if (items.some((it) => !it.ready)) return toast.error("Watermark foto belum selesai, tunggu sebentar…");
+    if (items.some((it) => it.error)) return toast.error("Ada foto yang tidak valid, ganti file-nya.");
     setUploading(true);
-    const fd = new FormData();
-    files.forEach((f) => fd.append("files", f));
-    fd.append("activity_date", new Date().toISOString().slice(0, 10));
     try {
-      const { data } = await api.post(`/collection/${activity.id}/photos`, fd, { headers: { "Content-Type": "multipart/form-data" } });
+      const { data } = await api.post(`/collection/${activity.id}/photos-b64`, {
+        activity_date: today,
+        photos: items.map((it) => ({
+          foto_b64: it.base64,
+          latitude: loc.latitude,
+          longitude: loc.longitude,
+          tanggal_foto: it.tanggalFoto,
+        })),
+      });
       setPhotos((p) => [...p, ...data.photos]);
-      setFiles([]);
+      setItems([]);
       toast.success(`${data.photos.length} foto terunggah`);
       onDone && onDone();
     } catch (e) { toast.error(apiError(e.response?.data?.detail)); }
@@ -178,45 +231,71 @@ function PhotoModal({ activity, readOnly, onClose, onDone }) {
         <div className="text-sm text-slate-500">{activity.nomor_kontrak} · {activity.nama_nasabah}</div>
         {!readOnly && (
           <Card className="p-4 border-dashed border-2 border-emerald-200 bg-emerald-50/40">
-            <input ref={inputRef} type="file" accept="image/*" multiple capture="environment" onChange={(e) => setFiles(Array.from(e.target.files).slice(0, 5))} data-testid="collection-photo-upload-input" className="hidden" />
-            <div className="flex flex-col items-center text-center py-3">
-              <Camera size={30} className="text-emerald-500 mb-2" />
-              <p className="text-sm text-slate-600 mb-1">Ambil dari kamera atau pilih dari galeri (maks 5, dgn timestamp & geotag)</p>
-              <div className="flex gap-2 mt-2">
+            <input ref={inputRef} type="file" accept="image/*" multiple onChange={onPick} data-testid="collection-photo-upload-input" className="hidden" />
+            <div className="flex flex-col items-center text-center py-3 space-y-2">
+              <Camera size={30} className="text-emerald-500" />
+              <p className="text-sm text-slate-600">Ambil dari kamera atau pilih dari galeri (maks 5, watermark timestamp & geotag otomatis)</p>
+              <div className="flex gap-2 flex-wrap justify-center">
+                <Button size="sm" variant="outline" onClick={ambilLokasi} disabled={locState === "loading"} data-testid="ambil-lokasi-btn">
+                  <MapPin size={13} /> {locState === "loading" ? "Mengambil…" : "Ambil Lokasi Saya"}
+                </Button>
                 <Button size="sm" variant="outline" onClick={() => inputRef.current?.click()} data-testid="pick-photo-btn">Pilih Foto</Button>
-                <Button size="sm" onClick={upload} disabled={uploading || !files.length} data-testid="upload-photo-btn">{uploading ? "Mengunggah…" : `Unggah ${files.length || ""}`}</Button>
+                <Button size="sm" onClick={upload} disabled={uploading || !items.length} data-testid="upload-photo-btn">{uploading ? "Mengunggah…" : `Unggah ${items.length || ""}`}</Button>
               </div>
+              {locState === "ok" && loc ? (
+                <p className="text-xs font-semibold text-emerald-600" data-testid="gps-status">Latitude {loc.latitude}, Longitude {loc.longitude} — tercatat.</p>
+              ) : locState === "err" ? (
+                <p className="text-xs font-semibold text-red-600" data-testid="gps-status">Lokasi tidak diperoleh: {locErr}</p>
+              ) : (
+                <p className="text-xs text-slate-500" data-testid="gps-status">Lokasi wajib diambil bila Anda mengunggah foto penagihan.</p>
+              )}
             </div>
+            {items.length > 0 && (
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
+                {items.map((it, i) => (
+                  <div key={i} className="rounded-xl overflow-hidden border border-slate-200 bg-white" data-testid={`foto-preview-${i}`}>
+                    {it.dataUrl ? (
+                      <img src={it.dataUrl} alt="preview watermark" className="w-full h-32 object-cover" />
+                    ) : (
+                      <div className="h-32 flex items-center justify-center text-xs text-slate-400">{it.error ? "File tidak valid" : "Memproses watermark…"}</div>
+                    )}
+                    {it.tanggalFoto !== today && (
+                      <div className="bg-amber-50 text-amber-700 text-[10px] px-2 py-1 font-semibold" data-testid={`foto-warning-${i}`}>
+                        Tanggal foto ({it.tanggalFoto}) berbeda dengan tanggal aktivitas — akan diverifikasi Admin.
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </Card>
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {photos.length === 0 && <div className="col-span-full text-center text-slate-400 py-6">Belum ada foto</div>}
           {photos.map((p, i) => {
             const hasGps = p.latitude != null && p.longitude != null;
-            const mapsUrl = hasGps ? `https://www.google.com/maps/search/?api=1&query=${p.latitude},${p.longitude}` : null;
+            const mapsUrl = hasGps ? `https://maps.google.com/?q=${p.latitude},${p.longitude}` : null;
             return (
             <div key={i} className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
-              {hasGps ? (
-                <a href={mapsUrl} target="_blank" rel="noreferrer" data-testid={`photo-map-${i}`} title="Buka lokasi di Google Maps" className="relative block group">
-                  <img src={`${API}/collection/photo?path=${encodeURIComponent(p.foto_url)}&auth=${token}`} alt="dokumentasi" className="w-full h-32 object-cover" />
-                  <div className="absolute inset-0 bg-ink/0 group-hover:bg-ink/30 transition-colors flex items-center justify-center">
-                    <span className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 rounded-full bg-white/95 px-3 py-1.5 text-xs font-bold text-emerald-700 shadow">
-                      <MapPin size={12} /> Buka di Google Maps
-                    </span>
-                  </div>
-                </a>
-              ) : (
-                <img src={`${API}/collection/photo?path=${encodeURIComponent(p.foto_url)}&auth=${token}`} alt="dokumentasi" className="w-full h-32 object-cover" />
-              )}
-              <div className="p-2 space-y-1">
+              <img src={`${API}/collection/photo?path=${encodeURIComponent(p.foto_url)}&auth=${token}`} alt="dokumentasi" className="w-full h-32 object-cover" />
+              <div className="p-2 space-y-1.5">
                 <Pill tone={TONE[p.status_validasi] || "slate"}>{p.status_validasi}</Pill>
                 <div className="text-[10px] text-slate-400 font-mono">{p.timestamp_foto}</div>
-                {hasGps && (
-                  <a href={mapsUrl} target="_blank" rel="noreferrer" data-testid={`map-link-${i}`} className="text-[11px] text-emerald-600 flex items-center gap-1 hover:underline font-semibold">
-                    <ExternalLink size={10} /> Lihat Lokasi ({p.latitude}, {p.longitude})
-                  </a>
+                {hasGps ? (
+                  <>
+                    <div className="flex gap-1.5 flex-wrap">
+                      <button type="button" onClick={() => setShowCoord((s) => ({ ...s, [i]: !s[i] }))} data-testid={`photo-lokasi-${i}`} className="inline-flex items-center gap-1 rounded-full bg-slate-200/70 px-2.5 py-1 text-[10px] font-bold text-slate-600 hover:bg-slate-300 transition-colors">
+                        <MapPin size={10} /> Lokasi
+                      </button>
+                      <a href={mapsUrl} target="_blank" rel="noreferrer" data-testid={`photo-map-${i}`} className="inline-flex items-center gap-1 rounded-full bg-emerald-600 px-2.5 py-1 text-[10px] font-bold text-white hover:bg-emerald-700 transition-colors">
+                        <ExternalLink size={10} /> Buka Google Maps
+                      </a>
+                    </div>
+                    {showCoord[i] && <div className="text-[10px] font-mono text-slate-500" data-testid={`photo-coord-${i}`}>{p.latitude}, {p.longitude}</div>}
+                  </>
+                ) : (
+                  <div className="text-[10px] text-slate-400">Lokasi tidak tersedia</div>
                 )}
-                {!hasGps && <div className="text-[10px] text-slate-400">Lokasi tidak tersedia</div>}
               </div>
             </div>
             );

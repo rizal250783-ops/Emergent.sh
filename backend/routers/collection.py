@@ -1,13 +1,17 @@
+import base64
+import io
+from datetime import datetime
 from typing import Optional, List
 
 from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Header, Query
 from fastapi.responses import Response
 from pydantic import BaseModel
+from PIL import Image
 
 from database import db, clean, now_iso, write_audit
 from security import get_current_user, require_roles, JWT_SECRET, JWT_ALGORITHM
-from storage import upload_collection_photo, get_object
+from storage import upload_collection_photo, get_object, store_processed_photo
 
 router = APIRouter(prefix="/collection", tags=["collection"])
 
@@ -35,6 +39,18 @@ class SelfInputBody(BaseModel):
 class UpdateStatusBody(BaseModel):
     status_penagihan: str
     catatan: Optional[str] = None
+
+
+class PhotoB64Item(BaseModel):
+    foto_b64: str
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
+    tanggal_foto: Optional[str] = None
+
+
+class PhotosB64Body(BaseModel):
+    activity_date: str
+    photos: List[PhotoB64Item]
 
 
 async def _enrich_activity(docs):
@@ -105,7 +121,11 @@ async def update_status(aid: str, body: UpdateStatusBody, user=Depends(get_curre
 
 @router.post("/{aid}/photos")
 async def upload_photos(aid: str, files: List[UploadFile] = File(...),
-                        activity_date: str = Form(...), user=Depends(get_current_user)):
+                        activity_date: str = Form(...),
+                        latitude: Optional[float] = Form(None),
+                        longitude: Optional[float] = Form(None),
+                        tanggal_foto: Optional[str] = Form(None),
+                        user=Depends(get_current_user)):
     act = await db.collection_activity.find_one({"_id": ObjectId(aid)})
     if not act:
         raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
@@ -117,7 +137,9 @@ async def upload_photos(aid: str, files: List[UploadFile] = File(...),
         if len(data) > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail=f"{f.filename} melebihi 10MB")
         try:
-            meta = upload_collection_photo(data, f.filename, str(user["_id"]), user["nama"], activity_date)
+            meta = upload_collection_photo(data, f.filename, str(user["_id"]), user["nama"],
+                                           activity_date, lat_override=latitude,
+                                           lon_override=longitude, tanggal_foto=tanggal_foto)
         except HTTPException:
             raise
         except Exception:
@@ -129,6 +151,49 @@ async def upload_photos(aid: str, files: List[UploadFile] = File(...),
         c["id"] = str(res.inserted_id)
         saved.append(c)
     await write_audit(user, "Upload foto collection activity", sesudah={"aktivitas": aid, "jumlah": len(saved)})
+    return {"photos": saved}
+
+
+@router.post("/{aid}/photos-b64")
+async def upload_photos_b64(aid: str, body: PhotosB64Body, user=Depends(get_current_user)):
+    act = await db.collection_activity.find_one({"_id": ObjectId(aid)})
+    if not act:
+        raise HTTPException(status_code=404, detail="Aktivitas tidak ditemukan")
+    if not body.photos:
+        raise HTTPException(status_code=400, detail="Tidak ada foto yang dikirim")
+    if len(body.photos) > 5:
+        raise HTTPException(status_code=400, detail="Maksimal 5 foto per aktivitas")
+    saved = []
+    for p in body.photos:
+        if p.latitude is None or p.longitude is None:
+            raise HTTPException(status_code=400,
+                                detail="Lokasi wajib diambil bila Anda mengunggah foto penagihan.")
+        try:
+            data = base64.b64decode(p.foto_b64, validate=True)
+        except Exception:
+            raise HTTPException(status_code=400, detail="Data foto base64 tidak valid")
+        if len(data) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=400, detail="Foto melebihi 10MB")
+        try:
+            Image.open(io.BytesIO(data)).verify()
+        except Exception:
+            raise HTTPException(status_code=400, detail="File bukan gambar yang valid")
+        tanggal = p.tanggal_foto or body.activity_date
+        status = "Valid" if tanggal == body.activity_date else "Perlu Verifikasi Admin"
+        path = store_processed_photo(data, str(user["_id"]))
+        doc = {
+            "collection_activity_id": aid, "foto_url": path, "storage_path": path,
+            "tanggal_foto": tanggal,
+            "timestamp_foto": datetime.now().strftime("%Y:%m:%d %H:%M:%S"),
+            "latitude": round(float(p.latitude), 6), "longitude": round(float(p.longitude), 6),
+            "exif_available": False, "status_validasi": status,
+            "uploaded_by": user["kode_marketing"], "created_at": now_iso(),
+        }
+        res = await db.collection_activity_photos.insert_one(doc)
+        c = clean(doc)
+        c["id"] = str(res.inserted_id)
+        saved.append(c)
+    await write_audit(user, "Upload foto collection activity (geotag)", sesudah={"aktivitas": aid, "jumlah": len(saved)})
     return {"photos": saved}
 
 
