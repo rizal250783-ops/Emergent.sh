@@ -111,6 +111,12 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 
 ## Iteration 6c (2026-09-21) — Kompresi adaptif watermark klien
 - geotag.js: hasil canvas mulai JPEG q0.85; bila ukuran > 1MB, kualitas diturunkan bertahap (0.75→0.5)
+
+## Iteration 6d (2026-09-21) — Indikator ukuran file + uji E2E portrait HP
+- Preview foto kini menampilkan ukuran hasil kompresi (mis. "831 KB (terkompresi)", data-testid foto-size-{i}).
+- Uji E2E Playwright meniru unggahan HP: JPEG noisy 2735 KB dengan EXIF orientation 6 → preview portrait
+  1125x1500 (orientasi benar), terkompresi ke 831 KB, unggah sukses status "Valid" (4 kartu foto di modal).
+- Akun dikembalikan ke kondisi pristine (BprsHM2026 + requires_password_reset) setelah pengujian.
   hingga <= 1MB — upload foto di jaringan lapangan lambat lebih cepat. Frontend compiled successfully.
   frontend compiled successfully.
   (iteration_6.json). piexif ditambahkan ke requirements.txt.

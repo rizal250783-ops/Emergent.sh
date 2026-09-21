@@ -259,6 +259,9 @@ function PhotoModal({ activity, readOnly, onClose, onDone }) {
                     ) : (
                       <div className="h-32 flex items-center justify-center text-xs text-slate-400">{it.error ? "File tidak valid" : "Memproses watermark…"}</div>
                     )}
+                    <div className="px-2 pt-1 text-[10px] font-mono text-slate-500" data-testid={`foto-size-${i}`}>
+                      {it.base64 ? `${Math.max(1, Math.round((it.base64.length * 3) / 4 / 1024))} KB (terkompresi)` : "…"}
+                    </div>
                     {it.tanggalFoto !== today && (
                       <div className="bg-amber-50 text-amber-700 text-[10px] px-2 py-1 font-semibold" data-testid={`foto-warning-${i}`}>
                         Tanggal foto ({it.tanggalFoto}) berbeda dengan tanggal aktivitas — akan diverifikasi Admin.
