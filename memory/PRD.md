@@ -179,6 +179,10 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Tiga poin fitur di panel brand login dihapus, diganti: MOTTO "HIDUP BERKAH, TANPA RIBA DENGAN SYARIAH",
   VISI "Menjadikan BPRS Haji Miskin Sebagai Panutan Bank Pembiayaan Rakyat Syariah di Sumatera Barat",
   MISI "Meningkatkan Peran Serta Usaha Kecil dan Menengah Dalam Pembangunan Ekonomi Rakyat Indonesia di Masa
+
+## Iteration 10b (2026-09-21) — Hapus kotak kredensial demo di login
+- Kotak hijau "Demo: Direktur 001 · Admin 002 ... Password awal BprsHM2026" dihapus dari formulir login
+  demi keamanan. Terverifikasi via screenshot.
   Depan" (ikon Sparkles/Eye/Flag, label emas; testid login-mvm-motto/-visi/-misi). Terverifikasi via screenshot.
   spasi → HTTP 400) di Leaderboard.js & Compare.js — diperbaiki, direview, dan dipertahankan.
 - Tested: backend 6/6 pytest (test_iter7_kol45.py), frontend 5/5 E2E (iteration_7.json).

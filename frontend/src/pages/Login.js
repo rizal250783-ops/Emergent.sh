@@ -84,9 +84,6 @@ export default function Login() {
               <LogIn size={18} /> {loading ? "Memproses…" : "Masuk"}
             </Button>
           </form>
-          <div className="mt-6 rounded-xl bg-emerald-50 border border-emerald-100 p-3 text-xs text-emerald-800">
-            <b>Demo:</b> Direktur <code>001</code> · Admin <code>002</code> · AO Pembiayaan <code>003</code> · AO Funding <code>008</code> · Collection <code>013</code>. Password awal: <code>BprsHM2026</code>
-          </div>
         </div>
       </div>
     </div>
