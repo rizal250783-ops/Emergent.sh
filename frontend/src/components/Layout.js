@@ -125,11 +125,18 @@ export default function Layout() {
     </div>
   );
 
+  const SidebarFoot = () => (
+    <div className="px-4 pb-4 text-center" data-testid="sidebar-footer">
+      <div className="text-[10px] font-semibold uppercase tracking-wide text-gold-100/90">Hidup Berkah, Tanpa Riba dengan Syariah</div>
+      <div className="mt-1 text-[10px] text-emerald-100/60">© 2026 PT BPRS Haji Miskin</div>
+    </div>
+  );
+
   return (
     <PeriodContext.Provider value={{ periode, setPeriode }}>
       <div className="min-h-screen flex bg-slate-50">
         {/* Sidebar desktop */}
-        <aside className="hidden lg:flex lg:flex-col lg:w-72 gradient-emerald grid-pattern shrink-0">
+        <aside className="hidden lg:flex lg:flex-col lg:w-72 gradient-emerald grid-pattern shrink-0 lg:sticky lg:top-0 lg:h-screen">
           <div className="p-5 border-b border-white/10"><Brand /></div>
           <div className="p-4 flex-1 overflow-y-auto"><NavItems /></div>
           <div className="p-4 border-t border-white/10">
@@ -141,6 +148,7 @@ export default function Layout() {
               <LogOut size={18} /> Keluar
             </button>
           </div>
+          <SidebarFoot />
         </aside>
 
         {/* Mobile drawer */}
@@ -158,6 +166,7 @@ export default function Layout() {
                   <LogOut size={18} /> Keluar
                 </button>
               </div>
+              <SidebarFoot />
             </aside>
           </div>
         )}

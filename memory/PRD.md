@@ -186,6 +186,14 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 ## Iteration 10c (2026-09-21) — Login: hint lupa password + spasi footer
 - Tambah teks kecil "Lupa password? Hubungi Admin" (login-forgot-hint) di bawah tombol Masuk.
 - Footer © diberi mt-10 + pt-6 + garis pemisah tipis agar tidak berhimpitan dengan teks MISI.
+
+## Iteration 10d (2026-09-21) — Footer branding di sidebar
+- Footer kecil di bawah sidebar desktop & drawer mobile (data-testid sidebar-footer): motto "HIDUP BERKAH,
+  TANPA RIBA DENGAN SYARIAH" (emas) + "© 2026 PT BPRS Haji Miskin".
+- Sidebar desktop dibuat sticky (lg:sticky top-0 h-screen) sehingga menu, kartu user, tombol Keluar, dan footer
+  selalu terlihat tanpa ikut scroll konten (sekaligus memperbaiki perilaku lama di mana blok bawah sidebar
+  ikut terscroll keluar viewport pada halaman panjang).
+- Teruji Playwright desktop 1920 (tanpa & dengan scroll) + drawer mobile 390.
   Terverifikasi via screenshot (jarak MISI→footer 252px di desktop).
   demi keamanan. Terverifikasi via screenshot.
   Depan" (ikon Sparkles/Eye/Flag, label emas; testid login-mvm-motto/-visi/-misi). Terverifikasi via screenshot.
