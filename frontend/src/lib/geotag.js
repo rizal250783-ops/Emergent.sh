@@ -34,11 +34,26 @@ export function tanggalFotoDariFile(file) {
   return ymdLocal(new Date(file.lastModified));
 }
 
-export function watermarkPhoto(file, { picName, latitude, longitude }) {
+function loadOrientedImage(file) {
+  if (window.createImageBitmap) {
+    return createImageBitmap(file, { imageOrientation: "from-image" }).catch(() => loadViaImgEl(file));
+  }
+  return loadViaImgEl(file);
+}
+
+function loadViaImgEl(file) {
   return new Promise((resolve, reject) => {
     const objUrl = URL.createObjectURL(file);
     const img = new Image();
-    img.onload = () => {
+    img.onload = () => { URL.revokeObjectURL(objUrl); resolve(img); };
+    img.onerror = () => { URL.revokeObjectURL(objUrl); reject(new Error("file bukan gambar yang valid")); };
+    img.src = objUrl;
+  });
+}
+
+export function watermarkPhoto(file, { picName, latitude, longitude }) {
+  return loadOrientedImage(file).then((img) => {
+    return new Promise((resolve, reject) => {
       try {
         const scale = Math.min(1, 1500 / Math.max(img.width, img.height));
         const w = Math.max(1, Math.round(img.width * scale));
@@ -48,6 +63,7 @@ export function watermarkPhoto(file, { picName, latitude, longitude }) {
         canvas.height = h;
         const ctx = canvas.getContext("2d");
         ctx.drawImage(img, 0, 0, w, h);
+        if (img.close) img.close();
 
         const now = new Date();
         const lines = [
@@ -79,17 +95,10 @@ export function watermarkPhoto(file, { picName, latitude, longitude }) {
         });
 
         const dataUrl = canvas.toDataURL("image/jpeg", 0.85);
-        URL.revokeObjectURL(objUrl);
         resolve({ dataUrl, base64: dataUrl.split(",")[1] });
       } catch (e) {
-        URL.revokeObjectURL(objUrl);
         reject(e);
       }
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(objUrl);
-      reject(new Error("file bukan gambar yang valid"));
-    };
-    img.src = objUrl;
+    });
   });
 }

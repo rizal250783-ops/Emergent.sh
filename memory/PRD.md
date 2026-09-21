@@ -102,6 +102,13 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Riwayat: tombol "Lokasi" (toggle koordinat) & "Buka Google Maps" → https://maps.google.com/?q=<lat>,<lng>
   (URL pendek sesuai spec baru, menggantikan URL kanonik iter-5).
 - Tested: backend 7/7 pytest (regresi multipart), 4/4 skenario curl photos-b64; frontend 5/5 Playwright
+
+## Iteration 6b (2026-09-21) — Koreksi orientasi EXIF pada watermark
+- Klien: geotag.js memuat foto via createImageBitmap({imageOrientation:'from-image'}) dengan fallback elemen
+  <img>, sehingga foto portrait HP tidak lagi miring di preview/hasil watermark.
+- Server: storage.process_photo memakai ImageOps.exif_transpose sebelum resize/watermark.
+- Verified: JPEG landscape dgn EXIF orientation 6 → output portrait 600x800; tanpa EXIF tetap 800x600;
+  frontend compiled successfully.
   (iteration_6.json). piexif ditambahkan ke requirements.txt.
 
 ## Backlog / Next

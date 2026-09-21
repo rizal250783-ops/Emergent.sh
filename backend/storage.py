@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime
 
 import requests
-from PIL import Image, ImageDraw, ImageFont, ExifTags
+from PIL import Image, ImageDraw, ImageFont, ImageOps, ExifTags
 
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
@@ -129,7 +129,7 @@ def _fmt_tanggal_wib(timestamp_str: str):
 
 def process_photo(data: bytes, pic_name: str, lat, lon, timestamp_str: str):
     """Fallback watermark server-side: strip gradient emerald + garis emas, 3 baris."""
-    img = Image.open(io.BytesIO(data)).convert("RGB")
+    img = ImageOps.exif_transpose(Image.open(io.BytesIO(data))).convert("RGB")
     max_side = 1500
     if max(img.width, img.height) > max_side:
         ratio = max_side / max(img.width, img.height)
