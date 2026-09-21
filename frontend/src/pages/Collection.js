@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import { toast } from "sonner";
-import { MapPin, Plus, Camera, ExternalLink, CheckCircle2 } from "lucide-react";
+import { MapPin, Plus, Camera, ExternalLink, CheckCircle2, X } from "lucide-react";
 import { api, apiError, API, formatRp } from "../lib/api";
 import { getLocation, watermarkPhoto, tanggalFotoDariFile, ymdLocal } from "../lib/geotag";
 import { useAuth } from "../context/AuthContext";
@@ -253,7 +253,10 @@ function PhotoModal({ activity, readOnly, onClose, onDone }) {
             {items.length > 0 && (
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-3">
                 {items.map((it, i) => (
-                  <div key={i} className="rounded-xl overflow-hidden border border-slate-200 bg-white" data-testid={`foto-preview-${i}`}>
+                  <div key={i} className="relative rounded-xl overflow-hidden border border-slate-200 bg-white" data-testid={`foto-preview-${i}`}>
+                    <button type="button" onClick={() => setItems((prev) => prev.filter((_, j) => j !== i))} disabled={uploading} data-testid={`foto-remove-${i}`} title="Hapus foto ini" className="absolute top-1.5 right-1.5 z-10 inline-flex items-center justify-center w-6 h-6 rounded-full bg-red-600/90 text-white hover:bg-red-700 transition-colors shadow">
+                      <X size={13} />
+                    </button>
                     {it.dataUrl ? (
                       <img src={it.dataUrl} alt="preview watermark" className="w-full h-32 object-cover" />
                     ) : (

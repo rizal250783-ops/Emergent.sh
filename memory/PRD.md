@@ -116,6 +116,11 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Preview foto kini menampilkan ukuran hasil kompresi (mis. "831 KB (terkompresi)", data-testid foto-size-{i}).
 - Uji E2E Playwright meniru unggahan HP: JPEG noisy 2735 KB dengan EXIF orientation 6 → preview portrait
   1125x1500 (orientasi benar), terkompresi ke 831 KB, unggah sukses status "Valid" (4 kartu foto di modal).
+
+## Iteration 6e (2026-09-21) — Tombol Hapus pada preview foto
+- Setiap kartu preview (sebelum unggah) punya tombol X merah (data-testid foto-remove-{i}) untuk membuang
+  foto salah pilih tanpa menutup modal; nonaktif saat uploading. Teruji E2E: 2 preview → hapus 1 → sisa 1,
+  label tombol "Unggah 1" ikut menyesuaikan.
 - Akun dikembalikan ke kondisi pristine (BprsHM2026 + requires_password_reset) setelah pengujian.
   hingga <= 1MB — upload foto di jaringan lapangan lambat lebih cepat. Frontend compiled successfully.
   frontend compiled successfully.
