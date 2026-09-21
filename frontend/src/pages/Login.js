@@ -59,7 +59,7 @@ export default function Login() {
             ))}
           </div>
         </div>
-        <div className="relative z-10 text-emerald-100/70 text-xs">© 2026 PT BPRS Haji Miskin · Direktur: Hendri Kamal</div>
+        <div className="relative z-10 mt-10 pt-6 border-t border-white/10 text-emerald-100/70 text-xs">© 2026 PT BPRS Haji Miskin · Direktur: Hendri Kamal</div>
         <div className="absolute -bottom-24 -right-24 h-80 w-80 rounded-full bg-gold-500/20 blur-3xl" />
       </div>
 
@@ -84,6 +84,7 @@ export default function Login() {
               <LogIn size={18} /> {loading ? "Memproses…" : "Masuk"}
             </Button>
           </form>
+          <p className="mt-6 text-center text-xs text-slate-400" data-testid="login-forgot-hint">Lupa password? Hubungi Admin</p>
         </div>
       </div>
     </div>
