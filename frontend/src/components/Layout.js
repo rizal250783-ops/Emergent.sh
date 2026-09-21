@@ -7,7 +7,7 @@ import {
 import { useAuth } from "../context/AuthContext";
 import { Select, Pill } from "./ui";
 import NotificationBell from "./NotificationBell";
-import { api, periodeOptions, currentPeriode } from "../lib/api";
+import { api, currentPeriode } from "../lib/api";
 
 const PeriodContext = createContext(null);
 export const usePeriod = () => useContext(PeriodContext);
@@ -62,13 +62,16 @@ const MENUS = {
   ],
 };
 
+const BULAN_OPTIONS = ["Januari", "Februari", "Maret", "April", "Mei", "Juni", "Juli",
+  "Agustus", "September", "Oktober", "November", "Desember"];
+const TAHUN_OPTIONS = Array.from({ length: 31 }, (_, i) => 2026 + i); // 2026..2056
+
 export default function Layout() {
   const { user, logout } = useAuth();
   const [periode, setPeriode] = useState(currentPeriode());
   const [open, setOpen] = useState(false);
   const location = useLocation();
   const menu = MENUS[user?.jabatan] || [];
-  const opts = periodeOptions();
 
   useEffect(() => {
     api.get("/meta/latest-periode").then(({ data }) => { if (data.latest) setPeriode(data.latest); }).catch(() => {});
@@ -158,10 +161,17 @@ export default function Layout() {
                 </div>
               </div>
               <div className="flex items-center gap-3">
-                <div className="w-44 sm:w-52">
-                  <Select value={periode} onChange={(e) => setPeriode(e.target.value)} data-testid="period-filter">
-                    {opts.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-                  </Select>
+                <div className="flex items-center gap-2">
+                  <div className="w-32 sm:w-36">
+                    <Select value={periode.slice(5, 7)} onChange={(e) => setPeriode(`${periode.slice(0, 4)}-${e.target.value}`)} data-testid="period-month-filter">
+                      {BULAN_OPTIONS.map((b, i) => <option key={b} value={String(i + 1).padStart(2, "0")}>{b}</option>)}
+                    </Select>
+                  </div>
+                  <div className="w-24 sm:w-28">
+                    <Select value={periode.slice(0, 4)} onChange={(e) => setPeriode(`${e.target.value}-${periode.slice(5, 7)}`)} data-testid="period-year-filter">
+                      {TAHUN_OPTIONS.map((t) => <option key={t} value={String(t)}>{t}</option>)}
+                    </Select>
+                  </div>
                 </div>
                 <NotificationBell />
                 <div className="hidden sm:block"><Pill tone="gold">{user?.kode_marketing}</Pill></div>

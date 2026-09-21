@@ -144,6 +144,13 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
   recovery tercapai (1% x 50jt = Rp500rb) — gating sesuai desain; notifikasi "tercapai" ke AO 008 (125%) &
   013 (100%); Direktur (001) bulk approve → 2 insentif approved & tampil di /incentives/mine AO 013 +
   notifikasi persetujuan.
+
+## Iteration 8 (2026-09-21) — Droplist Bulan & Tahun terpisah
+- Pemilih periode di header dipecah: droplist Bulan (Januari–Desember, data-testid period-month-filter) +
+  droplist Tahun (2026–2056, data-testid period-year-filter); state periode tetap "YYYY-MM" sehingga semua
+  halaman tidak berubah. periodeOptions() tidak lagi dipakai Layout.
+- Teruji E2E: 12 bulan & 31 tahun (2026..2056) sesuai, ganti ke Januari 2056 tanpa crash, mobile 390px tanpa
+  horizontal overflow.
 - Data uji berlabel "Uji" (kontrak PBY-UJI-*, RCV-UJI-*) masih ada di DB periode 2026-09; dapat dihapus via UI
   Admin atau minta wipe ulang sebelum percobaan input sendiri.
   CORS, port, supervisor, auth redirect). Restore endpoint delete_many & saran optimasi query bersifat
