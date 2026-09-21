@@ -77,6 +77,16 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Non-image upload now returns clean 400 instead of 500.
 - Verified by testing agent: 7/7 backend + Playwright popup navigates to the canonical Maps URL (iteration_5.json).
 
+## Setup Verification (2026-09-21)
+- Repo re-confirmed: /app already synced with origin (rizal250783-ops/Emergent.sh), branch
+  AO-360_BPRS_Haji_Miskin @ a9d2bec (remote branch `conflict_AO-360_BPRS_Haji_Miskin` does not exist;
+  content lives on AO-360_BPRS_Haji_Miskin).
+- Deps: frontend `yarn install` up-to-date; backend all app imports OK (requirements.txt has a known
+  pip resolver conflict on litellm hash-fragment vs emergentintegrations — env already has both, app
+  does not import them, no action needed).
+- Verified: GET /api -> 200 {"app":"AO-360","status":"ok"}; login 001/BprsHM2026 returns JWT + user;
+  frontend login page renders (desktop + mobile).
+
 ## Backlog / Next
 - P1: Per-jenis schema validation + preview/error-report for Data Import.
 - P1: Collection photo HEIC auto-convert edge cases; multi-photo compression >3MB.
