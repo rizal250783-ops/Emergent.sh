@@ -135,6 +135,17 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - `demo_seed.seed_demo()` DINONAKTIFKAN di server.py startup (import + call dihapus) agar DB tidak terisi ulang
   saat restart/deploy. Startup kini hanya seed_users + seed_settings (idempoten).
 - .gitignore: tambah `memory/test_credentials.md`. Deployment readiness: cek kritis lolos (kompilasi, env,
+
+## Iteration 7b (2026-09-21) — Validasi alur perhitungan di DB bersih (via Admin 002)
+- Target 2026-09: 003 (pencairan 500jt, funding 250jt), 008 (funding 200jt), 013 (recovery 50jt).
+- Input uji: pencairan 150jt+200jt (003), funding 250jt (008), recovery Kol3 25jt+25jt & Kol4 denda penuh 10jt (013).
+- Hasil terverifikasi benar: Executive Pembiayaan 70% (350/500jt), Funding 55,56% (250/450jt), Recovery 100%;
+  leaderboard ranking benar; insentif otomatis: Kol4 5% = Rp500rb pending, Kol3 1% baru terbit saat target
+  recovery tercapai (1% x 50jt = Rp500rb) — gating sesuai desain; notifikasi "tercapai" ke AO 008 (125%) &
+  013 (100%); Direktur (001) bulk approve → 2 insentif approved & tampil di /incentives/mine AO 013 +
+  notifikasi persetujuan.
+- Data uji berlabel "Uji" (kontrak PBY-UJI-*, RCV-UJI-*) masih ada di DB periode 2026-09; dapat dihapus via UI
+  Admin atau minta wipe ulang sebelum percobaan input sendiri.
   CORS, port, supervisor, auth redirect). Restore endpoint delete_many & saran optimasi query bersifat
   non-blocking (fitur admin disengaja / skala kecil).
   label tombol "Unggah 1" ikut menyesuaikan.
