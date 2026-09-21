@@ -191,19 +191,36 @@ function PhotoModal({ activity, readOnly, onClose, onDone }) {
         )}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
           {photos.length === 0 && <div className="col-span-full text-center text-slate-400 py-6">Belum ada foto</div>}
-          {photos.map((p, i) => (
+          {photos.map((p, i) => {
+            const hasGps = p.latitude != null && p.longitude != null;
+            const mapsUrl = hasGps ? `https://www.google.com/maps/search/?api=1&query=${p.latitude},${p.longitude}` : null;
+            return (
             <div key={i} className="rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
-              <img src={`${API}/collection/photo?path=${encodeURIComponent(p.foto_url)}&auth=${token}`} alt="dokumentasi" className="w-full h-32 object-cover" />
+              {hasGps ? (
+                <a href={mapsUrl} target="_blank" rel="noreferrer" data-testid={`photo-map-${i}`} title="Buka lokasi di Google Maps" className="relative block group">
+                  <img src={`${API}/collection/photo?path=${encodeURIComponent(p.foto_url)}&auth=${token}`} alt="dokumentasi" className="w-full h-32 object-cover" />
+                  <div className="absolute inset-0 bg-ink/0 group-hover:bg-ink/30 transition-colors flex items-center justify-center">
+                    <span className="opacity-0 group-hover:opacity-100 transition-opacity inline-flex items-center gap-1 rounded-full bg-white/95 px-3 py-1.5 text-xs font-bold text-emerald-700 shadow">
+                      <MapPin size={12} /> Buka di Google Maps
+                    </span>
+                  </div>
+                </a>
+              ) : (
+                <img src={`${API}/collection/photo?path=${encodeURIComponent(p.foto_url)}&auth=${token}`} alt="dokumentasi" className="w-full h-32 object-cover" />
+              )}
               <div className="p-2 space-y-1">
                 <Pill tone={TONE[p.status_validasi] || "slate"}>{p.status_validasi}</Pill>
                 <div className="text-[10px] text-slate-400 font-mono">{p.timestamp_foto}</div>
-                {p.latitude != null && (
-                  <a href={`https://maps.google.com/?q=${p.latitude},${p.longitude}`} target="_blank" rel="noreferrer" className="text-[11px] text-emerald-600 flex items-center gap-1 hover:underline"><ExternalLink size={10} /> Lihat Lokasi</a>
+                {hasGps && (
+                  <a href={mapsUrl} target="_blank" rel="noreferrer" data-testid={`map-link-${i}`} className="text-[11px] text-emerald-600 flex items-center gap-1 hover:underline font-semibold">
+                    <ExternalLink size={10} /> Lihat Lokasi ({p.latitude}, {p.longitude})
+                  </a>
                 )}
-                {p.latitude == null && <div className="text-[10px] text-slate-400">Lokasi tidak tersedia</div>}
+                {!hasGps && <div className="text-[10px] text-slate-400">Lokasi tidak tersedia</div>}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </Modal>

@@ -57,18 +57,32 @@ def get_object(path: str):
     return resp.content, resp.headers.get("Content-Type", "application/octet-stream")
 
 
+def _to_float(v):
+    """Coerce EXIF value: IFDRational, (num, den) tuple, or plain number."""
+    if isinstance(v, (tuple, list)) and len(v) >= 2:
+        den = float(v[1])
+        return float(v[0]) / den if den else 0.0
+    return float(v)
+
+
 def _dms_to_deg(dms, ref):
+    """Convert GPS DMS (any EXIF representation) to decimal degrees. None if invalid."""
     try:
-        deg = dms[0][0] / dms[0][1] + dms[1][0] / dms[1][1] / 60 + dms[2][0] / dms[2][1] / 3600
-        if ref in ["S", "W"]:
+        vals = [_to_float(v) for v in list(dms)[:3]]
+        while len(vals) < 3:
+            vals.append(0.0)
+        deg_v, min_v, sec_v = vals
+        # sanity: minutes/seconds must be within range, else data is unreliable
+        if deg_v < 0 or not (0 <= min_v < 60) or not (0 <= sec_v < 60):
+            return None
+        deg = deg_v + min_v / 60 + sec_v / 3600
+        if deg > 180:
+            return None
+        if ref in ("S", "W", b"S", b"W"):
             deg = -deg
         return round(deg, 6)
     except Exception:
-        try:
-            deg = float(dms[0]) + float(dms[1]) / 60 + float(dms[2]) / 3600
-            return round(-deg if ref in ["S", "W"] else deg, 6)
-        except Exception:
-            return None
+        return None
 
 
 def extract_exif(img: Image.Image):
@@ -76,19 +90,22 @@ def extract_exif(img: Image.Image):
     lat = lon = None
     dt = None
     try:
-        raw = img._getexif() or {}
+        exif = img.getexif()
     except Exception:
-        raw = {}
-    tags = {ExifTags.TAGS.get(k, k): v for k, v in raw.items()}
-    dt_val = tags.get("DateTimeOriginal") or tags.get("DateTime")
-    if dt_val:
-        dt = str(dt_val)
-    gps = tags.get("GPSInfo")
+        exif = {}
+    try:
+        dt_val = exif.get(36867) or exif.get(306)  # DateTimeOriginal / DateTime
+        if dt_val:
+            dt = str(dt_val)
+        gps = exif.get_ifd(0x8825)  # GPS IFD
+    except Exception:
+        gps = {}
     if gps:
-        g = {ExifTags.GPSTAGS.get(k, k): v for k, v in gps.items()}
-        if "GPSLatitude" in g and "GPSLongitude" in g:
-            lat = _dms_to_deg(g["GPSLatitude"], g.get("GPSLatitudeRef", "N"))
-            lon = _dms_to_deg(g["GPSLongitude"], g.get("GPSLongitudeRef", "E"))
+        lat_v = gps.get(2)
+        lon_v = gps.get(4)
+        if lat_v is not None and lon_v is not None:
+            lat = _dms_to_deg(lat_v, gps.get(1, "N"))
+            lon = _dms_to_deg(lon_v, gps.get(3, "E"))
     return dt, lat, lon
 
 
