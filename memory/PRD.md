@@ -193,6 +193,14 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Sidebar desktop dibuat sticky (lg:sticky top-0 h-screen) sehingga menu, kartu user, tombol Keluar, dan footer
   selalu terlihat tanpa ikut scroll konten (sekaligus memperbaiki perilaku lama di mana blok bawah sidebar
   ikut terscroll keluar viewport pada halaman panjang).
+
+## Iteration 11 (2026-09-21) — Pengosongan data untuk uji coba input (ke-2)
+- Semua koleksi dikosongkan kecuali `users` (19 akun, password tetap standar BprsHM2026 tanpa forced change)
+  & `settings`: targets, lending/funding/recovery_achievement_details, incentive_settings, notifications,
+  target_notify_state, collection_activity(+photos), audit_logs (user_management_requests & role_history juga
+  ikut kosong). Data uji iterasi 7/9 ikut terhapus.
+- Smoke test pasca-kosong: semua endpoint utama 200, dashboard menampilkan Rp 0/N-A, halaman Targets/
+  Leaderboard/Collection/Incentives render tanpa JS error.
 - Teruji Playwright desktop 1920 (tanpa & dengan scroll) + drawer mobile 390.
   Terverifikasi via screenshot (jarak MISI→footer 252px di desktop).
   demi keamanan. Terverifikasi via screenshot.
