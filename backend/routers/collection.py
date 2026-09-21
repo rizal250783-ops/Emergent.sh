@@ -116,7 +116,12 @@ async def upload_photos(aid: str, files: List[UploadFile] = File(...),
         data = await f.read()
         if len(data) > 10 * 1024 * 1024:
             raise HTTPException(status_code=400, detail=f"{f.filename} melebihi 10MB")
-        meta = upload_collection_photo(data, f.filename, str(user["_id"]), user["nama"], activity_date)
+        try:
+            meta = upload_collection_photo(data, f.filename, str(user["_id"]), user["nama"], activity_date)
+        except HTTPException:
+            raise
+        except Exception:
+            raise HTTPException(status_code=400, detail=f"{f.filename} bukan file gambar yang valid")
         doc = {"collection_activity_id": aid, "foto_url": meta["storage_path"], **meta,
                "uploaded_by": user["kode_marketing"], "created_at": now_iso()}
         res = await db.collection_activity_photos.insert_one(doc)

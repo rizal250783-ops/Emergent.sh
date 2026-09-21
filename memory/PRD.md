@@ -67,6 +67,16 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
   PDF on Personal Dashboard and Riwayat.
 - Tested: backend 17/17 new, frontend 4/4 (iteration_4.json).
 
+## Iteration 5 (2026-09-21) — Bug fix: Collection GPS → Google Maps
+- Root cause: fragile EXIF DMS parsing (mixed IFDRational vs (num,den) tuples) producing None/wrong coords,
+  non-canonical maps URL (maps.google.com/?q=), and only a tiny text link clickable.
+- Fix: extract_exif now uses img.getexif().get_ifd(0x8825) (GPS sub-IFD) + reads DateTimeOriginal from Exif
+  sub-IFD (0x8769); _dms_to_deg robustly coerces IFDRational/(num,den)/floats with 0-60 sanity guards.
+- Frontend: canonical URL https://www.google.com/maps/search/?api=1&query={lat},{lon}; whole photo card is
+  clickable (photo-map-{i}) with hover 'Buka di Google Maps' overlay; text link shows coordinates.
+- Non-image upload now returns clean 400 instead of 500.
+- Verified by testing agent: 7/7 backend + Playwright popup navigates to the canonical Maps URL (iteration_5.json).
+
 ## Backlog / Next
 - P1: Per-jenis schema validation + preview/error-report for Data Import.
 - P1: Collection photo HEIC auto-convert edge cases; multi-photo compression >3MB.

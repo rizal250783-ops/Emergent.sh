@@ -72,8 +72,8 @@ def _dms_to_deg(dms, ref):
         while len(vals) < 3:
             vals.append(0.0)
         deg_v, min_v, sec_v = vals
-        # sanity: minutes/seconds must be within range, else data is unreliable
-        if deg_v < 0 or not (0 <= min_v < 60) or not (0 <= sec_v < 60):
+        # sanity: minutes/seconds must be within range (tolerate 60.0 from rounding)
+        if deg_v < 0 or not (0 <= min_v <= 60) or not (0 <= sec_v <= 60):
             return None
         deg = deg_v + min_v / 60 + sec_v / 3600
         if deg > 180:
@@ -95,6 +95,12 @@ def extract_exif(img: Image.Image):
         exif = {}
     try:
         dt_val = exif.get(36867) or exif.get(306)  # DateTimeOriginal / DateTime
+        if not dt_val:
+            try:
+                sub = exif.get_ifd(0x8769)  # Exif sub-IFD (most cameras store DateTimeOriginal here)
+                dt_val = sub.get(36867)
+            except Exception:
+                dt_val = None
         if dt_val:
             dt = str(dt_val)
         gps = exif.get_ifd(0x8825)  # GPS IFD

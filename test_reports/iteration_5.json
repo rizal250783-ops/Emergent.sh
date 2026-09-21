@@ -1,0 +1,30 @@
+{
+  "summary": "Iter-5 bug-fix verification: Collection Activity GPS→Google Maps link. Created /app/backend/tests/test_iter5_gps_maps.py (7 tests, ALL PASS): (a) storage.extract_exif direct call on piexif-generated JPEG with Padang GPS DMS ((0,56,49.56)S / (100,25,1.92)E) → returns lat=-0.9471, lon=100.4172; (b) plain JPEG (no EXIF) → lat/lon None; (c) POST /api/collection/{aid}/photos with GPS JPEG returns photo object with latitude -0.9471, longitude 100.4172, status_validasi='Valid'; (d) plain photo upload returns lat/lon None + status 'Lokasi Tidak Tersedia'; (e) GET /api/collection returns activity with embedded photos array including GPS photo for assignee 013; (f) Admin can list all activities; (g) POST /collection/self regression passes. Playwright UI verification (login 013 → Collection Activity → period September 2026 → photo-btn-{aid}): map-link-0 href is EXACTLY 'https://www.google.com/maps/search/?api=1&query=-0.9471,100.4172', text 'Lihat Lokasi (-0.9471, 100.4172)'; photo-map-0 wraps the image with the same href and target=_blank; clicking photo-map-0 opens a popup that navigates to the canonical Google Maps URL (POPUP URL confirmed = 'https://www.google.com/maps/search/?api=1&query=-0.9471,100.4172'). The hover overlay 'Buka di Google Maps' pill is present. Watermark also shows 'Lokasi: -0.9471, 100.4172'. Bug is FIXED.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {"ui_bugs": [], "integration_issues": [], "design_issues": []},
+  "test_report_links": [
+    "/app/backend/tests/test_iter5_gps_maps.py",
+    "/app/test_reports/pytest/iter5_results.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "storage.extract_exif: DateTimeOriginal (tag 36867) is stored in the Exif sub-IFD by most cameras and by piexif; img.getexif().get(36867) only returns it when Pillow (>=9) has already merged sub-IFDs — on some inputs (like our piexif-generated file) dt comes back None and the code silently falls back to activity_date for photo_date. Consider explicitly reading exif.get_ifd(0x8769) (Exif IFD) and pulling 36867 from there, mirroring the GPS-IFD pattern already used. This affects 'Perlu Verifikasi Admin' path (date mismatch detection).",
+    "storage._dms_to_deg: sanity check rejects minutes/seconds == 60 (some devices emit 59.9999...→60 after rounding); consider allowing <=60 with tolerance instead of strict <60.",
+    "routers/collection.upload_photos: no client-side / server-side MIME check — relies only on size. A non-image upload will raise inside Image.open and produce a 500 rather than a clean 400 with detail.",
+    "routers/collection.get_photo: token is passed as query param (?auth=<jwt>) for <img src>; the JWT will end up in server access logs / browser history. Consider a short-lived signed URL or a per-photo signed token.",
+    "Collection.js PhotoModal: <img> renders without loading='lazy' — long photo lists could hurt initial modal open perf.",
+    "Collection.js: image lacks explicit width/height attributes → CLS on modal open."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iter5_gps_maps.py",
+    "/app/test_reports/iteration_5.json",
+    "/app/test_reports/pytest/iter5_results.xml"
+  ],
+  "success_rate": {"backend": "100% (7/7)", "frontend": "100% (canonical URL, click-through popup, hover overlay all verified)"},
+  "test_credentials": "kode_marketing + BprsHM2026 default (requires_password_reset=true → change to NewPass2026 in tests). Reset via /app/backend/tests/_reset_pw.py — invoked at module setup+teardown and after Playwright run.",
+  "seed_data_creation": "Playwright run left a Collection Activity 'GPS-UI-1' (periode 2026-09, assigned to 013, id=6ab09894bcc32ac5379f4339) with one GPS photo (-0.9471,100.4172). Two other prior GPS activities also present. Backend tests create GPS-FIX-1 in 2026-09.",
+  "retest_needed": false,
+  "main_agent_can_self_test": true,
+  "context_for_next_testing_agent": "GPS→Maps bug is FULLY fixed. Piexif-generated DMS ((num,den) tuples) is correctly parsed by _dms_to_deg via _to_float. The photo-btn-{aid} default period is current month (Juni 2026 here) — remember to switch the period <select> to the activity's periode (e.g. 2026-09) before the row appears. Login payload key is 'token' (not 'access_token'). Test JPEG generator: piexif.dump({'GPS':{...ratios as (num,den)...}}) then img.save(exif=exif_bytes). Watermark rendered by process_photo shows 'Lokasi: <lat>, <lon>' — confirms extraction pipeline end-to-end. Canonical URL is 'https://www.google.com/maps/search/?api=1&query={lat},{lon}' and is used by BOTH photo-map-{i} (image wrapper) and map-link-{i} (text link).",
+  "rca of the issue": "OLD bug had two roots: (1) fragile DMS parsing that failed on IFDRational vs (num,den) mixed representations and did not sanity-check → produced None or wildly wrong coords; (2) non-canonical maps URL 'maps.google.com/?q=...' plus only tiny text link clickable. FIX (already applied by main agent) rewrote extract_exif to use img.getexif().get_ifd(0x8825) (proper GPS sub-IFD) and _dms_to_deg with _to_float that handles both IFDRational-with-.numerator and (num,den) tuples, with 0-60 sanity guards. Frontend now uses canonical /maps/search/?api=1&query=lat,lon on BOTH the image (photo-map-{i}) and the text (map-link-{i}), target=_blank. Verified end-to-end via API + Playwright popup."
+}
