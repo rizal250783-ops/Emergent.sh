@@ -224,6 +224,14 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
   status, PIC, jumlah foto + tombol Status/Foto/Lihat, testid collection-card-*, *-btn-m-*); desktop tetap tabel.
 - Rekap: ketiga seksi (pencairan/simpanan/recovery) tampil sebagai kartu di <lg (read-only), desktop tetap tabel.
 - Teruji Playwright 390 & 1366: kartu/tabel eksklusif, modal Status & Foto terbuka dari kartu mobile, format
+
+## Iteration 17 (2026-09-21) — Badge tugas "Ditugaskan" di menu Collection
+- Sidebar (desktop & drawer mobile): badge emas berisi jumlah aktivitas berstatus "Ditugaskan" milik AO di menu
+  Collection Activity (testid collection-pending-badge).
+- Refresh: saat mount, tiap pindah halaman, dan via event "collection-changed" yang di-dispatch setelah input
+  mandiri/update status — sehingga badge langsung hilang begitu tugas diselesaikan tanpa perlu pindah halaman.
+- Teruji E2E: assign oleh Admin → badge "1" di desktop & drawer mobile AO → selesaikan status → badge hilang
+  langsung. Artefak uji (UJI-BADGE-*) dihapus setelahnya.
   Rp benar, tanpa overflow. Data uji dihapus bersih pasca-tes.
 - Catatan: flag requires_password_reset milik 013 sempat aktif (dari uji fitur reset password oleh user);
   dikosongkan kembali sesuai preferensi "tanpa wajib ganti saat uji coba". Password tidak berubah.

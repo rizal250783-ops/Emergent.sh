@@ -72,12 +72,27 @@ export default function Layout() {
   const [periode, setPeriode] = useState(currentPeriode());
   const [open, setOpen] = useState(false);
   const [sheetOpen, setSheetOpen] = useState(false);
+  const [pendingColl, setPendingColl] = useState(0);
   const location = useLocation();
   const menu = MENUS[user?.jabatan] || [];
 
   useEffect(() => {
     api.get("/meta/latest-periode").then(({ data }) => { if (data.latest) setPeriode(data.latest); }).catch(() => {});
   }, []);
+
+  const fetchPendingColl = () => {
+    if (!user || !["AO Pembiayaan", "Collection & Remedial", "Admin"].includes(user.jabatan)) return;
+    api.get("/collection")
+      .then(({ data }) => setPendingColl(data.filter((d) => d.status_kunjungan === "Ditugaskan").length))
+      .catch(() => {});
+  };
+
+  useEffect(fetchPendingColl, [user, location.pathname]);
+
+  useEffect(() => {
+    window.addEventListener("collection-changed", fetchPendingColl);
+    return () => window.removeEventListener("collection-changed", fetchPendingColl);
+  }, [user]);
 
   const isMinPeriode = periode <= "2026-01";
   const isMaxPeriode = periode >= "2056-12";
@@ -107,6 +122,9 @@ export default function Layout() {
           >
             <Icon size={18} strokeWidth={2} />
             {m.label}
+            {m.to === "/collection" && pendingColl > 0 && (
+              <span data-testid="collection-pending-badge" className="ml-auto rounded-full bg-gold-500 text-ink text-[10px] font-bold px-2 py-0.5 shadow">{pendingColl}</span>
+            )}
           </Link>
         );
       })}

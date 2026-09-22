@@ -139,6 +139,7 @@ function SelfModal({ onClose, onDone, periode }) {
     try {
       await api.post("/collection/self", { ...f, outstanding_pokok: parseFloat(f.outstanding_pokok) || 0, periode });
       toast.success("Aktivitas tersimpan");
+      window.dispatchEvent(new Event("collection-changed"));
       onDone();
     } catch (e) { toast.error(apiError(e.response?.data?.detail)); }
   };
@@ -165,6 +166,7 @@ function StatusModal({ activity, onClose, onDone }) {
     try {
       await api.put(`/collection/${activity.id}/status`, { status_penagihan: status, catatan });
       toast.success("Status diperbarui");
+      window.dispatchEvent(new Event("collection-changed"));
       onDone();
     } catch (e) { toast.error(apiError(e.response?.data?.detail)); }
   };
