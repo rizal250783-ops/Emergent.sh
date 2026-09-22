@@ -208,6 +208,12 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Target Management dipadatkan: header kolom dipersingkat (Pembiayaan/Funding/Recovery Kol.3/Recovery
   Kol.4+5), input w-32 text-xs — tabel muat 962px sehingga tombol Simpan terlihat tanpa scroll horizontal
   di laptop 1366px (teruji: noHScroll=true, tombol di viewport).
+
+## Iteration 14 (2026-09-21) — Target Management: mode kartu mobile
+- Layar <lg: tabel diganti kartu per-AO (nama/kode/jabatan + input full-width berlabel + tombol Simpan per
+  kartu, testid target-card-{kode}, input -m suffix). Layar >=lg tetap tabel ringkas.
+- Teruji Playwright 390px & 1366px: kartu/tabel saling eksklusif, format Rupiah live, simpan dari mobile OK,
+  tanpa overflow layout. Dokumen target uji (013, 75jt) dihapus kembali setelah tes.
 - Input Pencapaian > tab Recovery > Tambah Transaksi: label "PIC Pemilik" diganti "Nama PIC"
   (data-testid recovery-pic tidak berubah). Teruji Playwright.
   testid target-{key}-fmt-{kode}) saat mengetik maupun setelah simpan.
