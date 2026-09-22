@@ -64,7 +64,41 @@ export default function Collection() {
 
       <Card className="p-5 sm:p-6">
         <div className="flex items-center gap-2 text-slate-600 mb-4"><MapPin size={18} className="text-emerald-600" /> Daftar Aktivitas</div>
-        {loading ? <Spinner /> : <Table columns={columns} rows={rows} testid="collection-table" empty="Belum ada aktivitas" />}
+        {loading ? <Spinner /> : (
+          <>
+            <div className="hidden lg:block"><Table columns={columns} rows={rows} testid="collection-table" empty="Belum ada aktivitas" /></div>
+            <div className="lg:hidden space-y-3" data-testid="collection-cards">
+              {rows.length === 0 && <div className="py-8 text-center text-slate-400 text-sm">Belum ada aktivitas</div>}
+              {rows.map((r) => (
+                <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 space-y-2" data-testid={`collection-card-${r.id}`}>
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <div className="font-mono text-xs text-slate-500">{r.nomor_kontrak}</div>
+                      <div className="font-semibold text-sm">{r.nama_nasabah}</div>
+                      <div className="text-xs text-slate-400">{formatRp(r.outstanding_pokok)}</div>
+                    </div>
+                    <Pill tone={r.source === "admin_assigned" ? "gold" : "emerald"}>{r.source === "admin_assigned" ? "Ditugaskan" : "Mandiri"}</Pill>
+                  </div>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {r.status_penagihan ? <Pill tone="blue">{r.status_penagihan}</Pill> : <Pill tone="slate">{r.status_kunjungan}</Pill>}
+                    <span className="text-xs text-slate-400">PIC: {r.assigned_to_nama || "-"} · {r.photos?.length || 0} foto</span>
+                  </div>
+                  <div className="flex gap-2 pt-1">
+                    {!isAdmin && (r.status_kunjungan !== "Selesai" || r.source === "self_input") && (
+                      <Button size="sm" variant="outline" onClick={() => setStatusOpen(r)} data-testid={`status-btn-m-${r.id}`}><CheckCircle2 size={13} /> Status</Button>
+                    )}
+                    {!isAdmin && (
+                      <Button size="sm" variant="subtle" onClick={() => setPhotoOpen(r)} data-testid={`photo-btn-m-${r.id}`}><Camera size={13} /> Foto</Button>
+                    )}
+                    {isAdmin && r.photos?.length > 0 && (
+                      <Button size="sm" variant="subtle" onClick={() => setPhotoOpen(r)} data-testid={`photo-btn-m-${r.id}`}><Camera size={13} /> Lihat</Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
       </Card>
 
       {assignOpen && <AssignModal users={users} onClose={() => setAssignOpen(false)} onDone={() => { setAssignOpen(false); load(); }} periode={periode} />}

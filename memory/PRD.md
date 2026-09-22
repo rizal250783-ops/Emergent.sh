@@ -218,6 +218,15 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Ketiga tab (Pembiayaan/Funding/Recovery): tabel hanya tampil di >=lg; di layar kecil diganti kartu per
   transaksi (TxCards) berisi info kunci + tombol hapus (-m suffix testid). Form modal sudah bertumpuk 1 kolom
   di mobile (grid sm:grid-cols-2).
+
+## Iteration 16 (2026-09-21) — Mode kartu mobile: Collection Activity & Rekap
+- Collection Activity: daftar aktivitas jadi kartu per-AO di <lg (kontrak, nasabah, outstanding, sumber,
+  status, PIC, jumlah foto + tombol Status/Foto/Lihat, testid collection-card-*, *-btn-m-*); desktop tetap tabel.
+- Rekap: ketiga seksi (pencairan/simpanan/recovery) tampil sebagai kartu di <lg (read-only), desktop tetap tabel.
+- Teruji Playwright 390 & 1366: kartu/tabel eksklusif, modal Status & Foto terbuka dari kartu mobile, format
+  Rp benar, tanpa overflow. Data uji dihapus bersih pasca-tes.
+- Catatan: flag requires_password_reset milik 013 sempat aktif (dari uji fitur reset password oleh user);
+  dikosongkan kembali sesuai preferensi "tanpa wajib ganti saat uji coba". Password tidak berubah.
 - Teruji Playwright 390px: siklus tambah→kartu muncul→hapus sukses di ketiga tab, tanpa overflow; data uji
   (UJI-MOBILE-*) terhapus bersih, DB kembali ke kondisi uji coba user (0 transaksi baru tersisa).
   tanpa overflow layout. Dokumen target uji (013, 75jt) dihapus kembali setelah tes.
