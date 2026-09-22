@@ -213,6 +213,13 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Layar <lg: tabel diganti kartu per-AO (nama/kode/jabatan + input full-width berlabel + tombol Simpan per
   kartu, testid target-card-{kode}, input -m suffix). Layar >=lg tetap tabel ringkas.
 - Teruji Playwright 390px & 1366px: kartu/tabel saling eksklusif, format Rupiah live, simpan dari mobile OK,
+
+## Iteration 15 (2026-09-21) — Input Pencapaian: mode kartu mobile
+- Ketiga tab (Pembiayaan/Funding/Recovery): tabel hanya tampil di >=lg; di layar kecil diganti kartu per
+  transaksi (TxCards) berisi info kunci + tombol hapus (-m suffix testid). Form modal sudah bertumpuk 1 kolom
+  di mobile (grid sm:grid-cols-2).
+- Teruji Playwright 390px: siklus tambah→kartu muncul→hapus sukses di ketiga tab, tanpa overflow; data uji
+  (UJI-MOBILE-*) terhapus bersih, DB kembali ke kondisi uji coba user (0 transaksi baru tersisa).
   tanpa overflow layout. Dokumen target uji (013, 75jt) dihapus kembali setelah tes.
 - Input Pencapaian > tab Recovery > Tambah Transaksi: label "PIC Pemilik" diganti "Nama PIC"
   (data-testid recovery-pic tidak berubah). Teruji Playwright.

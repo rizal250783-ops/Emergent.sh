@@ -38,6 +38,16 @@ export default function InputPencapaian() {
 
 function nameOf(aos, id) { const u = aos.find((x) => x.id === id); return u ? `${u.kode_marketing} · ${u.nama}` : id; }
 
+function TxCards({ rows, loading, testid, render }) {
+  if (loading) return <Spinner />;
+  if (!rows.length) return <div className="py-8 text-center text-slate-400 text-sm" data-testid={`${testid}-empty`}>Belum ada data</div>;
+  return <div className="space-y-3" data-testid={testid}>{rows.map(render)}</div>;
+}
+
+const DelBtn = ({ onClick, testid }) => (
+  <button onClick={onClick} className="text-red-500 hover:text-red-700 p-1 shrink-0" data-testid={testid}><Trash2 size={16} /></button>
+);
+
 function LendingTab({ periode, aos, akad }) {
   const [rows, setRows] = useState([]); const [loading, setLoading] = useState(true); const [open, setOpen] = useState(false);
   const [f, setF] = useState({ nomor_kontrak: "", jenis_akad: "Murabahah", nama_nasabah: "", jumlah_pencairan: "", tanggal_pencairan: `${periode}-01`, ao_id: "" });
@@ -63,7 +73,25 @@ function LendingTab({ periode, aos, akad }) {
   return (
     <Card className="p-5 sm:p-6">
       <div className="flex justify-end mb-4"><Button onClick={() => setOpen(true)} data-testid="add-lending-btn"><Plus size={16} /> Tambah Transaksi</Button></div>
-      {loading ? <Spinner /> : <Table columns={columns} rows={rows} testid="lending-table" />}
+      <div className="hidden lg:block">{loading ? <Spinner /> : <Table columns={columns} rows={rows} testid="lending-table" />}</div>
+      <div className="lg:hidden">
+        <TxCards rows={rows} loading={loading} testid="lending-cards" render={(r) => (
+          <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 space-y-2" data-testid={`lending-card-${r.id}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-mono text-xs text-slate-500">{r.nomor_kontrak}</div>
+                <div className="font-semibold text-sm">{r.nama_nasabah}</div>
+              </div>
+              <DelBtn onClick={() => del(r.id)} testid={`del-lending-m-${r.id}`} />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Pill tone="emerald">{r.jenis_akad}</Pill>
+              <span className="font-mono font-bold text-ink">{formatRp(r.jumlah_pencairan)}</span>
+            </div>
+            <div className="text-xs text-slate-400">{nameOf(aos, r.ao_id)} · {r.tanggal_pencairan}</div>
+          </div>
+        )} />
+      </div>
       <Modal open={open} onClose={() => setOpen(false)} title="Transaksi Pencairan Pembiayaan">
         <div className="grid sm:grid-cols-2 gap-4">
           <Input label="Nomor Kontrak" value={f.nomor_kontrak} onChange={(e) => setF({ ...f, nomor_kontrak: e.target.value })} data-testid="lending-kontrak" />
@@ -103,7 +131,22 @@ function FundingTab({ periode, aos, simpanan }) {
   return (
     <Card className="p-5 sm:p-6">
       <div className="flex justify-end mb-4"><Button onClick={() => setOpen(true)} data-testid="add-funding-btn"><Plus size={16} /> Tambah Transaksi</Button></div>
-      {loading ? <Spinner /> : <Table columns={columns} rows={rows} testid="funding-table" />}
+      <div className="hidden lg:block">{loading ? <Spinner /> : <Table columns={columns} rows={rows} testid="funding-table" />}</div>
+      <div className="lg:hidden">
+        <TxCards rows={rows} loading={loading} testid="funding-cards" render={(r) => (
+          <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 space-y-2" data-testid={`funding-card-${r.id}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="font-semibold text-sm">{r.nama_nasabah}</div>
+              <DelBtn onClick={() => del(r.id)} testid={`del-funding-m-${r.id}`} />
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <Pill tone="blue">{r.jenis_simpanan}</Pill>
+              <span className="font-mono font-bold text-ink">{formatRp(r.jumlah_simpanan)}</span>
+            </div>
+            <div className="text-xs text-slate-400">{nameOf(aos, r.ao_id)} · {r.tanggal}</div>
+          </div>
+        )} />
+      </div>
       <Modal open={open} onClose={() => setOpen(false)} title="Transaksi Simpanan (Funding)">
         <div className="grid sm:grid-cols-2 gap-4">
           <Input label="Nama Nasabah" value={f.nama_nasabah} onChange={(e) => setF({ ...f, nama_nasabah: e.target.value })} data-testid="funding-nasabah" />
@@ -150,7 +193,28 @@ function RecoveryTab({ periode, pics }) {
         <p className="text-xs text-slate-500 max-w-md">Hanya Kol.3 masuk achievement. Kol.4/5 & WO otomatis jadi dasar insentif (menunggu approval Direktur).</p>
         <Button onClick={() => setOpen(true)} data-testid="add-recovery-btn"><Plus size={16} /> Tambah Transaksi</Button>
       </div>
-      {loading ? <Spinner /> : <Table columns={columns} rows={rows} testid="recovery-table" />}
+      <div className="hidden lg:block">{loading ? <Spinner /> : <Table columns={columns} rows={rows} testid="recovery-table" />}</div>
+      <div className="lg:hidden">
+        <TxCards rows={rows} loading={loading} testid="recovery-cards" render={(r) => (
+          <div key={r.id} className="rounded-xl border border-slate-200 bg-white p-4 space-y-2" data-testid={`recovery-card-${r.id}`}>
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0">
+                <div className="font-mono text-xs text-slate-500">{r.nomor_kontrak}</div>
+                <div className="font-semibold text-sm">{r.nama_nasabah}</div>
+              </div>
+              <DelBtn onClick={() => del(r.id)} testid={`del-recovery-m-${r.id}`} />
+            </div>
+            <div className="flex items-center justify-between gap-2 flex-wrap">
+              <div className="flex items-center gap-1.5">
+                <Pill tone={r.kolektibilitas === 3 ? "emerald" : r.kolektibilitas === 4 ? "gold" : "red"}>Kol. {r.kolektibilitas}</Pill>
+                {r.is_write_off && <Pill tone="red">WO</Pill>}
+              </div>
+              <span className="font-mono font-bold text-ink">{formatRp(r.jumlah_recovery)}</span>
+            </div>
+            <div className="text-xs text-slate-400">{nameOf(pics, r.pic_id)} · {r.tanggal}{r.kolektibilitas > 3 && !r.is_write_off ? ` · Denda: ${r.denda_dibayar_penuh ? "Penuh" : "Tidak"}` : ""}</div>
+          </div>
+        )} />
+      </div>
       <Modal open={open} onClose={() => setOpen(false)} title="Transaksi Recovery / Cash-in">
         <div className="grid sm:grid-cols-2 gap-4">
           <Input label="Nomor Kontrak" value={f.nomor_kontrak} onChange={(e) => setF({ ...f, nomor_kontrak: e.target.value })} data-testid="recovery-kontrak" />
