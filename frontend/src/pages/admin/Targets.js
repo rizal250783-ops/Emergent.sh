@@ -37,7 +37,13 @@ export default function Targets() {
 
   const field = (u, key) => {
     const val = edit[u.id]?.[key] ?? targets[u.id]?.[key] ?? "";
-    return <Input type="number" value={val} onChange={(e) => setEdit((s) => ({ ...s, [u.id]: { ...s[u.id], [key]: e.target.value } }))} data-testid={`target-${key}-${u.kode_marketing}`} className="w-40" />;
+    const num = parseFloat(val) || 0;
+    return (
+      <div>
+        <Input type="number" min="0" placeholder="0" value={val} onChange={(e) => setEdit((s) => ({ ...s, [u.id]: { ...s[u.id], [key]: e.target.value } }))} data-testid={`target-${key}-${u.kode_marketing}`} className="w-44 bg-slate-100 border-slate-300 font-mono font-semibold text-ink placeholder:text-slate-400 focus:bg-white" />
+        {num > 0 && <div className="mt-1 text-[11px] font-mono font-semibold text-emerald-700" data-testid={`target-${key}-fmt-${u.kode_marketing}`}>= {formatRp(num)}</div>}
+      </div>
+    );
   };
 
   const columns = [

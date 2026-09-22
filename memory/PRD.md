@@ -198,6 +198,14 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Semua koleksi dikosongkan kecuali `users` (19 akun, password tetap standar BprsHM2026 tanpa forced change)
   & `settings`: targets, lending/funding/recovery_achievement_details, incentive_settings, notifications,
   target_notify_state, collection_activity(+photos), audit_logs (user_management_requests & role_history juga
+
+## Iteration 12 (2026-09-21) — Target Management: input lebih kontras + format Rupiah
+- Kolom input target kini bg-slate-100 + border-slate-300 + font mono tebal (putih saat fokus), menggantikan
+  input putih di atas kartu putih yang samar.
+- Di bawah setiap input tampil preview format Rupiah live ("= Rp 500.000.000", titik ribuan id-ID,
+  testid target-{key}-fmt-{kode}) saat mengetik maupun setelah simpan.
+- Teruji Playwright: preview format benar, kontras unfocused bg slate-100, nilai tersimpan tetap terformat.
+  Target uji (003, 500jt) dihapus lagi — DB kembali kosong untuk uji coba user.
   ikut kosong). Data uji iterasi 7/9 ikut terhapus.
 - Smoke test pasca-kosong: semua endpoint utama 200, dashboard menampilkan Rp 0/N-A, halaman Targets/
   Leaderboard/Collection/Incentives render tanpa JS error.
