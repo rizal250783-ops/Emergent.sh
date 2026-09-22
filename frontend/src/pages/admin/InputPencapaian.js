@@ -158,7 +158,7 @@ function RecoveryTab({ periode, pics }) {
           <Input label="Jumlah Cash-in (Rp)" type="number" value={f.jumlah_recovery} onChange={(e) => setF({ ...f, jumlah_recovery: e.target.value })} data-testid="recovery-jumlah" />
           <Input label="Tanggal" type="date" value={f.tanggal} onChange={(e) => setF({ ...f, tanggal: e.target.value })} data-testid="recovery-tanggal" />
           <Select label="Kolektibilitas" value={f.kolektibilitas} onChange={(e) => setF({ ...f, kolektibilitas: e.target.value })} data-testid="recovery-kol"><option value={3}>Kolektibilitas 3</option><option value={4}>Kolektibilitas 4</option><option value={5}>Kolektibilitas 5</option></Select>
-          <Select label="PIC Pemilik" value={f.pic_id} onChange={(e) => setF({ ...f, pic_id: e.target.value })} data-testid="recovery-pic">{pics.map((u) => <option key={u.id} value={u.id}>{u.kode_marketing} · {u.nama} ({u.jabatan})</option>)}</Select>
+          <Select label="Nama PIC" value={f.pic_id} onChange={(e) => setF({ ...f, pic_id: e.target.value })} data-testid="recovery-pic">{pics.map((u) => <option key={u.id} value={u.id}>{u.kode_marketing} · {u.nama} ({u.jabatan})</option>)}</Select>
           {showDenda && (
             <Select label="Denda Dibayar Penuh?" value={f.denda_dibayar_penuh ? "1" : "0"} onChange={(e) => setF({ ...f, denda_dibayar_penuh: e.target.value === "1" })} data-testid="recovery-denda"><option value="1">Ya</option><option value="0">Tidak</option></Select>
           )}

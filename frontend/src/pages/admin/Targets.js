@@ -40,7 +40,7 @@ export default function Targets() {
     const num = parseFloat(val) || 0;
     return (
       <div>
-        <Input type="number" min="0" placeholder="0" value={val} onChange={(e) => setEdit((s) => ({ ...s, [u.id]: { ...s[u.id], [key]: e.target.value } }))} data-testid={`target-${key}-${u.kode_marketing}`} className="w-44 bg-slate-100 border-slate-300 font-mono font-semibold text-ink placeholder:text-slate-400 focus:bg-white" />
+        <Input type="number" min="0" placeholder="0" value={val} onChange={(e) => setEdit((s) => ({ ...s, [u.id]: { ...s[u.id], [key]: e.target.value } }))} data-testid={`target-${key}-${u.kode_marketing}`} className="w-32 text-xs bg-slate-100 border-slate-300 font-mono font-semibold text-ink placeholder:text-slate-400 focus:bg-white" />
         {num > 0 && <div className="mt-1 text-[11px] font-mono font-semibold text-emerald-700" data-testid={`target-${key}-fmt-${u.kode_marketing}`}>= {formatRp(num)}</div>}
       </div>
     );
@@ -48,10 +48,10 @@ export default function Targets() {
 
   const columns = [
     { header: "AO", render: (u) => <div><div className="font-semibold text-sm">{u.nama}</div><div className="text-xs text-slate-400">{u.kode_marketing} · {u.jabatan}</div></div> },
-    { header: "Target Pembiayaan", render: (u) => (u.jabatan === "AO Pembiayaan" ? field(u, "target_pencairan") : <span className="text-slate-300">—</span>) },
-    { header: "Target Funding", render: (u) => (["AO Pembiayaan", "AO Funding"].includes(u.jabatan) ? field(u, "target_funding") : <span className="text-slate-300">—</span>) },
-    { header: "Target Recovery (Kol.3)", render: (u) => (u.jabatan === "Collection & Remedial" ? field(u, "target_recovery") : <span className="text-slate-300">—</span>) },
-    { header: "Target Recovery (Kol.4+5)", render: (u) => (u.jabatan === "Collection & Remedial" ? field(u, "target_recovery_kol45") : <span className="text-slate-300">—</span>) },
+    { header: "Pembiayaan", render: (u) => (u.jabatan === "AO Pembiayaan" ? field(u, "target_pencairan") : <span className="text-slate-300">—</span>) },
+    { header: "Funding", render: (u) => (["AO Pembiayaan", "AO Funding"].includes(u.jabatan) ? field(u, "target_funding") : <span className="text-slate-300">—</span>) },
+    { header: "Recovery Kol.3", render: (u) => (u.jabatan === "Collection & Remedial" ? field(u, "target_recovery") : <span className="text-slate-300">—</span>) },
+    { header: "Recovery Kol.4+5", render: (u) => (u.jabatan === "Collection & Remedial" ? field(u, "target_recovery_kol45") : <span className="text-slate-300">—</span>) },
     { header: "", render: (u) => <Button size="sm" onClick={() => save(u)} data-testid={`save-target-${u.kode_marketing}`}><Save size={14} /> Simpan</Button> },
   ];
 

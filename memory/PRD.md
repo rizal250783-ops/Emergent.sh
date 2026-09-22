@@ -203,6 +203,13 @@ AO Funding (1 target), Collection & Remedial (recovery Kol.3 target).
 - Kolom input target kini bg-slate-100 + border-slate-300 + font mono tebal (putih saat fokus), menggantikan
   input putih di atas kartu putih yang samar.
 - Di bawah setiap input tampil preview format Rupiah live ("= Rp 500.000.000", titik ribuan id-ID,
+
+## Iteration 13 (2026-09-21) — Target Management ringkas + label Nama PIC
+- Target Management dipadatkan: header kolom dipersingkat (Pembiayaan/Funding/Recovery Kol.3/Recovery
+  Kol.4+5), input w-32 text-xs — tabel muat 962px sehingga tombol Simpan terlihat tanpa scroll horizontal
+  di laptop 1366px (teruji: noHScroll=true, tombol di viewport).
+- Input Pencapaian > tab Recovery > Tambah Transaksi: label "PIC Pemilik" diganti "Nama PIC"
+  (data-testid recovery-pic tidak berubah). Teruji Playwright.
   testid target-{key}-fmt-{kode}) saat mengetik maupun setelah simpan.
 - Teruji Playwright: preview format benar, kontras unfocused bg slate-100, nilai tersimpan tetap terformat.
   Target uji (003, 500jt) dihapus lagi — DB kembali kosong untuk uji coba user.
