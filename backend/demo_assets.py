@@ -15,23 +15,23 @@ IMGS = {
     "rumah2": [U("1564013799919-ab600027ffc6"), U("1570129477492-45c003edd2be"), U("1600596542815-ffad4c1539a9"), U("1583608205776-bfd35f0d9f83")],
     "rumah3": [U("1512917774080-9991f1c4c750"), U("1605276374104-dee2a0ed3cd6"), U("1576941089067-2de3c901e126"), U("1600607687939-ce8a6c25118c")],
     "villa": [U("1613490493576-7fde63acd811"), U("1600047509807-ba8f99d2cdde"), U("1600210492486-724fe5c67fb0"), U("1512917774080-9991f1c4c750")],
-    "ruko1": [U("1497366216548-37526070297c"), U("1497366811353-6870744d04b2"), U("1486406146926-c627a92ad1ab"), U("1524758631624-e2822e304c36")],
-    "ruko2": [U("1441986300917-64674bd600d8"), U("1555529669-e69e7aa0ba9a"), U("1517248135467-4c7edcad34c4"), U("1497366216548-37526070297c")],
+    "ruko1": [U("1497366811353-6870744d04b2"), U("1524758631624-e2822e304c36"), U("1497366216548-37526070297c"), U("1486406146926-c627a92ad1ab")],
+    "ruko2": [U("1517248135467-4c7edcad34c4"), U("1441986300917-64674bd600d8"), U("1555529669-e69e7aa0ba9a"), U("1497366216548-37526070297c")],
     "gedung": [U("1486406146926-c627a92ad1ab"), U("1497366811353-6870744d04b2"), U("1524758631624-e2822e304c36")],
     "gudang": [U("1586528116311-ad8dd3c8310d"), U("1553413077-190dd305871c"), U("1565610222536-ef125c59da2e"), U("1601598851547-4302969d0614")],
-    "tanah1": [U("1500382017468-9049fed747ef"), U("1500530855697-b586d89ba3ee"), U("1464822759023-fed622ff2c3b"), U("1501004318641-b39e6451bec6")],
-    "tanah2": [U("1466692476868-aef1dfb1e735"), U("1470071459604-3b5ec3a7fe05"), U("1500382017468-9049fed747ef")],
-    "kavling": [U("1500530855697-b586d89ba3ee"), U("1464822759023-fed622ff2c3b"), U("1466692476868-aef1dfb1e735"), U("1501004318641-b39e6451bec6")],
-    "sawah": [U("1536657464919-892534f60d6e"), U("1500937386664-56d1dfef3854"), U("1625246333195-78d9c38ad449"), U("1595841696677-6489ff3f8cd1")],
-    "kebun": [U("1500076656116-558758c991c1"), U("1523348837708-15d4a09cfac2"), U("1470071459604-3b5ec3a7fe05")],
-    "industri": [U("1565610222536-ef125c59da2e"), U("1586528116311-ad8dd3c8310d"), U("1500382017468-9049fed747ef")],
-    "mpv": [U("1550355291-bbee04a92027"), U("1552519507-da3b142c6e3d"), U("1503376780353-7e6692767b70"), U("1494976388531-d1058494cdd8"), U("1541899481282-d53bffe3c35d")],
-    "suv": [U("1533473359331-0135ef1b58bf"), U("1502877338535-766e1452684a"), U("1583121274602-3e2820c69888"), U("1605559424843-9e4c228bf1c2")],
-    "sedan": [U("1494976388531-d1058494cdd8"), U("1503376780353-7e6692767b70"), U("1552519507-da3b142c6e3d"), U("1541899481282-d53bffe3c35d")],
-    "pickup": [U("1519389950473-47ba0277781c"), U("1449965408869-eaa3f722e40d"), U("1519641471654-76ce0107ad1b")],
-    "truck": [U("1601362840469-51e4d8d58785"), U("1603386329225-868f9b1ee6c9"), U("1563720223185-11003d516935")],
-    "motor1": [U("1558981285-6f0c94958bb6"), U("1558981403-c5f9899a28bc"), U("1568772585407-9361f9bf3a87"), U("1609630875171-b1321377ee65")],
-    "motor2": [U("1571068316344-75bc76f77890"), U("1591637333184-19aa84b3e01f"), U("1558981285-6f0c94958bb6")],
+    "tanah1": [U("1500382017468-9049fed747ef"), U("1464822759023-fed622ff2c3b"), U("1470071459604-3b5ec3a7fe05"), U("1500530855697-b586d89ba3ee")],
+    "tanah2": [U("1500382017468-9049fed747ef"), U("1470071459604-3b5ec3a7fe05"), U("1464822759023-fed622ff2c3b")],
+    "kavling": [U("1500382017468-9049fed747ef"), U("1500530855697-b586d89ba3ee"), U("1464822759023-fed622ff2c3b"), U("1470071459604-3b5ec3a7fe05")],
+    "sawah": [U("1555400038-63f5ba517a47"), U("1500937386664-56d1dfef3854"), U("1625246333195-78d9c38ad449"), U("1470071459604-3b5ec3a7fe05")],
+    "kebun": [U("1536657464919-892534f60d6e"), U("1523348837708-15d4a09cfac2"), U("1500076656116-558758c991c1"), U("1555400038-63f5ba517a47")],
+    "industri": [U("1553413077-190dd305871c"), U("1565610222536-ef125c59da2e"), U("1586528116311-ad8dd3c8310d")],
+    "mpv": [U("1541899481282-d53bffe3c35d"), U("1550355291-bbee04a92027"), U("1552519507-da3b142c6e3d"), U("1494976388531-d1058494cdd8")],
+    "suv": [U("1519641471654-76ce0107ad1b"), U("1533473359331-0135ef1b58bf"), U("1563720223185-11003d516935"), U("1502877338535-766e1452684a")],
+    "sedan": [U("1616455579100-2ceaa4eb2d37"), U("1621007947382-bb3c3994e3fb"), U("1603386329225-868f9b1ee6c9"), U("1502877338535-766e1452684a")],
+    "pickup": [U("1605893477799-b99e3b8b93fe"), U("1563720223185-11003d516935"), U("1519641471654-76ce0107ad1b")],
+    "truck": [U("1591768793355-74d04bb6608f"), U("1605893477799-b99e3b8b93fe"), U("1553413077-190dd305871c")],
+    "motor1": [U("1558981403-c5f9899a28bc"), U("1591637333184-19aa84b3e01f"), U("1568772585407-9361f9bf3a87"), U("1558981285-6f0c94958bb6")],
+    "motor2": [U("1609630875171-b1321377ee65"), U("1591637333184-19aa84b3e01f"), U("1558981285-6f0c94958bb6")],
     "apart": [U("1545324418-cc1a3fa10c00"), U("1502672260266-1c1ef2d93688"), U("1522708323590-d24dbb6b0267"), U("1484154218962-a197022b5858"), U("1493809842364-78817add7ffb")],
     "apart2": [U("1560448204-e02f11c3d0e2"), U("1493809842364-78817add7ffb"), U("1502672260266-1c1ef2d93688"), U("1522708323590-d24dbb6b0267")],
 }
@@ -65,6 +65,18 @@ DEMO = [
     ("Rumah Cluster Citra Garden (TERJUAL)", "rumah2", "PROPERTI", "Rumah", "Jl. Citra Garden 6 Blok D5", "DKI Jakarta", "Kota Jakarta Barat", "Kalideres", "Tegal Alur", 1_250_000_000, 120, 140, "Baik", "ACR JAKARTA BARAT", "KPKNL Jakarta I", -6.1300, 106.7100, "SOLD", "2026-06-03"),
 ]
 
+import random
+from datetime import timedelta
+PRICE_DROPS = {"Rumah 2 Lantai Siap Huni": 0.12, "Toyota Hilux Double Cabin 2020": 0.08, "Ruko 3 Lantai Harapan Indah": 0.15,
+               "Tanah Kavling Perumahan Sleman": 0.10, "Villa View Sawah Canggu": 0.06, "Honda CR-V Turbo 2021": 0.07}
+
+def seed_history(judul, harga):
+    t = datetime.now(timezone.utc)
+    if judul in PRICE_DROPS:
+        old = round(harga / (1 - PRICE_DROPS[judul]), -6)
+        return [{"harga": old, "at": (t - timedelta(days=35)).isoformat()}, {"harga": harga, "at": (t - timedelta(days=random.randint(1, 6))).isoformat()}]
+    return [{"harga": harga, "at": (t - timedelta(days=40)).isoformat()}]
+
 async def main():
     await db.assets.delete_many({"demo": True})
     await db.asset_images.delete_many({"demo": True})
@@ -96,6 +108,8 @@ async def main():
             "status": status, "public_ready": True, "current_version_no": 1,
             "schedule": schedule, "correction_notes": None, "published_at": now(),
             "sold_at": now() if status == "SOLD" else None,
+            "price_history": seed_history(judul_clean, harga),
+            "stats": {"views": random.randint(20, 400), "wa_clicks": random.randint(0, 25)},
             "demo": True, "created_at": now(), "updated_at": now(), "deleted_at": None})
         for url in IMGS[imgkey]:
             await db.asset_images.insert_one({"id": nid(), "id_asset": aid, "url": url,

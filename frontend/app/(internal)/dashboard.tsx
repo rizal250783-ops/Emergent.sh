@@ -1,12 +1,12 @@
 import React from "react";
-import { View, Text, ScrollView, RefreshControl } from "react-native";
+import { View, Text, ScrollView, RefreshControl, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { makeStyles, useTheme, font } from "@/src/theme";
 import { apiGet } from "@/src/api";
 import { useAuth } from "@/src/auth";
-import { ScreenHeader, StatCard, Loading, ErrorState, Card, spacing } from "@/src/components/ui";
+import { ScreenHeader, StatCard, Loading, ErrorState, Card, Icon, spacing } from "@/src/components/ui";
 import { STATUS_META, statusMeta } from "@/src/format";
 
 export default function Dashboard() {
@@ -61,7 +61,42 @@ function MarketingDash() {
         <StatCard label="Terjual" value={st.SOLD ?? 0} tone="info" icon="tag" />
         <View style={{ flex: 1, minWidth: "30%" }} />
       </View>
+
+      <Text style={styleLabel}>Statistik Minat Pembeli</Text>
+      <View style={row}>
+        <StatCard label="Dilihat (total)" value={data?.interest?.views ?? 0} tone="brand" icon="eye" />
+        <StatCard label="Dilihat 7 hari" value={data?.interest?.views_7d ?? 0} tone="info" icon="activity" />
+      </View>
+      <View style={row}>
+        <StatCard label="Ketuk WhatsApp" value={data?.interest?.wa_clicks ?? 0} tone="success" icon="message-circle" />
+        <StatCard label="WhatsApp 7 hari" value={data?.interest?.wa_7d ?? 0} tone="success" icon="trending-up" />
+      </View>
+      <InterestTop rows={data?.interest?.top || []} />
     </Wrap>
+  );
+}
+
+function InterestTop({ rows }: { rows: any[] }) {
+  const s = useStyles();
+  const router = useRouter();
+  const { colors } = useTheme();
+  if (!rows.length) return null;
+  return (
+    <Card testID="interest-top">
+      <Text style={s.cardTitle}>Asset Paling Diminati</Text>
+      <Text style={s.cardHint}>Fokuskan tindak lanjut pada asset dengan ketukan WhatsApp tertinggi.</Text>
+      {rows.map((r, i) => (
+        <Pressable key={r.id} style={s.topRow} onPress={() => router.push(`/detail/${r.id}`)} testID={`interest-row-${r.id}`}>
+          <View style={s.rank}><Text style={s.rankTxt}>{i + 1}</Text></View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.topTitle} numberOfLines={1}>{r.judul_asset}</Text>
+            <Text style={s.topMeta}>{r.nomor_asset} • {statusMeta(r.status).label}</Text>
+          </View>
+          <View style={s.metric}><Icon name="eye" size={12} color={colors.muted} /><Text style={s.metricTxt}>{r.views}</Text></View>
+          <View style={s.metric}><Icon name="message-circle" size={12} color={colors.success} /><Text style={[s.metricTxt, { color: colors.success }]}>{r.wa_clicks}</Text></View>
+        </Pressable>
+      ))}
+    </Card>
   );
 }
 
@@ -148,4 +183,13 @@ const useStyles = makeStyles((c) => ({
   th: { flex: 1, fontSize: 11, fontWeight: "700", color: c.muted, textAlign: "center" },
   tblRow: { flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.divider },
   td: { flex: 1, fontSize: 12, color: c.onSurface, textAlign: "center" },
+  cardTitle: { fontSize: 15, fontWeight: "800", color: c.onSurface },
+  cardHint: { fontSize: 12, color: c.muted, marginTop: 2, marginBottom: spacing.sm },
+  topRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.divider },
+  rank: { width: 24, height: 24, borderRadius: 12, backgroundColor: c.brandTertiary, alignItems: "center", justifyContent: "center" },
+  rankTxt: { fontSize: 12, fontWeight: "800", color: c.brandPrimary },
+  topTitle: { fontSize: 13, fontWeight: "700", color: c.onSurface },
+  topMeta: { fontSize: 11, color: c.muted, marginTop: 1 },
+  metric: { flexDirection: "row", alignItems: "center", gap: 3, minWidth: 40, justifyContent: "flex-end" },
+  metricTxt: { fontSize: 12, fontWeight: "700", color: c.onSurfaceSecondary },
 }));

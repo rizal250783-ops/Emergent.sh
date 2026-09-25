@@ -158,6 +158,14 @@ export default function InternalDetail() {
             {data.nilai_appraisal != null && <Info label="Nilai Appraisal" value={rupiah(data.nilai_appraisal)} />}
           </Card>
 
+          <Text style={s.section}>Statistik Minat Pembeli</Text>
+          <View style={s.statsRow} testID="interest-stats">
+            <View style={s.statBox}><Icon name="eye" size={16} color={colors.brandPrimary} /><Text style={s.statVal}>{data.stats?.views ?? 0}</Text><Text style={s.statLbl}>Dilihat</Text></View>
+            <View style={s.statBox}><Icon name="activity" size={16} color={colors.info} /><Text style={s.statVal}>{data.stats?.views_7d ?? 0}</Text><Text style={s.statLbl}>7 hari</Text></View>
+            <View style={s.statBox}><Icon name="message-circle" size={16} color={colors.success} /><Text style={s.statVal}>{data.stats?.wa_clicks ?? 0}</Text><Text style={s.statLbl}>Ketuk WA</Text></View>
+            <View style={s.statBox}><Icon name="trending-up" size={16} color={colors.success} /><Text style={s.statVal}>{data.stats?.wa_7d ?? 0}</Text><Text style={s.statLbl}>WA 7 hari</Text></View>
+          </View>
+
           <Text style={s.section}>Peta Lokasi</Text>
           {data.latitude != null && data.longitude != null ? (
             <AssetMap latitude={data.latitude} longitude={data.longitude} height={200} testID="asset-map" />
@@ -295,6 +303,10 @@ const useStyles = makeStyles((c) => ({
   noteTitle: { fontSize: 13, fontWeight: "800", color: c.error },
   noteTxt: { fontSize: 13, color: "#7F1D1D", lineHeight: 19 },
   section: { fontSize: 15, fontWeight: "800", color: c.onSurface, marginTop: spacing.md },
+  statsRow: { flexDirection: "row", gap: spacing.sm },
+  statBox: { flex: 1, alignItems: "center", gap: 2, backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, paddingVertical: 10 },
+  statVal: { fontSize: 16, fontWeight: "900", color: c.onSurface },
+  statLbl: { fontSize: 10, color: c.muted },
   headerShare: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   noMap: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: c.surfaceTertiary, borderRadius: radius.md, padding: spacing.md },
   noMapTxt: { flex: 1, fontSize: 13, color: c.muted, lineHeight: 18 },

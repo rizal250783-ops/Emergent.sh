@@ -119,3 +119,10 @@ New features:
 5. Branding: BSI logo image in header & login; Lato font loaded via expo-font (makeStyles maps fontWeight -> Lato face).
 6. Home location bar: loc-provinsi / loc-kabkota / loc-kecamatan chips (Select sheet with options option-<name>); lower levels optional; clear via loc-*-clear.
 7. Badge text "Sudah Ada Jadwal Lelang"; cards show "Belum ada jadwal lelang" when none. Demo: 25 assets across provinces, 2 SOLD, ~9 without schedule.
+
+## Iteration 4 (2026-06) — Main agent notes
+1. Riwayat Harga: assets have price_history[{harga,at}]; PUT /api/assets/{id} pushes on harga_limit change. Public view adds price_history, harga_sebelumnya, penurunan_persen, harga_turun_at. Card: price-drop-<id> (old price strikethrough + % badge). Public detail: price-drop-badge, price-history section. 6 demo assets have drops.
+2. Pengingat Lelang: public detail save-calendar-button (has_schedule & not sold). Web -> opens Google Calendar template URL (new tab); native -> expo-calendar w/ permission flow (not testable in web).
+3. Statistik Minat: POST /api/public/catalog/{id}/track {type:"view"|"wa"} -> increments stats + asset_events. Public detail fires view on open & wa on WhatsApp tap. GET /api/dashboard/marketing -> interest{views,wa_clicks,views_7d,wa_7d,top[]}. Internal GET /api/assets/{id} -> stats{views,wa_clicks,views_7d,wa_7d}. UI: MA dashboard "Statistik Minat Pembeli" + interest-top list (interest-row-<id>); internal detail interest-stats.
+4. Ubah Nama Kategori: PUT /api/admin/category/{id} {nama_category, parent_category_id} validates non-empty & duplicate (409). UI Kelola -> Kategori: rename-cat-<id> (pencil) -> modal rename-category-input / rename-save / rename-cancel; toggle-cat-<id> now shows confirm first. Inactive categories hidden from /master/categories (active_only default) & /public/filters.
+Demo re-seeded (new ids) with better photos.

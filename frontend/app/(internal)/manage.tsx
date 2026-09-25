@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, FlatList, Pressable, RefreshControl, TextInput, Linking } from "react-native";
+import { View, Text, ScrollView, FlatList, Pressable, RefreshControl, TextInput, Linking, Modal } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -192,6 +192,7 @@ function KategoriTab() {
   const { colors } = useTheme();
   const qc = useQueryClient();
   const toast = useToast();
+  const confirm = useConfirm();
   const [name, setName] = useState("");
   const [parent, setParent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -210,12 +211,47 @@ function KategoriTab() {
     } catch (e: any) { toast(e.message, "error"); } finally { setBusy(false); }
   };
 
-  const toggle = async (id: string) => {
-    try { await apiPost(`/admin/category/${id}/toggle`); qc.invalidateQueries({ queryKey: ["all-categories"] }); qc.invalidateQueries({ queryKey: ["categories"] }); }
+  const refreshCats = () => { qc.invalidateQueries({ queryKey: ["all-categories"] }); qc.invalidateQueries({ queryKey: ["categories"] }); qc.invalidateQueries({ queryKey: ["public-filters"] }); };
+
+  const toggle = async (cat: any) => {
+    const activating = cat.status !== "active";
+    const r = await confirm({
+      title: activating ? "Aktifkan Kategori" : "Nonaktifkan Kategori",
+      message: activating
+        ? `"${cat.nama_category}" akan kembali muncul di katalog publik dan pilihan wizard.`
+        : `"${cat.nama_category}" tidak akan muncul di katalog publik dan pilihan wizard. Asset yang sudah memakai kategori ini tetap tersimpan.`,
+      confirmText: activating ? "Aktifkan" : "Nonaktifkan", tone: activating ? undefined : "danger",
+    });
+    if (!r.ok) return;
+    try { await apiPost(`/admin/category/${cat.id}/toggle`); toast(activating ? "Kategori diaktifkan" : "Kategori dinonaktifkan", "success"); refreshCats(); }
     catch (e: any) { toast(e.message, "error"); }
   };
 
+  const [renaming, setRenaming] = useState<any | null>(null);
+  const [newName, setNewName] = useState("");
+  const startRename = (cat: any) => { setRenaming(cat); setNewName(cat.nama_category); };
+  const saveRename = async () => {
+    if (!newName.trim()) { toast("Nama kategori wajib diisi", "error"); return; }
+    setBusy(true);
+    try {
+      await apiPut(`/admin/category/${renaming.id}`, { nama_category: newName.trim(), parent_category_id: renaming.parent_category_id || null });
+      toast("Nama kategori diperbarui", "success");
+      setRenaming(null); refreshCats();
+    } catch (e: any) { toast(e.message, "error"); } finally { setBusy(false); }
+  };
+
   const parents = data || [];
+
+  const CatActions = ({ cat }: { cat: any }) => (
+    <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+      <Pressable onPress={() => startRename(cat)} hitSlop={8} style={s.iconBtn} testID={`rename-cat-${cat.id}`}>
+        <Icon name="edit-2" size={15} color={colors.brandPrimary} />
+      </Pressable>
+      <Pressable onPress={() => toggle(cat)} testID={`toggle-cat-${cat.id}`}>
+        <Badge label={cat.status === "active" ? "Aktif" : "Nonaktif"} tone={cat.status === "active" ? "success" : "neutral"} />
+      </Pressable>
+    </View>
+  );
 
   return (
     <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}
@@ -234,21 +270,31 @@ function KategoriTab() {
       {isLoading ? <Loading /> : parents.map((p: any) => (
         <Card key={p.id}>
           <View style={s.catHead}>
-            <Text style={s.catName}>{p.nama_category}</Text>
-            <Pressable onPress={() => toggle(p.id)} testID={`toggle-cat-${p.id}`}>
-              <Badge label={p.status === "active" ? "Aktif" : "Nonaktif"} tone={p.status === "active" ? "success" : "neutral"} />
-            </Pressable>
+            <Text style={[s.catName, p.status !== "active" && { color: colors.muted }]}>{p.nama_category}</Text>
+            <CatActions cat={p} />
           </View>
           {(p.subcategories || []).map((sub: any) => (
             <View key={sub.id} style={s.subRow}>
-              <Text style={s.subName}>• {sub.nama_category}</Text>
-              <Pressable onPress={() => toggle(sub.id)} testID={`toggle-cat-${sub.id}`}>
-                <Badge label={sub.status === "active" ? "Aktif" : "Nonaktif"} tone={sub.status === "active" ? "success" : "neutral"} />
-              </Pressable>
+              <Text style={[s.subName, sub.status !== "active" && { color: colors.muted, textDecorationLine: "line-through" }]}>• {sub.nama_category}</Text>
+              <CatActions cat={sub} />
             </View>
           ))}
         </Card>
       ))}
+
+      <Modal visible={!!renaming} transparent animationType="fade" onRequestClose={() => setRenaming(null)}>
+        <Pressable style={s.renameBackdrop} onPress={() => setRenaming(null)}>
+          <Pressable style={s.renameCard} onPress={() => {}}>
+            <Text style={s.cardTitle}>Ubah Nama Kategori</Text>
+            <Text style={s.modalHint}>{renaming?.parent_category_id ? "Subkategori" : "Kategori utama"} • nama lama: {renaming?.nama_category}</Text>
+            <Field label="Nama Baru" value={newName} onChangeText={setNewName} testID="rename-category-input" />
+            <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
+              <View style={{ flex: 1 }}><Button title="Batal" variant="outline" onPress={() => setRenaming(null)} testID="rename-cancel" /></View>
+              <View style={{ flex: 1 }}><Button title="Simpan" onPress={saveRename} loading={busy} testID="rename-save" /></View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </ScrollView>
   );
 }
@@ -354,6 +400,10 @@ const useStyles = makeStyles((c) => ({
   catName: { fontSize: 15, fontWeight: "800", color: c.onSurface },
   subRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.sm },
   subName: { fontSize: 14, color: c.onSurfaceSecondary },
+  iconBtn: { width: 32, height: 32, borderRadius: 16, backgroundColor: c.brandTertiary, alignItems: "center", justifyContent: "center" },
+  renameBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "center", padding: spacing.lg },
+  renameCard: { backgroundColor: c.surfaceSecondary, borderRadius: radius.lg, padding: spacing.lg, gap: spacing.md },
+  modalHint: { fontSize: 12, color: c.muted, marginTop: -8 },
   reportIcon: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: c.brandTertiary, alignItems: "center", justifyContent: "center" },
   reportTitle: { fontSize: 16, fontWeight: "800", color: c.onSurface },
   reportSub: { fontSize: 12, color: c.muted, marginTop: 2, lineHeight: 17 },

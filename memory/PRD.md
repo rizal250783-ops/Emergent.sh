@@ -59,8 +59,15 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Sisa teks Inggris di UI diterjemahkan (tagline, Published, Submit/Publish).
 - Kartu grid berlebar tetap (kartu terakhir ganjil tidak melebar).
 
+## Implemented (Iteration 4, 2026-06)
+- Riwayat Harga: price_history per asset (push on harga_limit change); public view harga_sebelumnya/penurunan_persen; card badge + detail history timeline. 6 demo assets with drops.
+- Pengingat Lelang: "Simpan ke Kalender HP" (expo-calendar native w/ permission flow + H-1/1-jam alarm; web -> Google Calendar). Permissions added to app.json.
+- Statistik Minat: POST /public/catalog/{id}/track (view/wa) + asset_events; MA dashboard "Statistik Minat Pembeli" + top-5 list; internal detail stats row.
+- Ubah Nama Kategori: rename modal + confirm on toggle in Kelola -> Kategori; backend validation (empty/duplicate).
+- Demo photos re-curated (visual check) for realism.
+- Validated by testing agent: 11/11 backend + all frontend flows.
+
 ## Backlog / Remaining
 - P2: Web desktop sidebar layout & responsive breakpoints polish.
-- P2: Category edit rename UI.
 - P2: Confirm/refresh placeholder (NOPE) data before go-live.
 - P3: Split server.py into routers; align demo KPKNL with each asset's province.

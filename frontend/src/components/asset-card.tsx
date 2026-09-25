@@ -46,7 +46,13 @@ export function AssetCard({ item, onPress, onShare, fav, onFav, width }: {
           <Icon name="map-pin" size={11} color={colors.muted} />
           <Text style={s.cardLoc} numberOfLines={1}>{item.kabupaten_kota}, {item.provinsi}</Text>
         </View>
-        <Text style={[s.cardPrice, sold && { color: colors.muted, textDecorationLine: "line-through" }]}>{rupiahShort(item.harga_limit)}</Text>
+        {!sold && item.penurunan_persen > 0 && (
+          <View style={s.dropRow} testID={`price-drop-${item.id}`}>
+            <Text style={s.oldPrice}>{rupiahShort(item.harga_sebelumnya)}</Text>
+            <View style={s.dropBadge}><Icon name="trending-down" size={10} color="#FFFFFF" /><Text style={s.dropTxt}>{item.penurunan_persen}%</Text></View>
+          </View>
+        )}
+        <Text style={[s.cardPrice, sold && { color: colors.muted, textDecorationLine: "line-through" }, !sold && item.penurunan_persen > 0 && { color: colors.success }]}>{rupiahShort(item.harga_limit)}</Text>
         {sold ? <Text style={s.cardSold}>Telah terjual</Text>
           : item.has_schedule ? <Text style={s.cardSched}>Lelang: {formatDate(item.tanggal_lelang)}</Text>
           : <Text style={s.cardNoSched}>Belum ada jadwal lelang</Text>}
@@ -72,6 +78,10 @@ const useStyles = makeStyles((c) => ({
   cardLocRow: { flexDirection: "row", alignItems: "center", gap: 4 },
   cardLoc: { fontSize: 11, color: c.muted, flex: 1 },
   cardPrice: { fontSize: 14, fontWeight: "900", color: c.onSurface, marginTop: 2 },
+  dropRow: { flexDirection: "row", alignItems: "center", gap: 6, marginTop: 2 },
+  oldPrice: { fontSize: 11, color: c.muted, textDecorationLine: "line-through" },
+  dropBadge: { flexDirection: "row", alignItems: "center", gap: 2, backgroundColor: c.success, paddingHorizontal: 5, height: 16, borderRadius: radius.pill },
+  dropTxt: { color: "#FFFFFF", fontSize: 9, fontWeight: "800" },
   cardSched: { fontSize: 10, color: c.warning, fontWeight: "700" },
   cardNoSched: { fontSize: 10, color: c.muted },
   cardSold: { fontSize: 10, color: c.error, fontWeight: "700" },

@@ -329,6 +329,23 @@ async def gen_asset_number(acr):
     n = seq["seq"]
     return f"BLC-{year}-{ident}-{str(n).zfill(6)}"
 
+def price_info(a):
+    """Derive previous price / drop percentage from price_history (consecutive duplicates removed)."""
+    hist = []
+    for h in (a.get("price_history") or []):
+        if h.get("harga") is None:
+            continue
+        if hist and hist[-1]["harga"] == h["harga"]:
+            continue
+        hist.append({"harga": h["harga"], "at": h.get("at")})
+    cur = a.get("harga_limit")
+    if not hist or hist[-1]["harga"] != cur:
+        hist.append({"harga": cur, "at": a.get("updated_at")})
+    prev = hist[-2]["harga"] if len(hist) >= 2 else None
+    drop = round((prev - cur) / prev * 100) if prev and cur and prev > cur else 0
+    return {"price_history": hist, "harga_sebelumnya": prev if drop > 0 else None, "penurunan_persen": drop,
+            "harga_turun_at": hist[-1]["at"] if drop > 0 else None}
+
 async def asset_public_view(a):
     imgs = [clean(i) async for i in db.asset_images.find({"id_asset": a["id"], "deleted_at": None})]
     cat = await db.master_asset_category.find_one({"id": a.get("id_category")})
@@ -349,6 +366,7 @@ async def asset_public_view(a):
         "luas_tanah": a.get("luas_tanah"), "luas_bangunan": a.get("luas_bangunan"),
         "kondisi_asset": a.get("kondisi_asset"), "harga_limit": a.get("harga_limit"),
         "nilai_appraisal": a.get("nilai_appraisal"),
+        **price_info(a),
         "extra": a.get("extra") or {},
         "images": [i["url"] for i in imgs],
         "status": a.get("status"),
@@ -453,6 +471,22 @@ async def public_locations(provinsi: Optional[str] = None, kabupaten_kota: Optio
         match["kecamatan"] = kecamatan; field = "wilayah_level_4"
     values = await db.assets.distinct(field, match)
     return {"level": field, "options": sorted([v for v in values if v])}
+
+class TrackIn(BaseModel):
+    type: str  # "view" | "wa"
+
+@api.post("/public/catalog/{asset_id}/track")
+async def public_track(asset_id: str, body: TrackIn):
+    """Anonymous interest signal from the public catalog (asset viewed / WhatsApp tapped)."""
+    if body.type not in ("view", "wa"):
+        raise HTTPException(400, "type harus view atau wa")
+    a = await db.assets.find_one({"id": asset_id, "deleted_at": None}, {"id": 1})
+    if not a:
+        raise HTTPException(404, "Asset tidak ditemukan")
+    field = "stats.views" if body.type == "view" else "stats.wa_clicks"
+    await db.assets.update_one({"id": asset_id}, {"$inc": {field: 1}})
+    await db.asset_events.insert_one({"id": new_id(), "id_asset": asset_id, "type": body.type, "at": now_iso()})
+    return {"ok": True}
 
 # =================== WILAYAH (administrative reference, cached proxy) ===================
 WILAYAH_SRC = "https://www.emsifa.com/api-wilayah-indonesia/api"
@@ -586,6 +620,8 @@ async def create_asset(body: AssetIn, user=Depends(require("marketing_asset"))):
          "pic_nama": ma["nama_marketing_asset"], "pic_hp": ma["nomor_hp"],
          "status": "DRAFT", "public_ready": False, "current_version_no": 1,
          "schedule": {}, "correction_notes": None, "published_at": None,
+         "price_history": [{"harga": body.harga_limit, "at": now_iso(), "by": user["id"]}],
+         "stats": {"views": 0, "wa_clicks": 0},
          "created_at": now_iso(), "updated_at": now_iso(), "deleted_at": None,
          **body.model_dump()}
     await db.assets.insert_one(a)
@@ -605,7 +641,10 @@ async def update_asset(asset_id: str, body: AssetIn, user=Depends(require("marke
     if a["status"] not in ["DRAFT", "RETURN_TO_MARKETING", "RETURN_FROM_RCG", "PUBLISHED", "SOLD"]:
         raise HTTPException(400, "Asset sedang dalam proses review, tidak dapat diedit")
     before = {k: a.get(k) for k in body.model_dump()}
-    await db.assets.update_one({"id": asset_id}, {"$set": {**body.model_dump(), "updated_at": now_iso()}})
+    upd = {"$set": {**body.model_dump(), "updated_at": now_iso()}}
+    if body.harga_limit != a.get("harga_limit"):
+        upd["$push"] = {"price_history": {"harga": body.harga_limit, "at": now_iso(), "by": user["id"]}}
+    await db.assets.update_one({"id": asset_id}, upd)
     await audit(user, "UPDATE", "assets", asset_id, before=before, after=body.model_dump())
     return clean(await db.assets.find_one({"id": asset_id}))
 
@@ -677,7 +716,15 @@ async def asset_internal_view(a):
     v["id_category"] = a.get("id_category")
     v["id_subcategory"] = a.get("id_subcategory")
     v["schedule_kpknl_id"] = (a.get("schedule") or {}).get("id_kpknl")
+    v["stats"] = await interest_stats(a)
     return v
+
+async def interest_stats(a):
+    st = a.get("stats") or {}
+    since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    v7 = await db.asset_events.count_documents({"id_asset": a["id"], "type": "view", "at": {"$gte": since}})
+    w7 = await db.asset_events.count_documents({"id_asset": a["id"], "type": "wa", "at": {"$gte": since}})
+    return {"views": st.get("views", 0), "wa_clicks": st.get("wa_clicks", 0), "views_7d": v7, "wa_7d": w7}
 
 @api.get("/assets/{asset_id}")
 async def get_asset_internal(asset_id: str, user=Depends(current_user)):
@@ -1023,7 +1070,17 @@ async def dash_marketing(user=Depends(require("marketing_asset"))):
     total = await db.assets.count_documents({**m, "deleted_at": None})
     st = await count_status(m, ["DRAFT", "WAITING_ACRM_REVIEW", "RETURN_TO_MARKETING",
         "WAITING_RCG_APPROVAL", "RETURN_FROM_RCG", "PUBLISHED", "SOLD", "UPDATE_PENDING_ACRM", "UPDATE_PENDING_RCG"])
-    return {"total": total, "acr": acr["nama_acr"] if acr else None, "by_status": st}
+    since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    mine = [x async for x in db.assets.find({**m, "deleted_at": None}, {"id": 1, "judul_asset": 1, "nomor_asset": 1, "stats": 1, "status": 1})]
+    ids = [x["id"] for x in mine]
+    v7 = await db.asset_events.count_documents({"id_asset": {"$in": ids}, "type": "view", "at": {"$gte": since}})
+    w7 = await db.asset_events.count_documents({"id_asset": {"$in": ids}, "type": "wa", "at": {"$gte": since}})
+    rows = [{"id": x["id"], "judul_asset": x["judul_asset"], "nomor_asset": x["nomor_asset"], "status": x["status"],
+             "views": (x.get("stats") or {}).get("views", 0), "wa_clicks": (x.get("stats") or {}).get("wa_clicks", 0)} for x in mine]
+    rows.sort(key=lambda r: (r["wa_clicks"] * 5 + r["views"]), reverse=True)
+    interest = {"views": sum(r["views"] for r in rows), "wa_clicks": sum(r["wa_clicks"] for r in rows),
+                "views_7d": v7, "wa_7d": w7, "top": rows[:5]}
+    return {"total": total, "acr": acr["nama_acr"] if acr else None, "by_status": st, "interest": interest}
 
 @api.get("/dashboard/acrm")
 async def dash_acrm(user=Depends(require("acrm"))):
@@ -1092,8 +1149,18 @@ async def add_category(body: CategoryIn, user=Depends(require("admin_rcg"))):
 
 @api.put("/admin/category/{cid}")
 async def edit_category(cid: str, body: CategoryIn, user=Depends(require("admin_rcg"))):
-    await db.master_asset_category.update_one({"id": cid}, {"$set": {"nama_category": body.nama_category, "updated_at": now_iso()}})
-    await audit(user, "UPDATE", "category", cid)
+    c = await db.master_asset_category.find_one({"id": cid, "deleted_at": None})
+    if not c:
+        raise HTTPException(404, "Kategori tidak ditemukan")
+    name = body.nama_category.strip()
+    if not name:
+        raise HTTPException(400, "Nama kategori wajib diisi")
+    dup = await db.master_asset_category.find_one({"id": {"$ne": cid}, "parent_category_id": c.get("parent_category_id"),
+        "nama_category": {"$regex": f"^{re.escape(name)}$", "$options": "i"}, "deleted_at": None})
+    if dup:
+        raise HTTPException(409, "Nama kategori sudah digunakan")
+    await db.master_asset_category.update_one({"id": cid}, {"$set": {"nama_category": name, "updated_at": now_iso()}})
+    await audit(user, "RENAME", "category", cid, before={"nama": c["nama_category"]}, after={"nama": name})
     return clean(await db.master_asset_category.find_one({"id": cid}))
 
 @api.post("/admin/category/{cid}/toggle")

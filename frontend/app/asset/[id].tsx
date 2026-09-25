@@ -1,15 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { View, Text, ScrollView, Pressable, Linking, Dimensions } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
 import { makeStyles, useTheme } from "@/src/theme";
-import { apiGet, fileUrl } from "@/src/api";
+import { apiGet, apiPost, fileUrl } from "@/src/api";
 import { rupiah, formatDate, waLink } from "@/src/format";
 import { Icon, Loading, ErrorState, Button, Badge, spacing, radius } from "@/src/components/ui";
 import { useToast } from "@/src/components/toast";
 import { useShareAsset } from "@/src/components/share";
+import { useConfirm } from "@/src/components/confirm";
+import { addAuctionToCalendar } from "@/src/calendar";
 import { useFavorites } from "@/src/favorites";
 import { AssetCard } from "@/src/components/asset-card";
 import { PublicFooter } from "@/src/components/public-footer";
@@ -28,6 +30,12 @@ export default function PublicDetail() {
   const { share, sheet } = useShareAsset();
   const { has: favHas, toggle: toggleFav } = useFavorites();
   const isFav = typeof id === "string" && favHas(id);
+  const confirm = useConfirm();
+  const [calBusy, setCalBusy] = useState(false);
+  // Interest signal: count one view per detail open
+  useEffect(() => {
+    if (typeof id === "string") apiPost(`/public/catalog/${id}/track`, { type: "view" }).catch(() => {});
+  }, [id]);
   const { data: similar } = useQuery<any[]>({
     queryKey: ["similar", id],
     queryFn: () => apiGet(`/public/catalog/${id}/similar`),
@@ -47,9 +55,22 @@ export default function PublicDetail() {
 
   const openWa = async () => {
     if (!link) { toast("Nomor PIC belum tersedia", "error"); return; }
+    apiPost(`/public/catalog/${data.id}/track`, { type: "wa" }).catch(() => {});
     const ok = await Linking.canOpenURL(link);
     if (ok) Linking.openURL(link);
     else toast("Tidak dapat membuka WhatsApp", "error");
+  };
+
+  const saveToCalendar = async () => {
+    setCalBusy(true);
+    try {
+      const r = await addAuctionToCalendar(data, confirm);
+      if (r.message) toast(r.message, r.ok ? "success" : "error");
+    } catch {
+      toast("Gagal menyimpan ke kalender", "error");
+    } finally {
+      setCalBusy(false);
+    }
   };
 
   function TopBack() {
@@ -115,9 +136,43 @@ export default function PublicDetail() {
           </View>
 
           <View style={s.priceCard}>
-            <Text style={s.priceLabel}>Harga Limit</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+              <Text style={s.priceLabel}>Harga Limit</Text>
+              {data.penurunan_persen > 0 && !data.is_sold && (
+                <View style={s.dropBadge} testID="price-drop-badge">
+                  <Icon name="trending-down" size={12} color="#FFFFFF" />
+                  <Text style={s.dropTxt}>Turun {data.penurunan_persen}%</Text>
+                </View>
+              )}
+            </View>
             <Text style={s.price}>{rupiah(data.harga_limit)}</Text>
+            {data.penurunan_persen > 0 && !data.is_sold && (
+              <Text style={s.oldPrice}>Sebelumnya {rupiah(data.harga_sebelumnya)}{data.harga_turun_at ? ` • turun ${formatDate(data.harga_turun_at)}` : ""}</Text>
+            )}
           </View>
+
+          {(data.price_history || []).length > 1 && (
+            <Section title="Riwayat Harga">
+              <View testID="price-history">
+                {[...data.price_history].reverse().map((h: any, i: number, arr: any[]) => {
+                  const next = arr[i + 1];
+                  const diff = next ? h.harga - next.harga : 0;
+                  return (
+                    <View key={`${h.at}-${i}`} style={s.histRow}>
+                      <View style={[s.histDot, i === 0 && { backgroundColor: colors.brandPrimary }]} />
+                      <View style={{ flex: 1 }}>
+                        <Text style={[s.histPrice, i === 0 && { color: colors.brandPrimary }]}>{rupiah(h.harga)}</Text>
+                        <Text style={s.histDate}>{h.at ? formatDate(h.at) : "-"}{i === 0 ? " • harga saat ini" : ""}</Text>
+                      </View>
+                      {diff !== 0 && (
+                        <Text style={[s.histDiff, { color: diff < 0 ? colors.success : colors.error }]}>{diff < 0 ? "▼" : "▲"} {rupiah(Math.abs(diff))}</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            </Section>
+          )}
 
           {/* Specs */}
           <View style={s.specGrid}>
@@ -153,6 +208,11 @@ export default function PublicDetail() {
                   <InfoRow icon="briefcase" label="KPKNL" value={data.kpknl.nama} />
                   <InfoRow icon="map" label="Alamat KPKNL" value={data.kpknl.alamat} />
                 </>
+              )}
+              {!data.is_sold && (
+                <View style={{ marginTop: spacing.sm }}>
+                  <Button title="Simpan ke Kalender HP" icon="calendar" variant="outline" onPress={saveToCalendar} loading={calBusy} testID="save-calendar-button" />
+                </View>
               )}
             </Section>
           )}
@@ -258,6 +318,14 @@ const useStyles = makeStyles((c) => ({
   priceCard: { backgroundColor: c.brandTertiary, borderRadius: radius.md, padding: spacing.lg, marginTop: spacing.sm },
   priceLabel: { color: c.onBrandTertiary, fontSize: 12, fontWeight: "600" },
   price: { color: c.onBrandTertiary, fontSize: 26, fontWeight: "900", marginTop: 2 },
+  oldPrice: { color: c.onBrandTertiary, fontSize: 12, marginTop: 2, opacity: 0.85 },
+  dropBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.success, paddingHorizontal: 8, height: 24, borderRadius: radius.pill },
+  dropTxt: { color: "#FFFFFF", fontSize: 11, fontWeight: "800" },
+  histRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.divider },
+  histDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: c.border },
+  histPrice: { fontSize: 14, fontWeight: "700", color: c.onSurface },
+  histDate: { fontSize: 11, color: c.muted, marginTop: 1 },
+  histDiff: { fontSize: 12, fontWeight: "700" },
   specGrid: { flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm },
   spec: { flex: 1, backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md, alignItems: "center", gap: 4 },
   specVal: { fontSize: 14, fontWeight: "800", color: c.onSurface },

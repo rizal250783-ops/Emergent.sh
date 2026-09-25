@@ -12,7 +12,9 @@
       "bundleIdentifier": "com.emergent.mobileappbuild.lqbqqz",
       "infoPlist": {
         "NSPhotoLibraryUsageDescription": "Pilih foto asset untuk katalog lelang",
-        "NSLocationWhenInUseUsageDescription": "Tandai titik lokasi asset di peta secara otomatis"
+        "NSLocationWhenInUseUsageDescription": "Tandai titik lokasi asset di peta secara otomatis",
+        "NSCalendarsUsageDescription": "Simpan pengingat tanggal lelang ke kalender Anda",
+        "NSCalendarsFullAccessUsageDescription": "Simpan pengingat tanggal lelang ke kalender Anda"
       }
     },
     "android": {
@@ -21,7 +23,13 @@
         "backgroundColor": "#00A0A0"
       },
       "package": "com.emergent.mobileappbuild.lqbqqz",
-      "permissions": ["READ_MEDIA_IMAGES", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
+      "permissions": [
+        "READ_MEDIA_IMAGES",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "READ_CALENDAR",
+        "WRITE_CALENDAR"
+      ]
     },
     "web": {
       "bundler": "metro",
