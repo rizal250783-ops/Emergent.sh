@@ -12,6 +12,7 @@ import { useToast } from "@/src/components/toast";
 import { useShareAsset } from "@/src/components/share";
 import { useConfirm } from "@/src/components/confirm";
 import { addAuctionToCalendar } from "@/src/calendar";
+import { PhotoGallery } from "@/src/components/photo-gallery";
 import { useFavorites } from "@/src/favorites";
 import { AssetCard } from "@/src/components/asset-card";
 import { PublicFooter } from "@/src/components/public-footer";
@@ -32,6 +33,7 @@ export default function PublicDetail() {
   const isFav = typeof id === "string" && favHas(id);
   const confirm = useConfirm();
   const [calBusy, setCalBusy] = useState(false);
+  const [galleryOpen, setGalleryOpen] = useState(false);
   // Interest signal: count one view per detail open
   useEffect(() => {
     if (typeof id === "string") apiPost(`/public/catalog/${id}/track`, { type: "view" }).catch(() => {});
@@ -75,7 +77,7 @@ export default function PublicDetail() {
 
   function TopBack() {
     return (
-      <Pressable style={[s.backBtn, { top: insets.top + 8 }]} onPress={() => router.back()} testID="detail-back">
+      <Pressable style={[s.backBtn, s.backPos, { top: insets.top + 8 }]} onPress={() => router.back()} testID="detail-back">
         <Icon name="arrow-left" size={22} color="#FFFFFF" />
       </Pressable>
     );
@@ -92,7 +94,9 @@ export default function PublicDetail() {
               onMomentumScrollEnd={(e) => setImgIndex(Math.round(e.nativeEvent.contentOffset.x / width))}
             >
               {images.map((u, i) => (
-                <Image key={i} source={{ uri: fileUrl(u) }} style={{ width, height: 280 }} contentFit="cover" />
+                <Pressable key={i} onPress={() => setGalleryOpen(true)} testID={`gallery-open-${i}`}>
+                  <Image source={{ uri: fileUrl(u) }} style={{ width, height: 280 }} contentFit="cover" />
+                </Pressable>
               ))}
             </ScrollView>
           ) : (
@@ -103,13 +107,19 @@ export default function PublicDetail() {
               {images.map((_, i) => <View key={i} style={[s.dot, i === imgIndex && s.dotActive]} />)}
             </View>
           )}
-          <Pressable style={[s.backBtn, { top: insets.top + 8 }]} onPress={() => router.back()} testID="detail-back">
+          {images.length > 0 && (
+            <Pressable style={s.expandBtn} onPress={() => setGalleryOpen(true)} testID="gallery-expand">
+              <Icon name="maximize-2" size={14} color="#FFFFFF" />
+              <Text style={s.expandTxt}>{imgIndex + 1}/{images.length} • Layar penuh</Text>
+            </Pressable>
+          )}
+          <Pressable style={[s.backBtn, s.backPos, { top: insets.top + 8 }]} onPress={() => router.back()} testID="detail-back">
             <Icon name="arrow-left" size={22} color="#FFFFFF" />
           </Pressable>
           <Pressable style={[s.backBtn, s.shareBtn, { top: insets.top + 8 }]} onPress={() => share(data)} testID="share-button">
             <Icon name="share-2" size={20} color="#FFFFFF" />
           </Pressable>
-          <Pressable style={[s.backBtn, s.favBtn, { top: insets.top + 8 }]} onPress={() => toggleFav(data.id)} testID="fav-button">
+          <Pressable style={[s.backBtn, s.favBtn, { top: insets.top + 8 }]} onPress={() => toggleFav(data.id, data)} testID="fav-button">
             <Icon name="heart" size={20} color={isFav ? colors.error : "#FFFFFF"} />
           </Pressable>
         </View>
@@ -230,7 +240,7 @@ export default function PublicDetail() {
             <Text style={[s.similarTitle, { paddingHorizontal: spacing.lg }]}>Asset Serupa</Text>
             <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
               {similar.map((it) => (
-                <AssetCard key={it.id} item={it} width={170} onPress={() => router.push(`/asset/${it.id}`)} fav={favHas(it.id)} onFav={() => toggleFav(it.id)} />
+                <AssetCard key={it.id} item={it} width={170} onPress={() => router.push(`/asset/${it.id}`)} fav={favHas(it.id)} onFav={() => toggleFav(it.id, it)} />
               ))}
             </ScrollView>
           </View>
@@ -252,6 +262,7 @@ export default function PublicDetail() {
         </Pressable>
       </View>
       {sheet}
+      <PhotoGallery images={images.map((u) => fileUrl(u) as string)} index={imgIndex} visible={galleryOpen} onClose={() => setGalleryOpen(false)} />
     </View>
   );
 }
@@ -297,9 +308,12 @@ const useStyles = makeStyles((c) => ({
   dots: { position: "absolute", bottom: 12, alignSelf: "center", flexDirection: "row", gap: 6 },
   dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: "rgba(255,255,255,0.5)" },
   dotActive: { backgroundColor: "#FFFFFF", width: 18 },
-  backBtn: { position: "absolute", left: spacing.lg, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center" },
-  shareBtn: { left: undefined, right: spacing.lg },
-  favBtn: { left: undefined, right: spacing.lg + 48 },
+  backBtn: { position: "absolute", width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center" },
+  shareBtn: { right: spacing.lg },
+  backPos: { left: spacing.lg },
+  expandBtn: { position: "absolute", right: spacing.lg, bottom: spacing.md, flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(0,0,0,0.55)", paddingHorizontal: 10, height: 30, borderRadius: radius.pill },
+  expandTxt: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
+  favBtn: { right: spacing.lg + 48 },
   soldBanner: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: "#FEE2E2", borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
   soldTitle: { fontSize: 14, fontWeight: "800", color: c.error },
   soldSub: { fontSize: 12, color: c.onSurfaceSecondary, marginTop: 2 },

@@ -1,0 +1,37 @@
+{
+  "summary": "Iteration 5 fully green. Backend (pytest 8/8 in /app/backend/tests/test_iteration5.py, junit /app/test_reports/pytest/pytest_iter5.xml): (a) GET /public/catalog?limit=30 total=25 unchanged; ?price_drop=true returns 5 items, ALL with penurunan_persen>0 and harga_sebelumnya>harga_limit and total==items count; price_drop=false behaves same as default (25); price_drop=true&provinsi=Bali only Bali items with drops, total==items. (b) GET /rcg/reports/assets/link as admin returns {url,expires_in}; GETting that url returns xlsx (content-type ...spreadsheetml...). Workbook.sheetnames == ['Ringkasan per ACR','Detail Asset','Minat Pembeli','Ringkasan Status']. 'Detail Asset' header last 4 cols == ['Dilihat','Ketuk WhatsApp','Dilihat 7 Hari','WA 7 Hari']. 'Minat Pembeli' header == ['Peringkat','Nomor Asset','Judul','Status','ACR','PIC Marketing','Harga Limit','Dilihat','Ketuk WhatsApp','Dilihat 7 Hari','WA 7 Hari','Konversi WA (%)']; rows sorted DESC by wa_clicks*5+views; row count == total assets (via Ringkasan Status sum). Frontend (390x844 mobile web preview): (1) Home default shows '25 asset tersedia'. Clicking chip-harga-turun switches to '5 asset dengan harga turun' and every visible card has a price-drop-<id> element (5 counted). Clicking again returns to '25 asset tersedia'. (2) Detail Rumah 2 Lantai Siap Huni -> gallery-expand visible with text '1/5 • Layar penuh'; clicking it opens full-screen modal with gallery-counter '1 / 5'; gallery-next -> '2 / 5'; gallery-prev -> '1 / 5'; gallery-close returns to detail (expand visible again). Also clicked gallery-open-0 -> counter '1 / 5' confirming photo tap also opens the viewer. (3) Favorites alert end-to-end: hearted asset 6e50e5b8 (Rumah 2 Lantai Siap Huni, MA 2190020284, PUBLISHED). favorites-entry-button badge shows '1' with NO favorites-alert-badge (normal gold badge). Reduced harga_limit 450,000,000 -> 405,000,000 via authenticated PUT /assets/{id} (200). Reloaded home in same browser context -> favorites-alert-badge visible with text '1'. Opened favorites -> favorites-updates banner shown with content '1 pembaruan pada favorit Anda ... Rumah 2 Lantai Siap Huni Harga turun 10%: Rp 450.000.000 → Rp 405.000.000' and favorite-changed-<id> BARU tag present. Clicked favorites-seen-<id> -> banner disappears. Back on home the alert-badge is gone and entry-button shows '1' again. Price restored to 450,000,000 via PUT (200). (4) Regression: On public detail, detail-back(x=16), fav-button(x=286), share-button(x=334) all visible, aligned within header row (y=8, 40x40), non-overlapping (detail-back right-edge=56 < fav.x=286 < share.x=334). detail-back navigates back to home. Search 'Civic' -> TERJUAL badge visible. Login MA (2190020284/BSI@2026) -> /dashboard renders 'Statistik Minat Pembeli' section with 4 stat cards (51, 3, 24, 1) and 'Asset Paling Diminati' top card.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration5.py",
+    "/app/test_reports/pytest/pytest_iter5.xml"
+  ],
+  "action_items": [
+    "None required for iteration 5 - all acceptance criteria met.",
+    "Minor UX consideration: the FilterModal 'Reset' button (testID filter-reset) does NOT clear the priceDrop chip; only the empty-state 'Reset Filter' (testID reset-filter-empty) resets everything including priceDrop. Not a functional bug (chip is outside the modal) but consider aligning the two reset flows for consistency."
+  ],
+  "critical_code_review_comments": [
+    "server.py has grown to 1365 lines - split into routers is still recommended.",
+    "compute_price_meta returns integer percentage via int(round(...)); documented in iter4 report - still applies.",
+    "public/catalog?price_drop=true reorders results by _drop_at DESC, but the SOLD-rank sort is applied AFTER, so a newly-price-dropped SOLD asset would sink; acceptable for the current UX where price-drop chip primarily targets available bargains.",
+    "photo-gallery.tsx uses reanimated + gesture-handler for zoom - correct approach; on web the pinch/pan can't be simulated by Playwright, but swipe (FlatList pagingEnabled) + prev/next/counter/close verified.",
+    "favorites snapshot seeding (useFavoriteUpdates.useEffect) merges snapshots when items load, avoiding false alerts on legacy favorites - correct.",
+    "Reports xlsx: /rcg/reports/assets.xlsx uses signed JWT with 10-min expiry and ships as public download link - good."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration5.py (new)",
+    "/app/test_reports/iteration_5.json (new)",
+    "/app/test_reports/pytest/pytest_iter5.xml (new)"
+  ],
+  "success_rate": { "backend": "100% (8/8 iter5; prior suites unchanged)", "frontend": "100% of iteration-5 flows verified" },
+  "seed_data_creation": "Temporarily reduced then restored harga_limit on asset 6e50e5b8-abb2-4f22-9e58-f177c59eaab2 (Rumah 2 Lantai Siap Huni, MA 2190020284): 450,000,000 -> 405,000,000 -> 450,000,000. price_history contains an extra entry (PUT always $pushes) but compute_price_meta dedupes consecutive duplicates so downstream views remain correct. No demo assets deleted.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Iteration 5 additions summary. BACKEND endpoints: GET /public/catalog supports price_drop=true|false (default false). Excel report endpoints: GET /rcg/reports/assets/link (admin only) -> {url, expires_in}; GET that url -> xlsx bytes; sheets in fixed order [Ringkasan per ACR, Detail Asset, Minat Pembeli, Ringkasan Status]. FRONTEND testIDs added/used: chip-harga-turun (home), gallery-expand (detail Photo section), gallery-open-<i> (each thumbnail), gallery-counter, gallery-next, gallery-prev, gallery-close (fullscreen modal), favorites-alert-badge (heart entry when updates exist), favorites-updates (banner in /favorites), favorite-changed-<id> (BARU tag on card), favorites-seen-<id> (per-row acknowledge), favorites-mark-all (banner header). Favorites live in AsyncStorage keys bsi_favorites_v1 and bsi_favorites_snapshot_v1. In Playwright, keep same browser context between the heart action and the reload so localStorage persists.",
+  "rca_of_issue": "No issues found. Notes for automation: (1) The favorite button on AssetCard is not testID=fav-<id> - it's likely a generic heart pressable; used the first [data-testid^='fav-'] but got no matches, so relied on visible AssetCard fav via first fav locator. Solution used: clicked heart pressable inside the card; state confirmed via localStorage. (2) 'Reset Filter' button only appears on empty-state; the FilterModal 'Reset' (filter-reset) does not clear priceDrop - not a bug but worth documenting."
+}

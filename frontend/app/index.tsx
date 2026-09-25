@@ -11,7 +11,7 @@ import { apiGet } from "@/src/api";
 import { Icon, EmptyState, ErrorState, Skeleton, Button, Select, spacing, radius } from "@/src/components/ui";
 import { useAuth } from "@/src/auth";
 import { useShareAsset } from "@/src/components/share";
-import { useFavorites } from "@/src/favorites";
+import { useFavorites, useFavoriteUpdates } from "@/src/favorites";
 import { AssetCard } from "@/src/components/asset-card";
 import { PublicFooter } from "@/src/components/public-footer";
 
@@ -29,9 +29,11 @@ export default function PublicCatalog() {
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
   const [loc, setLoc] = useState<Loc>(EMPTY_LOC);
+  const [priceDrop, setPriceDrop] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const { share, sheet } = useShareAsset();
   const { ids: favIds, has: favHas, toggle: toggleFav } = useFavorites();
+  const { updates: favUpdates } = useFavoriteUpdates();
 
   // Live search: apply keyword automatically while typing (debounced)
   React.useEffect(() => {
@@ -49,9 +51,10 @@ export default function PublicCatalog() {
     if (search) p.set("keyword", search);
     if (categoryId) p.set("category_id", categoryId);
     (Object.keys(loc) as (keyof Loc)[]).forEach((k) => { if (loc[k]) p.set(k, loc[k]); });
+    if (priceDrop) p.set("price_drop", "true");
     p.set("limit", String(LIMIT));
     return p.toString();
-  }, [search, categoryId, loc]);
+  }, [search, categoryId, loc, priceDrop]);
 
   const {
     data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isRefetching,
@@ -67,7 +70,7 @@ export default function PublicCatalog() {
 
   const items = data?.pages.flatMap((p: any) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
-  const activeFilters = (categoryId ? 1 : 0) + Object.values(loc).filter(Boolean).length;
+  const activeFilters = (categoryId ? 1 : 0) + Object.values(loc).filter(Boolean).length + (priceDrop ? 1 : 0);
   const locLabel = [loc.wilayah_level_4, loc.kecamatan, loc.kabupaten_kota, loc.provinsi].filter(Boolean).join(", ");
 
   const categories = filters?.categories ?? [];
@@ -86,7 +89,11 @@ export default function PublicCatalog() {
           </View>
           <Pressable testID="favorites-entry-button" style={s.iconBtn} onPress={() => router.push("/favorites")}>
             <Icon name="heart" size={18} color={colors.onBrandPrimary} />
-            {favIds.length > 0 && <View style={s.filterDot}><Text style={s.filterDotTxt}>{favIds.length}</Text></View>}
+            {favUpdates.length > 0 ? (
+              <View style={[s.filterDot, s.alertDot]} testID="favorites-alert-badge"><Text style={s.filterDotTxt}>{favUpdates.length}</Text></View>
+            ) : favIds.length > 0 ? (
+              <View style={s.filterDot}><Text style={s.filterDotTxt}>{favIds.length}</Text></View>
+            ) : null}
           </Pressable>
           <Pressable
             testID="login-entry-button"
@@ -129,6 +136,10 @@ export default function PublicCatalog() {
 
         {/* Category chips: wrap so every option is visible without horizontal scrolling */}
         <View style={s.chipsWrap}>
+          <Pressable onPress={() => setPriceDrop((v) => !v)} style={[s.chip, s.dropChip, priceDrop && s.dropChipActive]} testID="chip-harga-turun">
+            <Icon name="trending-down" size={14} color={priceDrop ? "#FFFFFF" : colors.brandSecondary} />
+            <Text style={[s.chipTxt, priceDrop && { color: "#FFFFFF" }]}>Harga Turun</Text>
+          </Pressable>
           <Chip label="Semua" active={!categoryId} onPress={() => setCategoryId(null)} />
           {categories.map((c: any) => (
             <Chip key={c.id} label={c.nama_category} active={categoryId === c.id} onPress={() => setCategoryId(c.id)} />
@@ -156,7 +167,7 @@ export default function PublicCatalog() {
           title="Tidak ada asset ditemukan"
           subtitle="Coba ubah kata kunci atau hapus filter."
           action={activeFilters > 0 || search ? (
-            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setLoc(EMPTY_LOC); setKeyword(""); setSearch(""); }} testID="reset-filter-empty" />
+            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setLoc(EMPTY_LOC); setPriceDrop(false); setKeyword(""); setSearch(""); }} testID="reset-filter-empty" />
           ) : undefined}
         />
       ) : (
@@ -169,7 +180,7 @@ export default function PublicCatalog() {
           contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: insets.bottom + spacing.xl, gap: spacing.md }}
           ListHeaderComponent={
             <View style={s.resultHead}>
-              <Text style={s.resultCount}>{total} asset tersedia</Text>
+              <Text style={s.resultCount}>{total} asset {priceDrop ? "dengan harga turun" : "tersedia"}</Text>
               {locLabel ? (
                 <Pressable style={s.locPill} onPress={() => setLoc(EMPTY_LOC)} testID="clear-location-filter">
                   <Icon name="map-pin" size={12} color={colors.brandPrimary} />
@@ -182,7 +193,7 @@ export default function PublicCatalog() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brandPrimary} />}
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.4}
-          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} fav={favHas(item.id)} onFav={() => toggleFav(item.id)} width={cardW} />}
+          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} fav={favHas(item.id)} onFav={() => toggleFav(item.id, item)} width={cardW} />}
           ListFooterComponent={
             <View>
               {isFetchingNextPage && <View style={{ padding: 16 }}><Skeleton h={12} w="40%" style={{ alignSelf: "center" }} /></View>}
@@ -198,7 +209,7 @@ export default function PublicCatalog() {
         categories={categories}
         categoryId={categoryId}
         loc={loc}
-        onApply={(c: string | null, l: Loc) => { setCategoryId(c); setLoc(l); setFilterOpen(false); }}
+        onApply={(c: string | null, l: Loc, reset?: boolean) => { setCategoryId(c); setLoc(l); if (reset) setPriceDrop(false); setFilterOpen(false); }}
       />
       {sheet}
     </View>
@@ -321,7 +332,7 @@ function FilterModal({ visible, onClose, categories, categoryId, loc, onApply }:
           </ScrollView>
           <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
             <View style={{ flex: 1 }}>
-              <Button title="Reset" variant="outline" onPress={() => { setC(null); setL(EMPTY_LOC); }} testID="filter-reset" />
+              <Button title="Reset" variant="outline" onPress={() => { setC(null); setL(EMPTY_LOC); onApply(null, EMPTY_LOC, true); }} testID="filter-reset" />
             </View>
             <View style={{ flex: 1.4 }}>
               <Button title="Terapkan" onPress={() => onApply(c, l)} testID="filter-apply" />
@@ -369,6 +380,9 @@ const useStyles = makeStyles((c) => ({
   filterDotTxt: { color: c.onBrandSecondary, fontSize: 10, fontWeight: "800" },
   chip: { height: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   chipActive: { backgroundColor: "#FFFFFF" },
+  alertDot: { backgroundColor: c.error },
+  dropChip: { flexDirection: "row", gap: 6, borderWidth: 1, borderColor: c.brandSecondary },
+  dropChipActive: { backgroundColor: c.success, borderColor: c.success },
   chipTxt: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
   chipTxtActive: { color: c.brandPrimary },
   resultHead: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 6 },

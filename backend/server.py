@@ -393,7 +393,7 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
     subcategory_id: Optional[str] = None, provinsi: Optional[str] = None,
     kabupaten_kota: Optional[str] = None, kecamatan: Optional[str] = None,
     wilayah_level_4: Optional[str] = None, sort: str = "newest",
-    page: int = 1, limit: int = 20):
+    price_drop: bool = False, page: int = 1, limit: int = 20):
     q = {"status": {"$in": ASSET_PUBLIC_STATUSES}, "public_ready": True, "deleted_at": None}
     if category_id: q["id_category"] = category_id
     if subcategory_id: q["id_subcategory"] = subcategory_id
@@ -407,9 +407,19 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
     sort_map = {"newest": ("published_at", -1), "price_low": ("harga_limit", 1),
                 "price_high": ("harga_limit", -1), "auction": ("schedule.tanggal_lelang", 1)}
     sf, sd = sort_map.get(sort, ("published_at", -1))
-    total = await db.assets.count_documents(q)
+    pre = [{"$match": q}]
+    if price_drop:
+        # only assets whose latest price is lower than the previous one (fresh bargains first)
+        pre += [{"$addFields": {"_prev": {"$arrayElemAt": ["$price_history.harga", -2]},
+                                "_drop_at": {"$arrayElemAt": ["$price_history.at", -1]}}},
+                {"$match": {"$expr": {"$and": [{"$gt": [{"$size": {"$ifNull": ["$price_history", []]}}, 1]},
+                                               {"$lt": ["$harga_limit", "$_prev"]}]}}}]
+        sf, sd = "_drop_at", -1
+    total = 0
+    async for r in db.assets.aggregate(pre + [{"$count": "n"}]):
+        total = r["n"]
     # SOLD assets always sink to the end so buyers see available assets first
-    pipeline = [{"$match": q},
+    pipeline = pre + [
         {"$addFields": {"_sold_rank": {"$cond": [{"$eq": ["$status", "SOLD"]}, 1, 0]}}},
         {"$sort": {"_sold_rank": 1, sf: sd, "_id": 1}},
         {"$skip": (page - 1) * limit}, {"$limit": limit}]
@@ -957,7 +967,7 @@ async def rcg_report_link(user=Depends(require("admin_rcg"))):
     await audit(user, "EXPORT_REPORT", "assets", None)
     return {"url": f"/api/rcg/reports/assets.xlsx?token={token}", "expires_in": 600}
 
-def build_report_xlsx(acrs, assets, cats, kpknls):
+def build_report_xlsx(acrs, assets, cats, kpknls, ev7):
     from openpyxl import Workbook
     from openpyxl.styles import Font, PatternFill, Alignment
     from openpyxl.utils import get_column_letter
@@ -992,17 +1002,31 @@ def build_report_xlsx(acrs, assets, cats, kpknls):
     ws2 = wb.create_sheet("Detail Asset")
     header(ws2, ["Nomor Asset", "Judul", "Status", "ACR", "ACRM", "PIC Marketing", "Kategori", "Subkategori", "Provinsi", "Kabupaten/Kota",
                  "Kecamatan", "Kelurahan/Desa", "Harga Limit", "Nilai Appraisal", "Luas Tanah", "Luas Bangunan", "Tanggal Lelang", "KPKNL",
-                 "Dipublikasikan", "Terjual", "Dibuat"])
+                 "Dipublikasikan", "Terjual", "Dibuat", "Dilihat", "Ketuk WhatsApp", "Dilihat 7 Hari", "WA 7 Hari"])
     for a in sorted(assets, key=lambda x: (x.get("acr_nama") or "", x.get("nomor_asset") or "")):
         sched = a.get("schedule") or {}
+        st7 = ev7.get(a["id"], {})
         ws2.append([a.get("nomor_asset"), a.get("judul_asset"), a.get("status"), a.get("acr_nama"), a.get("acrm_nama"), a.get("pic_nama"),
                     cats.get(a.get("id_category")), cats.get(a.get("id_subcategory")), a.get("provinsi"), a.get("kabupaten_kota"),
                     a.get("kecamatan"), a.get("wilayah_level_4"), a.get("harga_limit"), a.get("nilai_appraisal"), a.get("luas_tanah"), a.get("luas_bangunan"),
-                    sched.get("tanggal_lelang"), kpknls.get(sched.get("id_kpknl")), (a.get("published_at") or "")[:10], (a.get("sold_at") or "")[:10], (a.get("created_at") or "")[:10]])
+                    sched.get("tanggal_lelang"), kpknls.get(sched.get("id_kpknl")), (a.get("published_at") or "")[:10], (a.get("sold_at") or "")[:10], (a.get("created_at") or "")[:10],
+                    (a.get("stats") or {}).get("views", 0), (a.get("stats") or {}).get("wa_clicks", 0), st7.get("view", 0), st7.get("wa", 0)])
     for row in ws2.iter_rows(min_row=2, min_col=13, max_col=14):
         for c in row: c.number_format = '"Rp"#,##0'
     ws2.freeze_panes = "A2"; autosize(ws2)
-    # Sheet 3: per status
+    # Sheet 3: buyer interest ranking
+    ws4 = wb.create_sheet("Minat Pembeli")
+    header(ws4, ["Peringkat", "Nomor Asset", "Judul", "Status", "ACR", "PIC Marketing", "Harga Limit", "Dilihat", "Ketuk WhatsApp", "Dilihat 7 Hari", "WA 7 Hari", "Konversi WA (%)"])
+    ranked = sorted(assets, key=lambda a: ((a.get("stats") or {}).get("wa_clicks", 0) * 5 + (a.get("stats") or {}).get("views", 0)), reverse=True)
+    for i, a in enumerate(ranked, 1):
+        st = a.get("stats") or {}; st7 = ev7.get(a["id"], {})
+        conv = round(st.get("wa_clicks", 0) / st["views"] * 100, 1) if st.get("views") else 0
+        ws4.append([i, a.get("nomor_asset"), a.get("judul_asset"), a.get("status"), a.get("acr_nama"), a.get("pic_nama"), a.get("harga_limit"),
+                    st.get("views", 0), st.get("wa_clicks", 0), st7.get("view", 0), st7.get("wa", 0), conv])
+    for row in ws4.iter_rows(min_row=2, min_col=7, max_col=7):
+        for c in row: c.number_format = '"Rp"#,##0'
+    ws4.freeze_panes = "A2"; autosize(ws4)
+    # Sheet 4: per status
     ws3 = wb.create_sheet("Ringkasan Status")
     header(ws3, ["Status", "Jumlah Asset", "Total Harga Limit"])
     for s in REPORT_STATUSES:
@@ -1029,7 +1053,12 @@ async def rcg_report_xlsx(token: str = Query(...)):
     assets = [a async for a in db.assets.find({"deleted_at": None})]
     cats = {c["id"]: c["nama_category"] async for c in db.master_asset_category.find({})}
     kpknls = {k["id"]: k["nama_kpknl"] async for k in db.master_kpknl.find({})}
-    data = await run_in_threadpool(build_report_xlsx, acrs, assets, cats, kpknls)
+    since = (datetime.now(timezone.utc) - timedelta(days=7)).isoformat()
+    ev7: dict = {}
+    async for r in db.asset_events.aggregate([{"$match": {"at": {"$gte": since}}},
+            {"$group": {"_id": {"a": "$id_asset", "t": "$type"}, "n": {"$sum": 1}}}]):
+        ev7.setdefault(r["_id"]["a"], {})[r["_id"]["t"]] = r["n"]
+    data = await run_in_threadpool(build_report_xlsx, acrs, assets, cats, kpknls, ev7)
     fname = f"Laporan_Asset_BSI_{datetime.now().strftime('%Y%m%d')}.xlsx"
     return FastResponse(content=data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": f'attachment; filename="{fname}"'})

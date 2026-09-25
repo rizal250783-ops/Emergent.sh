@@ -67,7 +67,15 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Demo photos re-curated (visual check) for realism.
 - Validated by testing agent: 11/11 backend + all frontend flows.
 
+## Implemented (Iteration 5, 2026-06)
+- Galeri layar penuh (src/components/photo-gallery.tsx): swipe, pinch/double-tap zoom (RNGH + Reanimated), prev/next, counter. GestureHandlerRootView added to root layout.
+- Filter "Harga Turun" chip on home -> /public/catalog?price_drop=true (aggregation on price_history), sorted by latest drop.
+- Favorites alerts (on-device): snapshots per favorite; useFavoriteUpdates detects price drop / new or changed schedule / sold; red badge on header heart; banner + BARU tags on /favorites; mark seen.
+- Excel: Detail Asset +4 interest columns; new sheet "Minat Pembeli" (ranking + Konversi WA %).
+- Validated by testing agent: 8/8 backend + all frontend flows.
+
 ## Backlog / Remaining
+- P2: Push/local notification for favorite alerts (needs native build).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.
 - P2: Confirm/refresh placeholder (NOPE) data before go-live.
 - P3: Split server.py into routers; align demo KPKNL with each asset's province.

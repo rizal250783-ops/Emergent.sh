@@ -5,6 +5,7 @@ import { SafeAreaProvider } from "react-native-safe-area-context";
 import { KeyboardProvider } from "react-native-keyboard-controller";
 import { StatusBar } from "expo-status-bar";
 import { useFonts } from "expo-font";
+import { GestureHandlerRootView } from "react-native-gesture-handler";
 
 import { ErrorBoundary } from "@/src/components/error-boundary";
 import { queryClient } from "@/src/query-client";
@@ -32,6 +33,7 @@ export default function RootLayout() {
   }
   return (
     <ErrorBoundary>
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <QueryClientProvider client={queryClient}>
         <SafeAreaProvider>
           <KeyboardProvider>
@@ -48,6 +50,7 @@ export default function RootLayout() {
           </KeyboardProvider>
         </SafeAreaProvider>
       </QueryClientProvider>
+      </GestureHandlerRootView>
     </ErrorBoundary>
   );
 }
