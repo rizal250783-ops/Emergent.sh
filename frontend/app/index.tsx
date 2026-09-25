@@ -70,6 +70,15 @@ export default function PublicCatalog() {
 
   const items = data?.pages.flatMap((p: any) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
+  const openMap = () => {
+    const p: Record<string, string> = {};
+    if (search) p.keyword = search;
+    if (categoryId) p.category_id = categoryId;
+    (Object.keys(loc) as (keyof Loc)[]).forEach((k) => { if (loc[k]) p[k] = loc[k]; });
+    if (priceDrop) p.price_drop = "true";
+    router.push({ pathname: "/map", params: p });
+  };
+
   const activeFilters = (categoryId ? 1 : 0) + Object.values(loc).filter(Boolean).length + (priceDrop ? 1 : 0);
   const locLabel = [loc.wilayah_level_4, loc.kecamatan, loc.kabupaten_kota, loc.provinsi].filter(Boolean).join(", ");
 
@@ -87,6 +96,9 @@ export default function PublicCatalog() {
             <Text style={s.appName}>BSI ASSET DEAL</Text>
             <Text style={s.tagline}>Menghubungkan Pembeli dengan Aset BSI</Text>
           </View>
+          <Pressable testID="map-entry-button" style={s.iconBtn} onPress={openMap}>
+            <Icon name="map" size={18} color={colors.onBrandPrimary} />
+          </Pressable>
           <Pressable testID="favorites-entry-button" style={s.iconBtn} onPress={() => router.push("/favorites")}>
             <Icon name="heart" size={18} color={colors.onBrandPrimary} />
             {favUpdates.length > 0 ? (
@@ -99,8 +111,9 @@ export default function PublicCatalog() {
             testID="login-entry-button"
             style={s.loginBtn}
             onPress={() => router.push(user ? "/dashboard" : "/login")}
+            accessibilityLabel={user ? "Panel internal" : "Masuk"}
           >
-            <Icon name={user ? "grid" : "log-in"} size={16} color={colors.onBrandPrimary} />
+            <Icon name={user ? "grid" : "log-in"} size={16} color={colors.brandPrimary} />
             <Text style={s.loginTxt}>{user ? "Panel" : "Masuk"}</Text>
           </Pressable>
         </View>
@@ -180,7 +193,13 @@ export default function PublicCatalog() {
           contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: insets.bottom + spacing.xl, gap: spacing.md }}
           ListHeaderComponent={
             <View style={s.resultHead}>
-              <Text style={s.resultCount}>{total} asset {priceDrop ? "dengan harga turun" : "tersedia"}</Text>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={s.resultCount}>{total} asset {priceDrop ? "dengan harga turun" : "tersedia"}</Text>
+                <Pressable style={s.mapPill} onPress={openMap} testID="view-on-map">
+                  <Icon name="map" size={12} color={colors.brandPrimary} />
+                  <Text style={s.mapPillTxt}>Lihat di Peta</Text>
+                </Pressable>
+              </View>
               {locLabel ? (
                 <Pressable style={s.locPill} onPress={() => setLoc(EMPTY_LOC)} testID="clear-location-filter">
                   <Icon name="map-pin" size={12} color={colors.brandPrimary} />
@@ -356,10 +375,10 @@ function FChip({ label, active, onPress }: { label: string; active: boolean; onP
 const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
   header: { backgroundColor: c.brandPrimary, paddingBottom: spacing.md },
-  brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  brandRow: { flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   logoBox: { backgroundColor: "#FFFFFF", borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 6, justifyContent: "center" },
-  logoImg: { width: 72, height: 20 },
-  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  logoImg: { width: 60, height: 17 },
+  iconBtn: { width: 36, height: 36, borderRadius: 18, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
   locBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   locChip: { flex: 1, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: radius.md, paddingHorizontal: 10, height: 38, borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
   locChipActive: { backgroundColor: "#FFFFFF" },
@@ -367,10 +386,10 @@ const useStyles = makeStyles((c) => ({
   locChipTxt: { flex: 1, fontSize: 12, fontWeight: "700", color: c.onBrandPrimary },
   locChipTxtActive: { color: c.brandPrimary },
   locChipLbl: { fontSize: 9, color: "rgba(255,255,255,0.75)", fontWeight: "700", textTransform: "uppercase" },
-  appName: { color: "#FFFFFF", fontWeight: "800", fontSize: 16 },
-  tagline: { color: "#E6F6F6", fontSize: 11 },
-  loginBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill },
-  loginTxt: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
+  appName: { color: "#FFFFFF", fontWeight: "800", fontSize: 14, letterSpacing: 0.2 },
+  tagline: { color: "#E6F6F6", fontSize: 10 },
+  loginBtn: { flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, backgroundColor: "#FFFFFF", width: 48, height: 40, borderRadius: radius.md },
+  loginTxt: { color: c.brandPrimary, fontWeight: "800", fontSize: 9 },
   searchRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.lg },
   chipsWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm },
   searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FFFFFF", borderRadius: radius.md, paddingHorizontal: 12, height: 44 },
@@ -387,6 +406,8 @@ const useStyles = makeStyles((c) => ({
   chipTxtActive: { color: c.brandPrimary },
   resultHead: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 6 },
   resultCount: { color: c.muted, fontSize: 13, fontWeight: "600" },
+  mapPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.brandPrimary, paddingHorizontal: 10, height: 30, borderRadius: radius.pill },
+  mapPillTxt: { color: c.brandPrimary, fontSize: 12, fontWeight: "700" },
   locPill: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: c.brandTertiary, paddingHorizontal: 10, height: 30, borderRadius: radius.pill, maxWidth: "100%" },
   locPillTxt: { color: c.brandPrimary, fontSize: 12, fontWeight: "700", flexShrink: 1 },
   filterHint: { fontSize: 12, color: c.muted, marginBottom: spacing.sm, marginTop: -4 },

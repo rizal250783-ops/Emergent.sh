@@ -74,8 +74,12 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Excel: Detail Asset +4 interest columns; new sheet "Minat Pembeli" (ranking + Konversi WA %).
 - Validated by testing agent: 8/8 backend + all frontend flows.
 
+## Implemented (Iteration 6, 2026-06)
+- Peta Sebaran Asset (/map): GET /public/catalog/map pins; Leaflet + markercluster (iframe web / WebView native) via generic HtmlFrame; pin tap -> summary card -> detail/favorite; legend (tersedia/harga turun/terjual); follows home filters (map-entry-button, view-on-map pill). Header compacted.
+- Validated by testing agent: 7/7 backend + all frontend flows.
+
 ## Backlog / Remaining
-- P2: Push/local notification for favorite alerts (needs native build).
+- P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.
 - P2: Confirm/refresh placeholder (NOPE) data before go-live.
 - P3: Split server.py into routers; align demo KPKNL with each asset's province.

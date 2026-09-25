@@ -1,0 +1,26 @@
+{
+  "summary": "Iteration 6 (Peta Sebaran Aset) validated end-to-end. Backend: 7/7 pytest tests pass for GET /api/public/catalog/map (baseline count=25, DKI=5, price_drop only >0 drops, keyword=Vario=1, keyword=zzzz=0, category=TANAH filters correctly, all pins have numeric lat/lng). Frontend: map-entry-button on home opens /map; Leaflet iframe renders cluster bubbles (.marker-cluster) and price pins (.price/.price.drop); cluster click zooms and expands (3→8 pins in test); price pin click shows map-selected-card with title/price; map-card-open navigates to /asset/<id> with gallery-expand visible; map-card-fav increments favorites-entry-button badge to 1 on home; map-card-close hides card; /map?keyword=zzzz shows map-empty pill and '0 asset berlokasi'; home filter Provinsi=DKI Jakarta + view-on-map produces subtitle '5 asset berlokasi • DKI Jakarta'; chip-harga-turun + view-on-map produces '5 asset berlokasi' with gold .price.drop markers. Regressions confirmed: login-entry-button (Masuk), favorites-entry-button, map-entry-button all present on home header.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration6.py",
+    "/app/test_reports/pytest/pytest_iter6.xml"
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "server.py public_map: 'kategori' key is used by the frontend Badge fallback; response also includes 'subkategori' (good). Endpoint is coordinate-only via {latitude:{$ne:null},longitude:{$ne:null}} which correctly excludes assets without pins.",
+    "map-html.ts uses unpkg CDN for Leaflet + MarkerCluster — the sandboxed iframe (allow-scripts allow-same-origin) loads them successfully in web preview; may be blocked in strict CSP environments (fine for current preview)."
+  ],
+  "updated_files": ["/app/backend/tests/test_iteration6.py"],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None. Used existing 25 demo assets.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Map endpoint is /api/public/catalog/map; only includes published assets with lat/lng non-null. Frontend /map uses HtmlFrame.web (iframe with srcDoc). Leaflet inside iframe needs page.query_selector('iframe').content_frame() then '.leaflet-container', '.marker-cluster', '.price', '.price.drop'. Filter chaining passes via URL params (provinsi, price_drop, keyword, category_id).",
+  "rca_of_issue": "N/A — no issues found."
+}

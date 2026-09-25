@@ -426,6 +426,34 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
     items = [await asset_public_view(clean(a)) async for a in db.assets.aggregate(pipeline)]
     return {"total": total, "page": page, "limit": limit, "items": items}
 
+@api.get("/public/catalog/map")
+async def public_map(keyword: Optional[str] = None, category_id: Optional[str] = None, provinsi: Optional[str] = None,
+    kabupaten_kota: Optional[str] = None, kecamatan: Optional[str] = None, wilayah_level_4: Optional[str] = None,
+    price_drop: bool = False, limit: int = 500):
+    """Lightweight pins for the asset distribution map (published assets with coordinates)."""
+    q = {"status": {"$in": ASSET_PUBLIC_STATUSES}, "public_ready": True, "deleted_at": None,
+         "latitude": {"$ne": None}, "longitude": {"$ne": None}}
+    if category_id: q["id_category"] = category_id
+    if provinsi: q["provinsi"] = provinsi
+    if kabupaten_kota: q["kabupaten_kota"] = kabupaten_kota
+    if kecamatan: q["kecamatan"] = kecamatan
+    if wilayah_level_4: q["wilayah_level_4"] = wilayah_level_4
+    if keyword:
+        rx = {"$regex": re.escape(keyword), "$options": "i"}
+        q["$or"] = [{"judul_asset": rx}, {"alamat": rx}, {"kabupaten_kota": rx}, {"provinsi": rx}, {"kecamatan": rx}, {"nomor_asset": rx}]
+    cats = {c["id"]: c["nama_category"] async for c in db.master_asset_category.find({})}
+    pins = []
+    async for a in db.assets.find(q).limit(limit):
+        if price_drop and price_info(a)["penurunan_persen"] <= 0:
+            continue
+        img = await db.asset_images.find_one({"id_asset": a["id"], "deleted_at": None})
+        pins.append({"id": a["id"], "judul_asset": a["judul_asset"], "latitude": a["latitude"], "longitude": a["longitude"],
+                     "harga_limit": a.get("harga_limit"), "kategori": cats.get(a.get("id_category")), "subkategori": cats.get(a.get("id_subcategory")),
+                     "kabupaten_kota": a.get("kabupaten_kota"), "provinsi": a.get("provinsi"), "image": img["url"] if img else None,
+                     "is_sold": a["status"] == "SOLD", "has_schedule": bool((a.get("schedule") or {}).get("tanggal_lelang")),
+                     "penurunan_persen": price_info(a)["penurunan_persen"]})
+    return {"total": len(pins), "pins": pins}
+
 @api.get("/public/catalog/batch")
 async def public_batch(ids: str):
     """Fetch several published assets by id (favorites stored on-device)."""
