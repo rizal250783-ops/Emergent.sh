@@ -51,7 +51,7 @@ export default function Login() {
             <Image source={require("../assets/images/bsi-logo.png")} style={s.logoImg} contentFit="contain" />
           </View>
           <Text style={s.appName}>BSI ASSET DEAL</Text>
-          <Text style={s.tagline}>Connecting Buyers with BSI Assets</Text>
+          <Text style={s.tagline}>Menghubungkan Pembeli dengan Aset BSI</Text>
           <Text style={s.org}>PT. Bank Syariah Indonesia, Tbk</Text>
           <Text style={s.orgSub}>Retail Collection, Restructuring & Recovery Group (RCG)</Text>
 

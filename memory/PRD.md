@@ -53,6 +53,12 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Badge text "Sudah Ada Jadwal Lelang"; "Belum ada jadwal lelang" label. 25 demo assets across 18 provinces (2 SOLD, 9 without schedule), realistic photos.
 - Validated by testing agent: 15/15 backend + all frontend flows.
 
+## Implemented (Iteration 3b, 2026-06 — UX feedback)
+- Live search (debounce 400ms) tanpa tombol cari; chip kategori wrap (semua terlihat); jarak header diperlonggar.
+- Footer institusi di layar publik (beranda, favorit, detail): PT. Bank Syariah Indonesia, Tbk / RCG / 2026.
+- Sisa teks Inggris di UI diterjemahkan (tagline, Published, Submit/Publish).
+- Kartu grid berlebar tetap (kartu terakhir ganjil tidak melebar).
+
 ## Backlog / Remaining
 - P2: Web desktop sidebar layout & responsive breakpoints polish.
 - P2: Category edit rename UI.

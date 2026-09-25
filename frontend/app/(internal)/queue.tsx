@@ -16,7 +16,7 @@ const MA_FILTERS = [
   { key: "WAITING_ACRM_REVIEW", label: "Menunggu ACRM" },
   { key: "RETURN_TO_MARKETING", label: "Dikembalikan" },
   { key: "WAITING_RCG_APPROVAL", label: "Menunggu RCG" },
-  { key: "PUBLISHED", label: "Published" },
+  { key: "PUBLISHED", label: "Dipublikasikan" },
 ];
 
 export default function Queue() {

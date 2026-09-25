@@ -1,5 +1,5 @@
 import React from "react";
-import { View, FlatList, RefreshControl } from "react-native";
+import { View, FlatList, RefreshControl, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
@@ -9,10 +9,12 @@ import { ScreenHeader, EmptyState, ErrorState, Loading, Button, spacing } from "
 import { useFavorites } from "@/src/favorites";
 import { useShareAsset } from "@/src/components/share";
 import { AssetCard } from "@/src/components/asset-card";
+import { PublicFooter } from "@/src/components/public-footer";
 
 export default function FavoritesScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const cardW = (useWindowDimensions().width - spacing.lg * 2 - spacing.md) / 2;
   const s = useStyles();
   const { colors } = useTheme();
   const { ids, has, toggle, ready } = useFavorites();
@@ -43,8 +45,9 @@ export default function FavoritesScreen() {
           contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: insets.bottom + spacing.xl, gap: spacing.md }}
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brandPrimary} />}
           renderItem={({ item }) => (
-            <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} fav={has(item.id)} onFav={() => toggle(item.id)} />
+            <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} fav={has(item.id)} onFav={() => toggle(item.id)} width={cardW} />
           )}
+          ListFooterComponent={<PublicFooter />}
         />
       )}
       {sheet}

@@ -67,7 +67,7 @@ export default function InternalDetail() {
   };
 
   const submit = () =>
-    confirm({ title: "Submit Asset", message: "Asset akan dikirim ke ACRM untuk direview. Lanjutkan?", confirmText: "Submit" })
+    confirm({ title: "Kirim Asset", message: "Asset akan dikirim ke ACRM untuk direview. Lanjutkan?", confirmText: "Kirim" })
       .then((r) => r.ok && doAction(() => apiPost(`/assets/${id}/submit`), "Asset berhasil disubmit"));
 
   const acrmApprove = () =>
@@ -79,7 +79,7 @@ export default function InternalDetail() {
       .then((r) => r.ok && doAction(() => apiPost(`/acrm/assets/${id}/return`, { notes: r.note }), "Asset dikembalikan ke Marketing"));
 
   const rcgApprove = () =>
-    confirm({ title: "Publikasikan Asset", message: "Asset akan dipublikasikan ke katalog publik.", confirmText: "Publish" })
+    confirm({ title: "Publikasikan Asset", message: "Asset akan dipublikasikan ke katalog publik.", confirmText: "Publikasikan" })
       .then((r) => r.ok && doAction(() => apiPost(`/rcg/assets/${id}/approve`), "Asset dipublikasikan"));
 
   const rcgReturn = () =>
@@ -222,7 +222,7 @@ export default function InternalDetail() {
                   <View style={{ flex: 1, paddingBottom: 12 }}>
                     <Text style={s.timeAction}>{actionLabel(h.action)}</Text>
                     <Text style={s.timeMeta}>{h.reviewer_name || "-"} • {formatDateTime(h.timestamp)}</Text>
-                    {h.notes ? <Text style={s.timeNote}>"{h.notes}"</Text> : null}
+                    {h.notes ? <Text style={s.timeNote}>{`"${h.notes}"`}</Text> : null}
                   </View>
                 </View>
               ))
@@ -240,7 +240,7 @@ export default function InternalDetail() {
           )}
           {maCanSubmit && (
             <View style={{ flex: 1 }}>
-              <Button title="Submit" icon="send" onPress={submit} loading={busy} testID="submit-asset-button" />
+              <Button title="Kirim ke ACRM" icon="send" onPress={submit} loading={busy} testID="submit-asset-button" />
             </View>
           )}
           {rcgCanSell && (

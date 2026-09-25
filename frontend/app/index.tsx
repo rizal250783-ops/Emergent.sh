@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import {
-  View, Text, FlatList, Pressable, ScrollView, Modal, TextInput, RefreshControl,
+  View, Text, FlatList, Pressable, ScrollView, Modal, TextInput, RefreshControl, useWindowDimensions,
 } from "react-native";
 import { Image } from "expo-image";
 import { useRouter } from "expo-router";
@@ -13,12 +13,14 @@ import { useAuth } from "@/src/auth";
 import { useShareAsset } from "@/src/components/share";
 import { useFavorites } from "@/src/favorites";
 import { AssetCard } from "@/src/components/asset-card";
+import { PublicFooter } from "@/src/components/public-footer";
 
 const LIMIT = 20;
 
 export default function PublicCatalog() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const cardW = (useWindowDimensions().width - spacing.lg * 2 - spacing.md) / 2;
   const { colors } = useTheme();
   const s = useStyles();
   const { user } = useAuth();
@@ -30,6 +32,12 @@ export default function PublicCatalog() {
   const [filterOpen, setFilterOpen] = useState(false);
   const { share, sheet } = useShareAsset();
   const { ids: favIds, has: favHas, toggle: toggleFav } = useFavorites();
+
+  // Live search: apply keyword automatically while typing (debounced)
+  React.useEffect(() => {
+    const t = setTimeout(() => setSearch(keyword.trim()), 400);
+    return () => clearTimeout(t);
+  }, [keyword]);
 
   const { data: filters } = useQuery({
     queryKey: ["public-filters"],
@@ -74,7 +82,7 @@ export default function PublicCatalog() {
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.appName}>BSI ASSET DEAL</Text>
-            <Text style={s.tagline}>Connecting Buyers with BSI Assets</Text>
+            <Text style={s.tagline}>Menghubungkan Pembeli dengan Aset BSI</Text>
           </View>
           <Pressable testID="favorites-entry-button" style={s.iconBtn} onPress={() => router.push("/favorites")}>
             <Icon name="heart" size={18} color={colors.onBrandPrimary} />
@@ -119,18 +127,12 @@ export default function PublicCatalog() {
         {/* Location search: Provinsi -> Kab/Kota -> Kecamatan (lower levels optional) */}
         <LocationBar loc={loc} onChange={setLoc} />
 
-        {/* Category chips */}
-        <View style={{ height: 56, justifyContent: "center" }}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}
-          >
-            <Chip label="Semua" active={!categoryId} onPress={() => setCategoryId(null)} />
-            {categories.map((c: any) => (
-              <Chip key={c.id} label={c.nama_category} active={categoryId === c.id} onPress={() => setCategoryId(c.id)} />
-            ))}
-          </ScrollView>
+        {/* Category chips: wrap so every option is visible without horizontal scrolling */}
+        <View style={s.chipsWrap}>
+          <Chip label="Semua" active={!categoryId} onPress={() => setCategoryId(null)} />
+          {categories.map((c: any) => (
+            <Chip key={c.id} label={c.nama_category} active={categoryId === c.id} onPress={() => setCategoryId(c.id)} />
+          ))}
         </View>
       </View>
 
@@ -180,8 +182,13 @@ export default function PublicCatalog() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brandPrimary} />}
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.4}
-          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} fav={favHas(item.id)} onFav={() => toggleFav(item.id)} />}
-          ListFooterComponent={isFetchingNextPage ? <View style={{ padding: 16 }}><Skeleton h={12} w="40%" style={{ alignSelf: "center" }} /></View> : null}
+          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} fav={favHas(item.id)} onFav={() => toggleFav(item.id)} width={cardW} />}
+          ListFooterComponent={
+            <View>
+              {isFetchingNextPage && <View style={{ padding: 16 }}><Skeleton h={12} w="40%" style={{ alignSelf: "center" }} /></View>}
+              {!hasNextPage && <PublicFooter />}
+            </View>
+          }
         />
       )}
 
@@ -219,6 +226,7 @@ function LocationBar({ loc, onChange }: { loc: Loc; onChange: (l: Loc) => void }
   const kecs = useLocOptions({ provinsi: loc.provinsi, kabupaten_kota: loc.kabupaten_kota }, !!loc.kabupaten_kota);
   const opts = (d?: { options: string[] }) => (d?.options || []).map((v) => ({ value: v, label: v }));
 
+  // eslint-disable-next-line react/display-name
   const chip = (lbl: string, value: string, placeholder: string, disabled: boolean, onClear: () => void, testID: string) =>
     (open: () => void) => (
       <Pressable style={[s.locChip, value ? s.locChipActive : null, disabled ? s.locChipDisabled : null]} onPress={open} disabled={disabled} testID={testID}>
@@ -336,12 +344,12 @@ function FChip({ label, active, onPress }: { label: string; active: boolean; onP
 
 const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
-  header: { backgroundColor: c.brandPrimary, paddingBottom: spacing.sm },
+  header: { backgroundColor: c.brandPrimary, paddingBottom: spacing.md },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
   logoBox: { backgroundColor: "#FFFFFF", borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 6, justifyContent: "center" },
   logoImg: { width: 72, height: 20 },
   iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
-  locBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  locBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.lg },
   locChip: { flex: 1, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: radius.md, paddingHorizontal: 10, height: 38, borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
   locChipActive: { backgroundColor: "#FFFFFF" },
   locChipDisabled: { opacity: 0.45 },
@@ -352,7 +360,8 @@ const useStyles = makeStyles((c) => ({
   tagline: { color: "#E6F6F6", fontSize: 11 },
   loginBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill },
   loginTxt: { color: "#FFFFFF", fontWeight: "700", fontSize: 13 },
-  searchRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.md },
+  searchRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.lg },
+  chipsWrap: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm },
   searchBox: { flex: 1, flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: "#FFFFFF", borderRadius: radius.md, paddingHorizontal: 12, height: 44 },
   searchInput: { flex: 1, fontSize: 14, color: c.onSurface },
   filterBtn: { width: 44, height: 44, borderRadius: radius.md, backgroundColor: "rgba(255,255,255,0.2)", alignItems: "center", justifyContent: "center" },

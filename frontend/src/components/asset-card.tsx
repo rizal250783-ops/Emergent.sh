@@ -13,7 +13,7 @@ export function AssetCard({ item, onPress, onShare, fav, onFav, width }: {
   const { colors } = useTheme();
   const sold = item.is_sold || item.status === "SOLD";
   return (
-    <Pressable style={[s.cardWrap, width ? { width, flex: undefined } : null]} onPress={onPress} testID={`asset-card-${item.id}`}>
+    <Pressable style={[s.cardWrap, width ? { width } : s.cardFlex]} onPress={onPress} testID={`asset-card-${item.id}`}>
       <View style={s.cardImgWrap}>
         <Image source={{ uri: fileUrl(item.images?.[0]) }} style={s.cardImg} contentFit="cover" transition={200} />
         {sold ? (
@@ -56,7 +56,8 @@ export function AssetCard({ item, onPress, onShare, fav, onFav, width }: {
 }
 
 const useStyles = makeStyles((c) => ({
-  cardWrap: { flex: 1, backgroundColor: c.surfaceSecondary, borderRadius: radius.md, overflow: "hidden", borderWidth: 1, borderColor: c.border },
+  cardWrap: { backgroundColor: c.surfaceSecondary, borderRadius: radius.md, overflow: "hidden", borderWidth: 1, borderColor: c.border },
+  cardFlex: { flex: 1 },
   cardImgWrap: { position: "relative" },
   cardImg: { width: "100%", height: 130, backgroundColor: c.surfaceTertiary },
   schedBadge: { position: "absolute", left: 8, bottom: 8, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.brandSecondary, paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.pill, maxWidth: "92%" },

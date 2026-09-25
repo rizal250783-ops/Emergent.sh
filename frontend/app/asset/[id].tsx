@@ -12,6 +12,7 @@ import { useToast } from "@/src/components/toast";
 import { useShareAsset } from "@/src/components/share";
 import { useFavorites } from "@/src/favorites";
 import { AssetCard } from "@/src/components/asset-card";
+import { PublicFooter } from "@/src/components/public-footer";
 import { AssetMap } from "@/src/components/asset-map";
 
 const { width } = Dimensions.get("window");
@@ -174,6 +175,7 @@ export default function PublicDetail() {
             </ScrollView>
           </View>
         )}
+        <PublicFooter />
       </ScrollView>
 
       {/* Sticky WA + share */}

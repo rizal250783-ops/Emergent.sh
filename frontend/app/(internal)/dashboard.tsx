@@ -54,7 +54,7 @@ function MarketingDash() {
       <View style={row}>
         <StatCard label="Dikembalikan" value={(st.RETURN_TO_MARKETING ?? 0) + (st.RETURN_FROM_RCG ?? 0)} tone="error" icon="corner-up-left" />
         <StatCard label="Menunggu RCG" value={st.WAITING_RCG_APPROVAL ?? 0} tone="warning" icon="clock" />
-        <StatCard label="Published" value={st.PUBLISHED ?? 0} tone="success" icon="check-circle" />
+        <StatCard label="Dipublikasikan" value={st.PUBLISHED ?? 0} tone="success" icon="check-circle" />
       </View>
       <View style={row}>
         <StatCard label="Update Pending" value={(st.UPDATE_PENDING_ACRM ?? 0) + (st.UPDATE_PENDING_RCG ?? 0)} tone="info" icon="refresh-cw" />
@@ -79,7 +79,7 @@ function AcrmDash() {
       </View>
       <View style={row}>
         <StatCard label="Dikembalikan" value={st.RETURN_TO_MARKETING ?? 0} tone="error" icon="corner-up-left" />
-        <StatCard label="Published" value={st.PUBLISHED ?? 0} tone="success" icon="check-circle" />
+        <StatCard label="Dipublikasikan" value={st.PUBLISHED ?? 0} tone="success" icon="check-circle" />
         <View style={{ flex: 1, minWidth: "30%" }} />
       </View>
     </Wrap>
@@ -104,7 +104,7 @@ function RcgDash() {
       <Text style={styleLabel}>Asset</Text>
       <View style={row}>
         <StatCard label="Total Asset" value={t.asset ?? 0} tone="neutral" icon="layers" />
-        <StatCard label="Published" value={st.PUBLISHED ?? 0} tone="success" icon="check-circle" />
+        <StatCard label="Dipublikasikan" value={st.PUBLISHED ?? 0} tone="success" icon="check-circle" />
         <StatCard label="Ada Jadwal Lelang" value={t.with_schedule ?? 0} tone="warning" icon="calendar" />
       </View>
       <View style={row}>

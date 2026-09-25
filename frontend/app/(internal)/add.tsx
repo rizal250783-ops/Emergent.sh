@@ -302,7 +302,7 @@ export default function AddAsset() {
   };
 
   const finalSubmit = async () => {
-    const r = await confirm({ title: "Submit Asset", message: "Asset akan dikirim ke ACRM untuk direview. Data tidak dapat diubah selama proses review.", confirmText: "Submit" });
+    const r = await confirm({ title: "Kirim Asset", message: "Asset akan dikirim ke ACRM untuk direview. Data tidak dapat diubah selama proses review.", confirmText: "Kirim" });
     if (!r.ok) return;
     setBusy(true);
     try {
@@ -516,7 +516,7 @@ export default function AddAsset() {
 
           {step === 6 && (
             <>
-              <Text style={s.sectionTitle}>Review & Submit</Text>
+              <Text style={s.sectionTitle}>Tinjau & Kirim</Text>
               <View style={s.reviewCard}>
                 <ReviewRow label="Judul" value={form.judul_asset} />
                 <ReviewRow label="Kategori" value={catName + (subCats.find((c: any) => c.id === form.id_subcategory)?.nama_category ? " • " + subCats.find((c: any) => c.id === form.id_subcategory)?.nama_category : "")} />
@@ -543,7 +543,7 @@ export default function AddAsset() {
         <View style={{ flex: 1.4 }}>
           {step < STEPS.length - 1
             ? <Button title="Lanjut" icon="arrow-right" onPress={next} loading={busy} testID="wizard-next" />
-            : <Button title="Submit Asset" icon="send" onPress={finalSubmit} loading={busy} testID="wizard-submit" />}
+            : <Button title="Kirim Asset" icon="send" onPress={finalSubmit} loading={busy} testID="wizard-submit" />}
         </View>
       </View>
     </View>
