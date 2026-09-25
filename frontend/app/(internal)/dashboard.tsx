@@ -3,7 +3,7 @@ import { View, Text, ScrollView, RefreshControl } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery } from "@tanstack/react-query";
-import { makeStyles, useTheme } from "@/src/theme";
+import { makeStyles, useTheme, font } from "@/src/theme";
 import { apiGet } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { ScreenHeader, StatCard, Loading, ErrorState, Card, spacing } from "@/src/components/ui";
@@ -123,7 +123,7 @@ function RcgDash() {
           <Text style={s.th}>Ret</Text>
         </View>
         {perAcr.filter((a) => a.total > 0).length === 0 && (
-          <Text style={{ color: colors.muted, paddingVertical: 12, textAlign: "center" }}>Belum ada asset diinput.</Text>
+          <Text style={[font(), { color: colors.muted, paddingVertical: 12, textAlign: "center" }]}>Belum ada asset diinput.</Text>
         )}
         {perAcr.filter((a) => a.total > 0).map((a) => (
           <View key={a.nama_acr} style={s.tblRow}>

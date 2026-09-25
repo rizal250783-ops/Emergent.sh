@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 3 testing PASSED. Backend: 15/15 pytest cases green in /app/backend/tests/test_iteration3.py — (a) GET /api/public/catalog?limit=30 total=25, last 2 items are is_sold=true / status=SOLD with pic_wa null, all 23 non-sold expose pic_wa; DKI Jakarta cascade 5 -> Kota Jakarta Selatan 2 -> Cilandak 1; (b) /public/catalog/batch?ids=<v1>,<v2>,bogus returns exactly 2 in order and drops bogus; /public/catalog/{id}/similar returns <=6 with none equal to id and none SOLD; (c) POST /api/rcg/assets/{id}/sold as admin -> {ok, status:SOLD}; public detail becomes is_sold=true / pic_wa=null; double POST -> 409; unsold -> PUBLISHED, pic_wa returns; MA (2190020284) POST /sold -> 403; admin GET /assets/{id}.approval_history contains MARK_SOLD and UNMARK_SOLD; (d) GET /rcg/reports/assets/link (admin) -> {url:'/api/rcg/reports/assets.xlsx?token=...'}; the URL returns 200 with spreadsheet content-type and a valid xlsx (openpyxl loads Ringkasan per ACR / Detail Asset / Ringkasan Status sheets and Detail Asset has 25 data rows); bad token -> 401; MA -> 403; (e) /dashboard/rcg.by_status contains SOLD. Frontend (390x844 web): Home renders BSI logo image (img with bsi source), computed font-family of visible text nodes is Lato-Bold / Lato-Regular; '25 asset tersedia' shown; 'Sudah Ada Jadwal Lelang' badge on scheduled cards, 'Belum ada jadwal lelang' text on others, and after scrolling the FlatList to the end all 25 cards render with 2 TERJUAL overlays (sold-badge-<id>) as the last items. Location cascade (loc-provinsi -> DKI Jakarta -> 5; loc-kabkota -> Kota Jakarta Selatan -> 2; loc-kecamatan -> Cilandak -> 1; loc-provinsi-clear -> 25). Favorites: tapping fav-card on 2 cards makes favorites-entry-button show '2'; /favorites lists both; tapping fav-card removes; empty state shows 'Belum ada favorit'. Public detail of the SOLD asset shows TERJUAL badge, sold-banner, sold-cta, similar-section (Aset Serupa) horizontal cards, fav-button, and whatsapp-button is NOT present; non-sold detail shows whatsapp-button, no sold-banner, and the 'Sudah Ada Jadwal Lelang' badge. Login page shows BSI logo image (not text). RCG admin (admin/Admin@2026): opened /detail/<published-id> -> mark-sold-button visible -> confirm-ok -> toast 'Asset ditandai terjual', status became 'Terjual', unmark-sold-button appeared -> unmark -> status back to 'Dipublikasikan'. Kelola -> manage-tab-laporan -> export-excel-button clicked; GET /api/rcg/reports/assets/link observed with HTTP 200. All SOLD test assets restored to PUBLISHED at end of run (per fixture cleanup) so demo dataset is untouched.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration3.py",
+    "/app/test_reports/pytest/pytest_iter3.xml"
+  ],
+  "action_items": [
+    "None required — iteration 3 fully green.",
+    "Optional: increase FlatList initialNumToRender or lower onEndReachedThreshold on Home; on web preview the inner scroll container is what fires onEndReached, and users tapping outside the list won't paginate. Not blocking (works when scrolling the list itself)."
+  ],
+  "critical_code_review_comments": [
+    "server.py grew to ~1270 lines; still recommend router split (auth/marketing/acrm/rcg/admin/public/documents/wilayah/reports).",
+    "Similar-assets scoring is O(N) with an aggregation-friendly $match — fine for 25 demo assets but consider capping db.assets.find(q) with a limit and moving scoring to a $function or precomputed embedding when the catalog grows.",
+    "Excel report token has 10-min expiry but no revocation list; acceptable, but tokens remain valid if admin's session is invalidated. Non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration3.py (new)",
+    "/app/test_reports/iteration_3.json (new)",
+    "/app/test_reports/pytest/pytest_iter3.xml (new)"
+  ],
+  "success_rate": { "backend": "100% (15/15 iter3 + prior suites unchanged)", "frontend": "100% of iteration-3 flows verified" },
+  "seed_data_creation": "Test temporarily marked one PUBLISHED asset as SOLD then restored it to PUBLISHED via /unsold in the fixture teardown. No demo data added/removed.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Backend base: EXPO_PUBLIC_BACKEND_URL from /app/frontend/.env; login POST /api/auth/login {username,password}. TestIDs used in iter3: sold-badge-<id> (card overlay), sold-banner / sold-cta / similar-section / whatsapp-button / fav-button / fav-card-<id> / favorites-entry-button (badge count) / loc-provinsi | loc-kabkota | loc-kecamatan | loc-provinsi-clear / option-<name> (sheet options) / mark-sold-button / unmark-sold-button / confirm-ok / manage-tab-laporan / export-excel-button. Home FlatList: to trigger infinite pagination on web, scroll the inner container with overflowY auto (window scroll alone won't work). Sold flow endpoints: POST /api/rcg/assets/{id}/sold (body {notes}), POST /api/rcg/assets/{id}/unsold (no body). Excel: GET /api/rcg/reports/assets/link -> {url,expires_in}; follow with GET {BASE_URL}{url}. Public: /public/catalog (with is_sold sinking to end), /public/catalog/batch?ids=csv (order preserved, missing/invalid dropped), /public/catalog/{id}/similar (excludes id + SOLD).",
+  "rca_of_issue": "No issues found. Initial observation of 'no TERJUAL overlay visible' turned out to be a test-scroll artifact — the RN Web FlatList uses its own inner scroll container, so scrolling window/body does not fire onEndReached / does not virtualize into last items. Scrolling the inner element rendered all 25 cards with 2 TERJUAL overlays at the tail as designed."
+}

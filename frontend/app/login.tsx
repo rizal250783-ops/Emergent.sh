@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { View, Text, Pressable, KeyboardAvoidingView, Platform, ScrollView } from "react-native";
 import { useRouter } from "expo-router";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { makeStyles, useTheme } from "@/src/theme";
 import { useAuth } from "@/src/auth";
@@ -47,8 +48,7 @@ export default function Login() {
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={s.content} keyboardShouldPersistTaps="handled">
           <View style={s.logoBox}>
-            <Text style={s.logoBsi}>BSI</Text>
-            <Icon name="star" size={16} color={colors.brandSecondary} style={{ marginTop: -8 }} />
+            <Image source={require("../assets/images/bsi-logo.png")} style={s.logoImg} contentFit="contain" />
           </View>
           <Text style={s.appName}>BSI ASSET DEAL</Text>
           <Text style={s.tagline}>Connecting Buyers with BSI Assets</Text>
@@ -94,8 +94,8 @@ const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surfaceSecondary },
   back: { position: "absolute", left: spacing.lg, top: spacing.xl, zIndex: 2, width: 40, height: 40, alignItems: "center", justifyContent: "center" },
   content: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
-  logoBox: { flexDirection: "row", alignItems: "flex-start", backgroundColor: c.brandPrimary, borderRadius: radius.md, paddingHorizontal: 16, paddingVertical: 10 },
-  logoBsi: { color: "#FFFFFF", fontWeight: "900", fontSize: 30, letterSpacing: -1 },
+  logoBox: { backgroundColor: "#FFFFFF", borderRadius: radius.md, paddingHorizontal: 20, paddingVertical: 14, borderWidth: 1, borderColor: c.border },
+  logoImg: { width: 200, height: 56 },
   appName: { fontSize: 22, fontWeight: "900", color: c.onSurface, marginTop: spacing.lg },
   tagline: { fontSize: 13, color: c.brandPrimary, fontWeight: "600", marginTop: 2 },
   org: { fontSize: 13, color: c.onSurface, fontWeight: "700", marginTop: spacing.md },

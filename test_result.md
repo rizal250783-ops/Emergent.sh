@@ -109,3 +109,13 @@ Features added (need testing):
 4. Share: useShareAsset -> native Share sheet / web ShareSheet (share-whatsapp, share-copy). Buttons: share-button (detail top), share-button-bottom (public detail), share-card-<id> (catalog cards). Link = EXPO_PUBLIC_BACKEND_URL/asset/<id>.
 5. Private documents: POST /api/assets/{id}/documents (MA owner, multipart file+jenis, pdf/jpg/png <=20MB), GET /api/assets/{id}/documents (MA owner/ACRM same ACR/RCG), GET /api/assets/{id}/documents/{doc}/link -> signed url (10 min), GET /api/files/private/{doc}?token=, DELETE /api/assets/{id}/documents/{doc} (MA, editable statuses only). /api/files/{path} returns 403 for any path containing /private/. Public catalog/detail MUST NOT expose documents. Internal GET /api/assets/{id} includes documents[] (without storage_path).
 6. Demo assets re-seeded with coordinates and 4-5 photos each.
+
+## Iteration 3 (2026-06) — Main agent notes
+New features:
+1. SOLD: POST /api/rcg/assets/{id}/sold (admin_rcg, only PUBLISHED, optional {notes}) -> SOLD, notifies MA+ACRM; POST /api/rcg/assets/{id}/unsold reverts. Public view: is_sold=true, pic_wa=null for SOLD. Catalog sorts SOLD last. UI: internal detail buttons mark-sold-button / unmark-sold-button (RCG); public card TERJUAL overlay (sold-badge-<id>); public detail sold-banner + sold-cta replaces whatsapp-button.
+2. Favorites (on-device AsyncStorage): fav-card-<id> on cards, fav-button on public detail, favorites-entry-button in header -> /favorites screen. Backend GET /api/public/catalog/batch?ids=a,b.
+3. Similar: GET /api/public/catalog/{id}/similar -> up to 6; public detail shows horizontal "Asset Serupa" (similar-section).
+4. Excel report: GET /api/rcg/reports/assets/link (admin_rcg) -> {url:/api/rcg/reports/assets.xlsx?token=} ; GET that -> xlsx with 3 sheets. UI: Kelola -> tab manage-tab-laporan -> export-excel-button.
+5. Branding: BSI logo image in header & login; Lato font loaded via expo-font (makeStyles maps fontWeight -> Lato face).
+6. Home location bar: loc-provinsi / loc-kabkota / loc-kecamatan chips (Select sheet with options option-<name>); lower levels optional; clear via loc-*-clear.
+7. Badge text "Sudah Ada Jadwal Lelang"; cards show "Belum ada jadwal lelang" when none. Demo: 25 assets across provinces, 2 SOLD, ~9 without schedule.

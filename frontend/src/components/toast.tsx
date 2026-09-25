@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from "react";
 import { Animated, Text, View, StyleSheet } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { useTheme } from "@/src/theme";
+import { useTheme, font } from "@/src/theme";
 import { Icon } from "@/src/components/ui";
 
 type ToastType = "success" | "error" | "info";
@@ -44,7 +44,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
             shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 6,
           }}>
             <Icon name={iconName as any} size={18} color="#FFFFFF" />
-            <Text style={{ color: "#FFFFFF", fontWeight: "600", flexShrink: 1 }}>{toast.message}</Text>
+            <Text style={[font("700"), { color: "#FFFFFF", flexShrink: 1 }]}>{toast.message}</Text>
           </View>
         </Animated.View>
       )}

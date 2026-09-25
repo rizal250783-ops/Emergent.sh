@@ -7,11 +7,12 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { makeStyles, useTheme } from "@/src/theme";
-import { apiGet, fileUrl } from "@/src/api";
-import { rupiahShort, formatDate } from "@/src/format";
-import { Icon, Badge, EmptyState, ErrorState, Skeleton, Button, Select, spacing, radius } from "@/src/components/ui";
+import { apiGet } from "@/src/api";
+import { Icon, EmptyState, ErrorState, Skeleton, Button, Select, spacing, radius } from "@/src/components/ui";
 import { useAuth } from "@/src/auth";
 import { useShareAsset } from "@/src/components/share";
+import { useFavorites } from "@/src/favorites";
+import { AssetCard } from "@/src/components/asset-card";
 
 const LIMIT = 20;
 
@@ -28,6 +29,7 @@ export default function PublicCatalog() {
   const [loc, setLoc] = useState<Loc>(EMPTY_LOC);
   const [filterOpen, setFilterOpen] = useState(false);
   const { share, sheet } = useShareAsset();
+  const { ids: favIds, has: favHas, toggle: toggleFav } = useFavorites();
 
   const { data: filters } = useQuery({
     queryKey: ["public-filters"],
@@ -68,13 +70,16 @@ export default function PublicCatalog() {
       <View style={s.header}>
         <View style={s.brandRow}>
           <View style={s.logoBox}>
-            <Text style={s.logoBsi}>BSI</Text>
-            <Icon name="star" size={12} color={colors.brandSecondary} style={{ marginLeft: 2, marginTop: -6 }} />
+            <Image source={require("../assets/images/bsi-logo.png")} style={s.logoImg} contentFit="contain" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.appName}>BSI ASSET DEAL</Text>
             <Text style={s.tagline}>Connecting Buyers with BSI Assets</Text>
           </View>
+          <Pressable testID="favorites-entry-button" style={s.iconBtn} onPress={() => router.push("/favorites")}>
+            <Icon name="heart" size={18} color={colors.onBrandPrimary} />
+            {favIds.length > 0 && <View style={s.filterDot}><Text style={s.filterDotTxt}>{favIds.length}</Text></View>}
+          </Pressable>
           <Pressable
             testID="login-entry-button"
             style={s.loginBtn}
@@ -110,6 +115,9 @@ export default function PublicCatalog() {
             {activeFilters > 0 && <View style={s.filterDot}><Text style={s.filterDotTxt}>{activeFilters}</Text></View>}
           </Pressable>
         </View>
+
+        {/* Location search: Provinsi -> Kab/Kota -> Kecamatan (lower levels optional) */}
+        <LocationBar loc={loc} onChange={setLoc} />
 
         {/* Category chips */}
         <View style={{ height: 56, justifyContent: "center" }}>
@@ -172,7 +180,7 @@ export default function PublicCatalog() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brandPrimary} />}
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.4}
-          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} />}
+          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} fav={favHas(item.id)} onFav={() => toggleFav(item.id)} />}
           ListFooterComponent={isFetchingNextPage ? <View style={{ padding: 16 }}><Skeleton h={12} w="40%" style={{ alignSelf: "center" }} /></View> : null}
         />
       )}
@@ -199,39 +207,47 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
   );
 }
 
-function AssetCard({ item, onPress, onShare }: { item: any; onPress: () => void; onShare: () => void }) {
-  const s = useStyles();
-  const { colors } = useTheme();
-  return (
-    <Pressable style={s.cardWrap} onPress={onPress} testID={`asset-card-${item.id}`}>
-      <View style={s.cardImgWrap}>
-        <Image source={{ uri: fileUrl(item.images?.[0]) }} style={s.cardImg} contentFit="cover" transition={200} />
-        {item.has_schedule && (
-          <View style={s.schedBadge}>
-            <Icon name="calendar" size={11} color={colors.onBrandSecondary} />
-            <Text style={s.schedTxt}>Ada Lelang</Text>
-          </View>
-        )}
-        <Pressable style={s.cardShare} onPress={onShare} hitSlop={6} testID={`share-card-${item.id}`}>
-          <Icon name="share-2" size={14} color={colors.brandPrimary} />
-        </Pressable>
-      </View>
-      <View style={{ padding: spacing.sm, gap: 4 }}>
-        <Text style={s.cardCat}>{item.subkategori || item.kategori}</Text>
-        <Text style={s.cardTitle} numberOfLines={2}>{item.judul_asset}</Text>
-        <View style={s.cardLocRow}>
-          <Icon name="map-pin" size={11} color={colors.muted} />
-          <Text style={s.cardLoc} numberOfLines={1}>{item.kabupaten_kota}, {item.provinsi}</Text>
-        </View>
-        <Text style={s.cardPrice}>{rupiahShort(item.harga_limit)}</Text>
-        {item.has_schedule && <Text style={s.cardSched}>Lelang: {formatDate(item.tanggal_lelang)}</Text>}
-      </View>
-    </Pressable>
-  );
-}
-
 type Loc = { provinsi: string; kabupaten_kota: string; kecamatan: string; wilayah_level_4: string };
 const EMPTY_LOC: Loc = { provinsi: "", kabupaten_kota: "", kecamatan: "", wilayah_level_4: "" };
+
+/** Inline location search on the home header. Kab/Kota and Kecamatan are optional refinements. */
+function LocationBar({ loc, onChange }: { loc: Loc; onChange: (l: Loc) => void }) {
+  const s = useStyles();
+  const { colors } = useTheme();
+  const provs = useLocOptions({}, true);
+  const kabs = useLocOptions({ provinsi: loc.provinsi }, !!loc.provinsi);
+  const kecs = useLocOptions({ provinsi: loc.provinsi, kabupaten_kota: loc.kabupaten_kota }, !!loc.kabupaten_kota);
+  const opts = (d?: { options: string[] }) => (d?.options || []).map((v) => ({ value: v, label: v }));
+
+  const chip = (lbl: string, value: string, placeholder: string, disabled: boolean, onClear: () => void, testID: string) =>
+    (open: () => void) => (
+      <Pressable style={[s.locChip, value ? s.locChipActive : null, disabled ? s.locChipDisabled : null]} onPress={open} disabled={disabled} testID={testID}>
+        <View style={{ flex: 1 }}>
+          <Text style={[s.locChipLbl, value ? { color: colors.muted } : null]}>{lbl}</Text>
+          <Text style={[s.locChipTxt, value ? s.locChipTxtActive : null]} numberOfLines={1}>{value || placeholder}</Text>
+        </View>
+        {value ? (
+          <Pressable onPress={onClear} hitSlop={8} testID={`${testID}-clear`}><Icon name="x" size={14} color={colors.muted} /></Pressable>
+        ) : (
+          <Icon name="chevron-down" size={14} color={value ? colors.brandPrimary : colors.onBrandPrimary} />
+        )}
+      </Pressable>
+    );
+
+  return (
+    <View style={s.locBar}>
+      <Select label="Provinsi" searchable value={loc.provinsi || null} options={opts(provs.data)} testID="loc-provinsi"
+        onChange={(v) => onChange({ provinsi: v, kabupaten_kota: "", kecamatan: "", wilayah_level_4: "" })}
+        trigger={chip("Provinsi", loc.provinsi, "Semua", false, () => onChange(EMPTY_LOC), "loc-provinsi")} />
+      <Select label="Kabupaten / Kota" searchable value={loc.kabupaten_kota || null} options={opts(kabs.data)} testID="loc-kabkota"
+        emptyText="Memuat..." onChange={(v) => onChange({ ...loc, kabupaten_kota: v, kecamatan: "", wilayah_level_4: "" })}
+        trigger={chip("Kab/Kota", loc.kabupaten_kota, loc.provinsi ? "Semua" : "—", !loc.provinsi, () => onChange({ ...loc, kabupaten_kota: "", kecamatan: "", wilayah_level_4: "" }), "loc-kabkota")} />
+      <Select label="Kecamatan" searchable value={loc.kecamatan || null} options={opts(kecs.data)} testID="loc-kecamatan"
+        emptyText="Memuat..." onChange={(v) => onChange({ ...loc, kecamatan: v, wilayah_level_4: "" })}
+        trigger={chip("Kecamatan", loc.kecamatan, loc.kabupaten_kota ? "Semua" : "—", !loc.kabupaten_kota, () => onChange({ ...loc, kecamatan: "", wilayah_level_4: "" }), "loc-kecamatan")} />
+    </View>
+  );
+}
 
 function useLocOptions(params: Partial<Loc>, enabled: boolean) {
   const qs = new URLSearchParams();
@@ -322,8 +338,16 @@ const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
   header: { backgroundColor: c.brandPrimary, paddingBottom: spacing.sm },
   brandRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
-  logoBox: { flexDirection: "row", alignItems: "flex-start", backgroundColor: "#FFFFFF", borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 4 },
-  logoBsi: { color: "#00A0A0", fontWeight: "900", fontSize: 18, letterSpacing: -0.5 },
+  logoBox: { backgroundColor: "#FFFFFF", borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 6, justifyContent: "center" },
+  logoImg: { width: 72, height: 20 },
+  iconBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  locBar: { flexDirection: "row", alignItems: "center", gap: spacing.sm, paddingHorizontal: spacing.lg, paddingTop: spacing.sm },
+  locChip: { flex: 1, flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.14)", borderRadius: radius.md, paddingHorizontal: 10, height: 38, borderWidth: 1, borderColor: "rgba(255,255,255,0.25)" },
+  locChipActive: { backgroundColor: "#FFFFFF" },
+  locChipDisabled: { opacity: 0.45 },
+  locChipTxt: { flex: 1, fontSize: 12, fontWeight: "700", color: c.onBrandPrimary },
+  locChipTxtActive: { color: c.brandPrimary },
+  locChipLbl: { fontSize: 9, color: "rgba(255,255,255,0.75)", fontWeight: "700", textTransform: "uppercase" },
   appName: { color: "#FFFFFF", fontWeight: "800", fontSize: 16 },
   tagline: { color: "#E6F6F6", fontSize: 11 },
   loginBtn: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: "rgba(255,255,255,0.18)", paddingHorizontal: 12, paddingVertical: 8, borderRadius: radius.pill },
@@ -343,19 +367,8 @@ const useStyles = makeStyles((c) => ({
   locPill: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: c.brandTertiary, paddingHorizontal: 10, height: 30, borderRadius: radius.pill, maxWidth: "100%" },
   locPillTxt: { color: c.brandPrimary, fontSize: 12, fontWeight: "700", flexShrink: 1 },
   filterHint: { fontSize: 12, color: c.muted, marginBottom: spacing.sm, marginTop: -4 },
-  cardShare: { position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, padding: spacing.lg },
   cardWrap: { flex: 1, backgroundColor: c.surfaceSecondary, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, overflow: "hidden" },
-  cardImgWrap: { width: "100%", aspectRatio: 1.2, backgroundColor: c.surfaceTertiary },
-  cardImg: { width: "100%", height: "100%" },
-  schedBadge: { position: "absolute", top: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: c.brandSecondary, paddingHorizontal: 8, paddingVertical: 3, borderRadius: radius.pill },
-  schedTxt: { color: c.onBrandSecondary, fontSize: 10, fontWeight: "800" },
-  cardCat: { color: c.brandPrimary, fontSize: 11, fontWeight: "700", textTransform: "uppercase" },
-  cardTitle: { color: c.onSurface, fontSize: 14, fontWeight: "700", lineHeight: 18 },
-  cardLocRow: { flexDirection: "row", alignItems: "center", gap: 3 },
-  cardLoc: { color: c.muted, fontSize: 11, flex: 1 },
-  cardPrice: { color: c.onSurface, fontSize: 15, fontWeight: "800", marginTop: 2 },
-  cardSched: { color: c.warning, fontSize: 10, fontWeight: "600" },
   modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
   modalSheet: { backgroundColor: c.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg },
   modalHandle: { width: 40, height: 4, borderRadius: 2, backgroundColor: c.border, alignSelf: "center", marginBottom: spacing.md },

@@ -10,6 +10,8 @@ import { rupiah, formatDate, waLink } from "@/src/format";
 import { Icon, Loading, ErrorState, Button, Badge, spacing, radius } from "@/src/components/ui";
 import { useToast } from "@/src/components/toast";
 import { useShareAsset } from "@/src/components/share";
+import { useFavorites } from "@/src/favorites";
+import { AssetCard } from "@/src/components/asset-card";
 import { AssetMap } from "@/src/components/asset-map";
 
 const { width } = Dimensions.get("window");
@@ -23,6 +25,13 @@ export default function PublicDetail() {
   const toast = useToast();
   const [imgIndex, setImgIndex] = useState(0);
   const { share, sheet } = useShareAsset();
+  const { has: favHas, toggle: toggleFav } = useFavorites();
+  const isFav = typeof id === "string" && favHas(id);
+  const { data: similar } = useQuery<any[]>({
+    queryKey: ["similar", id],
+    queryFn: () => apiGet(`/public/catalog/${id}/similar`),
+    enabled: !!id,
+  });
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["public-asset", id],
@@ -78,13 +87,25 @@ export default function PublicDetail() {
           <Pressable style={[s.backBtn, s.shareBtn, { top: insets.top + 8 }]} onPress={() => share(data)} testID="share-button">
             <Icon name="share-2" size={20} color="#FFFFFF" />
           </Pressable>
+          <Pressable style={[s.backBtn, s.favBtn, { top: insets.top + 8 }]} onPress={() => toggleFav(data.id)} testID="fav-button">
+            <Icon name="heart" size={20} color={isFav ? colors.error : "#FFFFFF"} />
+          </Pressable>
         </View>
 
         <View style={s.body}>
           <View style={{ flexDirection: "row", gap: spacing.sm, flexWrap: "wrap" }}>
             <Badge label={data.subkategori || data.kategori || "Asset"} tone="brand" />
-            {data.has_schedule && <Badge label="Ada Jadwal Lelang" tone="warning" />}
+            {data.is_sold ? <Badge label="TERJUAL" tone="error" /> : data.has_schedule ? <Badge label="Sudah Ada Jadwal Lelang" tone="warning" /> : <Badge label="Belum Ada Jadwal Lelang" tone="neutral" />}
           </View>
+          {data.is_sold && (
+            <View style={s.soldBanner} testID="sold-banner">
+              <Icon name="tag" size={18} color={colors.error} />
+              <View style={{ flex: 1 }}>
+                <Text style={s.soldTitle}>Asset ini telah terjual</Text>
+                <Text style={s.soldSub}>Kontak PIC tidak lagi tersedia. Lihat asset serupa di bawah.</Text>
+              </View>
+            </View>
+          )}
           <Text style={s.title}>{data.judul_asset}</Text>
           <Text style={s.nomor}>No. {data.nomor_asset}</Text>
           <View style={s.locRow}>
@@ -135,16 +156,34 @@ export default function PublicDetail() {
             </Section>
           )}
 
-          <Section title="Narahubung (PIC)">
-            <InfoRow icon="user" label="Marketing Asset" value={data.pic_nama || "-"} />
-          </Section>
+          {!data.is_sold && (
+            <Section title="Narahubung (PIC)">
+              <InfoRow icon="user" label="Marketing Asset" value={data.pic_nama || "-"} />
+            </Section>
+          )}
         </View>
+
+        {/* Similar assets */}
+        {similar && similar.length > 0 && (
+          <View style={s.similarWrap} testID="similar-section">
+            <Text style={[s.similarTitle, { paddingHorizontal: spacing.lg }]}>Asset Serupa</Text>
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ paddingHorizontal: spacing.lg, gap: spacing.md }}>
+              {similar.map((it) => (
+                <AssetCard key={it.id} item={it} width={170} onPress={() => router.push(`/asset/${it.id}`)} fav={favHas(it.id)} onFav={() => toggleFav(it.id)} />
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </ScrollView>
 
       {/* Sticky WA + share */}
       <View style={[s.stickyBar, { paddingBottom: insets.bottom + spacing.md }]}>
         <View style={{ flex: 1 }}>
-          <Button title="Chat WhatsApp PIC" icon="message-circle" variant="secondary" onPress={openWa} testID="whatsapp-button" />
+          {data.is_sold ? (
+            <View style={s.soldCta} testID="sold-cta"><Icon name="check-circle" size={18} color={colors.muted} /><Text style={s.soldCtaTxt}>Asset telah terjual</Text></View>
+          ) : (
+            <Button title="Chat WhatsApp PIC" icon="message-circle" variant="secondary" onPress={openWa} testID="whatsapp-button" />
+          )}
         </View>
         <Pressable style={s.shareSquare} onPress={() => share(data)} testID="share-button-bottom">
           <Icon name="share-2" size={20} color={colors.brandPrimary} />
@@ -198,6 +237,14 @@ const useStyles = makeStyles((c) => ({
   dotActive: { backgroundColor: "#FFFFFF", width: 18 },
   backBtn: { position: "absolute", left: spacing.lg, width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(0,0,0,0.4)", alignItems: "center", justifyContent: "center" },
   shareBtn: { left: undefined, right: spacing.lg },
+  favBtn: { left: undefined, right: spacing.lg + 48 },
+  soldBanner: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: "#FEE2E2", borderRadius: radius.md, padding: spacing.md, marginTop: spacing.sm },
+  soldTitle: { fontSize: 14, fontWeight: "800", color: c.error },
+  soldSub: { fontSize: 12, color: c.onSurfaceSecondary, marginTop: 2 },
+  soldCta: { height: 50, flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: radius.md, backgroundColor: c.surfaceTertiary },
+  soldCtaTxt: { fontSize: 15, fontWeight: "700", color: c.muted },
+  similarWrap: { marginTop: spacing.lg },
+  similarTitle: { fontSize: 16, fontWeight: "800", color: c.onSurface, marginBottom: spacing.sm },
   shareSquare: { width: 50, height: 50, borderRadius: radius.md, borderWidth: 1.5, borderColor: c.brandPrimary, alignItems: "center", justifyContent: "center", backgroundColor: c.surfaceSecondary },
   noMap: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: c.surfaceTertiary, borderRadius: radius.md, padding: spacing.md },
   noMapTxt: { flex: 1, fontSize: 13, color: c.muted, lineHeight: 18 },

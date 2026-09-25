@@ -4,7 +4,7 @@ import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { makeStyles, useTheme } from "@/src/theme";
+import { makeStyles, useTheme, font } from "@/src/theme";
 import { apiGet, apiPost, fileUrl } from "@/src/api";
 import { useAuth } from "@/src/auth";
 import { rupiah, formatDate, formatDateTime, statusMeta, fileSize } from "@/src/format";
@@ -51,13 +51,13 @@ export default function InternalDetail() {
     qc.invalidateQueries();
   };
 
-  const doAction = async (fn: () => Promise<any>, successMsg: string) => {
+  const doAction = async (fn: () => Promise<any>, successMsg: string, goBack = true) => {
     setBusy(true);
     try {
       await fn();
       toast(successMsg, "success");
       invalidateAll();
-      router.back();
+      if (goBack) router.back(); else refetch();
     } catch (e: any) {
       toast(e.message || "Gagal", "error");
       refetch();
@@ -99,7 +99,17 @@ export default function InternalDetail() {
   const maCanUpdate = role === "marketing_asset" && ["PUBLISHED", "SOLD"].includes(st);
   const acrmCanAct = role === "acrm" && ["WAITING_ACRM_REVIEW", "UPDATE_PENDING_ACRM"].includes(st);
   const rcgCanAct = role === "admin_rcg" && ["WAITING_RCG_APPROVAL", "UPDATE_PENDING_RCG"].includes(st);
-  const hasActions = maCanEdit || maCanSubmit || acrmCanAct || rcgCanAct;
+  const rcgCanSell = role === "admin_rcg" && st === "PUBLISHED";
+  const rcgCanUnsell = role === "admin_rcg" && st === "SOLD";
+  const hasActions = maCanEdit || maCanSubmit || acrmCanAct || rcgCanAct || rcgCanSell || rcgCanUnsell;
+
+  const markSold = () =>
+    confirm({ title: "Tandai Terjual", message: "Asset akan ditandai TERJUAL di katalog publik dan kontak WhatsApp PIC disembunyikan agar tidak menerima pertanyaan lagi.", confirmText: "Tandai Terjual", optionalNote: true, noteLabel: "Catatan (opsional)", notePlaceholder: "Mis. terjual di lelang KPKNL tgl ..." })
+      .then((r) => r.ok && doAction(() => apiPost(`/rcg/assets/${id}/sold`, { notes: r.note || null }), "Asset ditandai terjual", false));
+
+  const unmarkSold = () =>
+    confirm({ title: "Batalkan Status Terjual", message: "Asset akan kembali berstatus PUBLISHED dan kontak PIC tampil lagi.", confirmText: "Batalkan", tone: "danger" })
+      .then((r) => r.ok && doAction(() => apiPost(`/rcg/assets/${id}/unsold`), "Status terjual dibatalkan", false));
 
   return (
     <View style={s.screen}>
@@ -117,13 +127,13 @@ export default function InternalDetail() {
             {images.map((u, i) => <Image key={i} source={{ uri: fileUrl(u) }} style={{ width, height: 220 }} contentFit="cover" />)}
           </ScrollView>
         ) : (
-          <View style={s.noImg}><Icon name="image" size={36} color={colors.muted} /><Text style={{ color: colors.muted, marginTop: 6 }}>Belum ada foto</Text></View>
+          <View style={s.noImg}><Icon name="image" size={36} color={colors.muted} /><Text style={[font(), { color: colors.muted, marginTop: 6 }]}>Belum ada foto</Text></View>
         )}
 
         <View style={s.body}>
           <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
             <Badge label={meta.label} tone={meta.tone} testID="asset-status-badge" />
-            {data.has_schedule && <Badge label="Ada Lelang" tone="warning" />}
+            {data.has_schedule && <Badge label="Sudah Ada Jadwal Lelang" tone="warning" />}
           </View>
           <Text style={s.title}>{data.judul_asset}</Text>
           <Text style={s.price}>{rupiah(data.harga_limit)}</Text>
@@ -168,7 +178,7 @@ export default function InternalDetail() {
           </View>
           <Card testID="documents-card">
             {(data.documents || []).length === 0 ? (
-              <Text style={{ color: colors.muted }}>Belum ada dokumen legal.{maCanEdit ? " Tambahkan lewat Edit → Dokumen." : ""}</Text>
+              <Text style={[font(), { color: colors.muted }]}>Belum ada dokumen legal.{maCanEdit ? " Tambahkan lewat Edit → Dokumen." : ""}</Text>
             ) : (
               (data.documents || []).map((d: any) => (
                 <Pressable key={d.id} style={s.docRow} onPress={() => openDoc(d)} testID={`doc-${d.id}`}>
@@ -201,7 +211,7 @@ export default function InternalDetail() {
           <Text style={s.section}>Riwayat Approval</Text>
           <Card>
             {(data.approval_history || []).length === 0 ? (
-              <Text style={{ color: colors.muted }}>Belum ada aktivitas.</Text>
+              <Text style={[font(), { color: colors.muted }]}>Belum ada aktivitas.</Text>
             ) : (
               (data.approval_history || []).map((h: any, i: number) => (
                 <View key={h.id} style={s.timeItem}>
@@ -231,6 +241,16 @@ export default function InternalDetail() {
           {maCanSubmit && (
             <View style={{ flex: 1 }}>
               <Button title="Submit" icon="send" onPress={submit} loading={busy} testID="submit-asset-button" />
+            </View>
+          )}
+          {rcgCanSell && (
+            <View style={{ flex: 1 }}>
+              <Button title="Tandai Terjual" icon="tag" variant="secondary" onPress={markSold} loading={busy} testID="mark-sold-button" />
+            </View>
+          )}
+          {rcgCanUnsell && (
+            <View style={{ flex: 1 }}>
+              <Button title="Batalkan Terjual" icon="rotate-ccw" variant="outline" onPress={unmarkSold} loading={busy} testID="unmark-sold-button" />
             </View>
           )}
           {(acrmCanAct || rcgCanAct) && (

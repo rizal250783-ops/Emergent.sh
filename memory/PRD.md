@@ -43,8 +43,18 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Demo assets: coordinates + 4-5 photos each (swipeable gallery).
 - Validated by testing agent: 26/26 backend tests + frontend flows passed.
 
+## Implemented (Iteration 3, 2026-06)
+- SOLD: RCG marks PUBLISHED -> SOLD (/rcg/assets/{id}/sold, /unsold). Public: TERJUAL overlay/badge, pic_wa hidden, sold sorted last; MA+ACRM notified.
+- Favorites: on-device (AsyncStorage) hearts on cards/detail, /favorites screen, batch endpoint /public/catalog/batch.
+- Similar assets: /public/catalog/{id}/similar (location/category/price scoring); horizontal "Asset Serupa" on public detail.
+- Excel report: Kelola -> Laporan tab -> /rcg/reports/assets/link (signed 10-min) -> .xlsx (Ringkasan per ACR, Detail Asset, Ringkasan Status). openpyxl added.
+- Branding: official BSI logo image (assets/images/bsi-logo.png) in header & login; Lato font (assets/fonts, expo-font) applied globally via makeStyles weight mapping + font() helper.
+- Home location bar Provinsi -> Kab/Kota -> Kecamatan (optional lower levels) + filter modal kept for kelurahan/category.
+- Badge text "Sudah Ada Jadwal Lelang"; "Belum ada jadwal lelang" label. 25 demo assets across 18 provinces (2 SOLD, 9 without schedule), realistic photos.
+- Validated by testing agent: 15/15 backend + all frontend flows.
+
 ## Backlog / Remaining
 - P2: Web desktop sidebar layout & responsive breakpoints polish.
-- P2: SOLD status transition UI; category edit rename UI.
+- P2: Category edit rename UI.
 - P2: Confirm/refresh placeholder (NOPE) data before go-live.
 - P3: Split server.py into routers; align demo KPKNL with each asset's province.

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from "react";
 import { Modal, View, Text, TextInput } from "react-native";
-import { makeStyles, useTheme } from "@/src/theme";
+import { makeStyles, useTheme, font } from "@/src/theme";
 import { Button, spacing, radius } from "@/src/components/ui";
 
 interface ConfirmOpts {
@@ -10,6 +10,7 @@ interface ConfirmOpts {
   cancelText?: string;
   tone?: "primary" | "danger";
   requireNote?: boolean;
+  optionalNote?: boolean;
   noteLabel?: string;
   notePlaceholder?: string;
 }
@@ -54,7 +55,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
           <View style={s.sheet}>
             <Text style={s.title}>{opts?.title}</Text>
             {opts?.message && <Text style={s.message}>{opts.message}</Text>}
-            {opts?.requireNote && (
+            {(opts?.requireNote || opts?.optionalNote) && (
               <View style={{ gap: 6 }}>
                 {opts.noteLabel && <Text style={s.noteLabel}>{opts.noteLabel}</Text>}
                 <TextInput
@@ -66,7 +67,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
                   multiline
                   style={[s.note, err ? { borderColor: colors.error } : null]}
                 />
-                {err ? <Text style={{ color: colors.error, fontSize: 12 }}>{err}</Text> : null}
+                {err ? <Text style={[font(), { color: colors.error, fontSize: 12 }]}>{err}</Text> : null}
               </View>
             )}
             <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>

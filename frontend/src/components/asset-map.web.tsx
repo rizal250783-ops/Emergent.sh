@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { View, Text, Pressable, Linking, StyleSheet } from "react-native";
-import { useTheme } from "@/src/theme";
+import { useTheme, FONTS } from "@/src/theme";
 import { Icon, spacing, radius } from "@/src/components/ui";
 import { buildMapHtml } from "@/src/components/map-html";
 import type { AssetMapProps } from "@/src/components/asset-map";
@@ -61,5 +61,5 @@ export function AssetMap({ latitude, longitude, height = 220, editable = false, 
 const st = StyleSheet.create({
   wrap: { borderRadius: radius.md, overflow: "hidden", borderWidth: 1 },
   openBtn: { position: "absolute", top: spacing.sm, right: spacing.sm, flexDirection: "row", alignItems: "center", gap: 6, paddingHorizontal: 10, height: 34, borderRadius: radius.pill, borderWidth: 1 },
-  openTxt: { fontSize: 12, fontWeight: "700" },
+  openTxt: { fontSize: 12, fontFamily: FONTS.bold },
 });

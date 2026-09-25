@@ -4,7 +4,7 @@ import {
   StyleProp, ViewStyle, TextStyle,
 } from "react-native";
 import Icon from "@react-native-vector-icons/feather";
-import { makeStyles, useTheme, ThemeColors } from "@/src/theme";
+import { makeStyles, useTheme, ThemeColors, font } from "@/src/theme";
 import { Tone } from "@/src/format";
 
 export const spacing = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, "2xl": 32, "3xl": 48 };
@@ -74,7 +74,7 @@ export function Badge({ label, tone = "neutral", testID }: { label: string; tone
   const { bg, fg } = map[tone];
   return (
     <View testID={testID} style={{ backgroundColor: bg, paddingHorizontal: 10, paddingVertical: 4, borderRadius: radius.pill, alignSelf: "flex-start" }}>
-      <Text style={{ color: fg, fontSize: 11, fontWeight: "700" }}>{label}</Text>
+      <Text style={[font("700"), { color: fg, fontSize: 11 }]}>{label}</Text>
     </View>
   );
 }
@@ -109,7 +109,7 @@ export function Field({
     <View style={{ gap: 6 }}>
       {label && (
         <Text style={s.label}>
-          {label}{required && <Text style={{ color: colors.error }}> *</Text>}
+          {label}{required && <Text style={[font(), { color: colors.error }]}> *</Text>}
         </Text>
       )}
       <View style={{ position: "relative", justifyContent: "center" }}>
@@ -154,7 +154,7 @@ export function Loading({ text }: { text?: string }) {
   return (
     <View style={{ flex: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl, gap: spacing.md }}>
       <ActivityIndicator size="large" color={colors.brandPrimary} />
-      {text && <Text style={{ color: colors.muted }}>{text}</Text>}
+      {text && <Text style={[font(), { color: colors.muted }]}>{text}</Text>}
     </View>
   );
 }
@@ -168,8 +168,8 @@ export function EmptyState({ icon = "inbox", title, subtitle, action, testID }: 
       <View style={{ width: 72, height: 72, borderRadius: 36, backgroundColor: colors.brandTertiary, alignItems: "center", justifyContent: "center" }}>
         <Icon name={icon as any} size={30} color={colors.brandPrimary} />
       </View>
-      <Text style={{ fontSize: 16, fontWeight: "700", color: colors.onSurface, textAlign: "center" }}>{title}</Text>
-      {subtitle && <Text style={{ color: colors.muted, textAlign: "center" }}>{subtitle}</Text>}
+      <Text style={[font("700"), { fontSize: 16, color: colors.onSurface, textAlign: "center" }]}>{title}</Text>
+      {subtitle && <Text style={[font(), { color: colors.muted, textAlign: "center" }]}>{subtitle}</Text>}
       {action}
     </View>
   );
@@ -180,7 +180,7 @@ export function ErrorState({ onRetry, message }: { onRetry?: () => void; message
   return (
     <View style={{ alignItems: "center", justifyContent: "center", padding: spacing["2xl"], gap: spacing.md }}>
       <Icon name="alert-triangle" size={30} color={colors.error} />
-      <Text style={{ color: colors.onSurface, textAlign: "center" }}>{message || "Gagal memuat data"}</Text>
+      <Text style={[font(), { color: colors.onSurface, textAlign: "center" }]}>{message || "Gagal memuat data"}</Text>
       {onRetry && <Button title="Coba Lagi" onPress={onRetry} full={false} variant="outline" icon="refresh-cw" testID="retry-button" />}
     </View>
   );
@@ -195,12 +195,14 @@ export function Skeleton({ h = 16, w = "100%", style }: { h?: number; w?: any; s
 // ---------------- Select (modal dropdown) ----------------
 export function Select({
   label, value, placeholder = "Pilih...", options, onChange, required, testID, disabled,
-  searchable, loading, emptyText = "Tidak ada pilihan", hint,
+  searchable, loading, emptyText = "Tidak ada pilihan", hint, trigger,
 }: {
   label?: string; value?: string | null; placeholder?: string;
   options: { value: string; label: string }[];
   onChange: (v: string) => void; required?: boolean; testID?: string; disabled?: boolean;
   searchable?: boolean; loading?: boolean; emptyText?: string; hint?: string;
+  /** Custom trigger element (e.g. a chip); replaces the default label + box */
+  trigger?: (open: () => void) => React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false);
   const [q, setQ] = React.useState("");
@@ -211,16 +213,20 @@ export function Select({
   const close = () => { setOpen(false); setQ(""); };
   return (
     <View style={{ gap: 6 }}>
-      {label && (
-        <Text style={s.label}>{label}{required && <Text style={{ color: colors.error }}> *</Text>}</Text>
+      {trigger ? trigger(() => setOpen(true)) : (
+        <>
+          {label && (
+            <Text style={s.label}>{label}{required && <Text style={[font(), { color: colors.error }]}> *</Text>}</Text>
+          )}
+          <Pressable testID={testID} disabled={disabled || loading} onPress={() => setOpen(true)} style={[s.box, (disabled || loading) && { opacity: 0.5 }]}>
+            <Text style={[s.value, !selected && { color: colors.muted }]} numberOfLines={1}>
+              {selected?.label || (value && !loading ? value : null) || (loading ? "Memuat..." : placeholder)}
+            </Text>
+            {loading ? <ActivityIndicator size="small" color={colors.brandPrimary} /> : <Icon name="chevron-down" size={18} color={colors.muted} />}
+          </Pressable>
+          {hint && <Text style={s.hint}>{hint}</Text>}
+        </>
       )}
-      <Pressable testID={testID} disabled={disabled || loading} onPress={() => setOpen(true)} style={[s.box, (disabled || loading) && { opacity: 0.5 }]}>
-        <Text style={[s.value, !selected && { color: colors.muted }]} numberOfLines={1}>
-          {selected?.label || (value && !loading ? value : null) || (loading ? "Memuat..." : placeholder)}
-        </Text>
-        {loading ? <ActivityIndicator size="small" color={colors.brandPrimary} /> : <Icon name="chevron-down" size={18} color={colors.muted} />}
-      </Pressable>
-      {hint && <Text style={s.hint}>{hint}</Text>}
       <Modal visible={open} transparent animationType="slide" onRequestClose={close}>
         <Pressable style={s.backdrop} onPress={close}>
           <Pressable style={s.sheet} onPress={() => {}}>
@@ -314,8 +320,8 @@ export function StatCard({ label, value, tone = "neutral", icon }: {
       borderWidth: 1, borderColor: colors.border, padding: spacing.md, gap: 4,
     }}>
       {icon && <Icon name={icon as any} size={16} color={toneColor[tone]} />}
-      <Text style={{ fontSize: 22, fontWeight: "900", color: toneColor[tone] }}>{value}</Text>
-      <Text style={{ fontSize: 11, color: colors.muted }} numberOfLines={2}>{label}</Text>
+      <Text style={[font("900"), { fontSize: 22, color: toneColor[tone] }]}>{value}</Text>
+      <Text style={[font(), { fontSize: 11, color: colors.muted }]} numberOfLines={2}>{label}</Text>
     </View>
   );
 }

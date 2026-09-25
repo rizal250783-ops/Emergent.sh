@@ -1,9 +1,9 @@
 import React, { useState } from "react";
-import { View, Text, ScrollView, FlatList, Pressable, RefreshControl, TextInput } from "react-native";
+import { View, Text, ScrollView, FlatList, Pressable, RefreshControl, TextInput, Linking } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeStyles, useTheme } from "@/src/theme";
-import { apiGet, apiPost, apiPut } from "@/src/api";
+import { apiGet, apiPost, apiPut, fileUrl } from "@/src/api";
 import { formatDateTime } from "@/src/format";
 import {
   ScreenHeader, Card, Badge, Field, Select, Button, Icon, Loading, ErrorState, EmptyState, spacing, radius,
@@ -15,6 +15,7 @@ const TABS = [
   { key: "users", label: "User", icon: "users" },
   { key: "kategori", label: "Kategori", icon: "grid" },
   { key: "audit", label: "Audit", icon: "shield" },
+  { key: "laporan", label: "Laporan", icon: "file-text" },
 ];
 
 export default function Manage() {
@@ -37,6 +38,7 @@ export default function Manage() {
       {tab === "users" && <UsersTab />}
       {tab === "kategori" && <KategoriTab />}
       {tab === "audit" && <AuditTab />}
+      {tab === "laporan" && <LaporanTab />}
     </View>
   );
 }
@@ -252,6 +254,51 @@ function KategoriTab() {
 }
 
 // -------- Audit --------
+function LaporanTab() {
+  const s = useStyles();
+  const { colors } = useTheme();
+  const toast = useToast();
+  const [busy, setBusy] = useState(false);
+  const { data: dash } = useQuery({ queryKey: ["dash-rcg"], queryFn: () => apiGet("/dashboard/rcg") });
+
+  const exportExcel = async () => {
+    setBusy(true);
+    try {
+      const r = await apiGet("/rcg/reports/assets/link");
+      await Linking.openURL(fileUrl(r.url) as string);
+      toast("Laporan Excel sedang diunduh", "success");
+    } catch (e: any) {
+      toast(e.message || "Gagal membuat laporan", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}>
+      <Card>
+        <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
+          <View style={s.reportIcon}><Icon name="file-text" size={22} color={colors.brandPrimary} /></View>
+          <View style={{ flex: 1 }}>
+            <Text style={s.reportTitle}>Laporan Asset (Excel)</Text>
+            <Text style={s.reportSub}>Rekap bulanan seluruh asset per ACR dan per status, lengkap dengan detail tiap asset.</Text>
+          </View>
+        </View>
+        <View style={s.reportList}>
+          {["Sheet 1 — Ringkasan per ACR × status + total nilai harga limit", "Sheet 2 — Detail seluruh asset (lokasi, harga, jadwal lelang, PIC)", "Sheet 3 — Ringkasan per status"].map((t) => (
+            <View key={t} style={{ flexDirection: "row", gap: 8, alignItems: "flex-start" }}>
+              <Icon name="check" size={14} color={colors.success} style={{ marginTop: 2 }} />
+              <Text style={s.reportItem}>{t}</Text>
+            </View>
+          ))}
+        </View>
+        {dash?.totals?.asset != null && <Text style={s.reportMeta}>{dash.totals.asset} asset akan disertakan • tautan unduh berlaku 10 menit</Text>}
+        <Button title="Unduh Laporan Excel" icon="download" onPress={exportExcel} loading={busy} testID="export-excel-button" />
+      </Card>
+    </ScrollView>
+  );
+}
+
 function AuditTab() {
   const s = useStyles();
   const { colors } = useTheme();
@@ -307,6 +354,12 @@ const useStyles = makeStyles((c) => ({
   catName: { fontSize: 15, fontWeight: "800", color: c.onSurface },
   subRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginTop: spacing.sm },
   subName: { fontSize: 14, color: c.onSurfaceSecondary },
+  reportIcon: { width: 48, height: 48, borderRadius: radius.md, backgroundColor: c.brandTertiary, alignItems: "center", justifyContent: "center" },
+  reportTitle: { fontSize: 16, fontWeight: "800", color: c.onSurface },
+  reportSub: { fontSize: 12, color: c.muted, marginTop: 2, lineHeight: 17 },
+  reportList: { gap: 6, marginTop: spacing.md, marginBottom: spacing.md },
+  reportItem: { fontSize: 13, color: c.onSurfaceSecondary, flex: 1 },
+  reportMeta: { fontSize: 12, color: c.muted, marginBottom: spacing.sm },
   auditRow: { flexDirection: "row", gap: spacing.md, backgroundColor: c.surfaceSecondary, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, padding: spacing.md },
   auditDot: { width: 8, height: 8, borderRadius: 4, backgroundColor: c.brandPrimary, marginTop: 5 },
   auditAction: { fontSize: 14, fontWeight: "700", color: c.onSurface },

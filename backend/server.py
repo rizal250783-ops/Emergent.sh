@@ -352,11 +352,14 @@ async def asset_public_view(a):
         "extra": a.get("extra") or {},
         "images": [i["url"] for i in imgs],
         "status": a.get("status"),
+        "is_sold": a.get("status") == "SOLD",
+        "sold_at": a.get("sold_at"),
         "has_schedule": bool(sched.get("tanggal_lelang")),
         "tanggal_lelang": sched.get("tanggal_lelang"),
         "kpknl": kpknl,
         "pic_nama": a.get("pic_nama"),
-        "pic_wa": normalize_wa(a.get("pic_hp")) if a.get("pic_hp") else None,
+        # SOLD: hide PIC contact so marketing stops receiving inquiries
+        "pic_wa": normalize_wa(a.get("pic_hp")) if (a.get("pic_hp") and a.get("status") != "SOLD") else None,
     }
 
 # =================== PUBLIC CATALOG ===================
@@ -387,9 +390,44 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
                 "price_high": ("harga_limit", -1), "auction": ("schedule.tanggal_lelang", 1)}
     sf, sd = sort_map.get(sort, ("published_at", -1))
     total = await db.assets.count_documents(q)
-    cursor = db.assets.find(q).sort(sf, sd).skip((page - 1) * limit).limit(limit)
-    items = [await asset_public_view(clean(a)) async for a in cursor]
+    # SOLD assets always sink to the end so buyers see available assets first
+    pipeline = [{"$match": q},
+        {"$addFields": {"_sold_rank": {"$cond": [{"$eq": ["$status", "SOLD"]}, 1, 0]}}},
+        {"$sort": {"_sold_rank": 1, sf: sd, "_id": 1}},
+        {"$skip": (page - 1) * limit}, {"$limit": limit}]
+    items = [await asset_public_view(clean(a)) async for a in db.assets.aggregate(pipeline)]
     return {"total": total, "page": page, "limit": limit, "items": items}
+
+@api.get("/public/catalog/batch")
+async def public_batch(ids: str):
+    """Fetch several published assets by id (favorites stored on-device)."""
+    id_list = [i for i in ids.split(",") if i][:50]
+    q = {"id": {"$in": id_list}, "status": {"$in": ASSET_PUBLIC_STATUSES}, "public_ready": True, "deleted_at": None}
+    found = {a["id"]: a async for a in db.assets.find(q)}
+    return [await asset_public_view(clean(found[i])) for i in id_list if i in found]
+
+@api.get("/public/catalog/{asset_id}/similar")
+async def public_similar(asset_id: str, limit: int = 6):
+    """Similar assets: same location / category / price band, scored and ranked."""
+    a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
+    if not a:
+        raise HTTPException(404, "Asset tidak ditemukan")
+    price = a.get("harga_limit") or 0
+    q = {"id": {"$ne": asset_id}, "status": {"$in": ["PUBLISHED", "UPDATE_PENDING_ACRM", "UPDATE_PENDING_RCG"]},
+         "public_ready": True, "deleted_at": None,
+         "$or": [{"provinsi": a.get("provinsi")}, {"id_category": a.get("id_category")},
+                 {"harga_limit": {"$gte": price * 0.6, "$lte": price * 1.4}}]}
+    scored = []
+    async for c in db.assets.find(q):
+        s = 0
+        if c.get("kabupaten_kota") == a.get("kabupaten_kota"): s += 4
+        if c.get("provinsi") == a.get("provinsi"): s += 3
+        if c.get("id_subcategory") == a.get("id_subcategory"): s += 3
+        elif c.get("id_category") == a.get("id_category"): s += 2
+        if price and c.get("harga_limit") and price * 0.6 <= c["harga_limit"] <= price * 1.4: s += 2
+        scored.append((s, c))
+    scored.sort(key=lambda x: (-x[0], x[1].get("published_at") or ""), reverse=False)
+    return [await asset_public_view(clean(c)) for _, c in scored[:limit]]
 
 @api.get("/public/catalog/{asset_id}")
 async def public_detail(asset_id: str):
@@ -829,6 +867,126 @@ async def rcg_approve(asset_id: str, user=Depends(require("admin_rcg"))):
         await notify(ma_user["id"], "asset", "Dipublikasikan", f"Asset {a['nomor_asset']} telah dipublikasikan ke katalog publik.")
     return {"ok": True, "status": "PUBLISHED", "public_ready": public_ready}
 
+@api.post("/rcg/assets/{asset_id}/sold")
+async def rcg_mark_sold(asset_id: str, body: Optional[ReviewIn] = None, user=Depends(require("admin_rcg"))):
+    """Controller marks a published asset as SOLD: stays visible with TERJUAL badge, WA contact hidden."""
+    a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
+    if not a:
+        raise HTTPException(404, "Asset tidak ditemukan")
+    if a["status"] != "PUBLISHED":
+        raise HTTPException(409, "Hanya asset berstatus PUBLISHED yang dapat ditandai terjual")
+    notes = (body.notes if body else None) or None
+    await db.assets.update_one({"id": asset_id}, {"$set": {"status": "SOLD", "sold_at": now_iso(), "sold_notes": notes, "updated_at": now_iso()}})
+    await approval_log(asset_id, "MARK_SOLD", "PUBLISHED", "SOLD", {"id": user["id"], "nama": user.get("nama"), "role": "admin_rcg"}, notes)
+    await audit(user, "RCG_MARK_SOLD", "assets", asset_id, notes=notes)
+    for role in ["marketing_asset", "acrm"]:
+        ref = a["id_marketing_asset"] if role == "marketing_asset" else a["id_acrm"]
+        u = await db.users.find_one({"ref_id": ref, "role": role})
+        if u:
+            await notify(u["id"], "asset", "Asset Terjual", f"Asset {a['nomor_asset']} ditandai TERJUAL oleh RCG. Kontak WhatsApp disembunyikan dari publik.")
+    return {"ok": True, "status": "SOLD"}
+
+@api.post("/rcg/assets/{asset_id}/unsold")
+async def rcg_unmark_sold(asset_id: str, user=Depends(require("admin_rcg"))):
+    """Revert an accidental SOLD mark back to PUBLISHED."""
+    a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
+    if not a:
+        raise HTTPException(404, "Asset tidak ditemukan")
+    if a["status"] != "SOLD":
+        raise HTTPException(409, "Asset tidak berstatus SOLD")
+    await db.assets.update_one({"id": asset_id}, {"$set": {"status": "PUBLISHED", "sold_at": None, "sold_notes": None, "updated_at": now_iso()}})
+    await approval_log(asset_id, "UNMARK_SOLD", "SOLD", "PUBLISHED", {"id": user["id"], "nama": user.get("nama"), "role": "admin_rcg"})
+    await audit(user, "RCG_UNMARK_SOLD", "assets", asset_id)
+    return {"ok": True, "status": "PUBLISHED"}
+
+# ---------- Excel report (Admin RCG) ----------
+REPORT_STATUSES = ["DRAFT", "WAITING_ACRM_REVIEW", "RETURN_TO_MARKETING", "WAITING_RCG_APPROVAL", "RETURN_FROM_RCG",
+                   "PUBLISHED", "UPDATE_PENDING_ACRM", "UPDATE_PENDING_RCG", "SOLD"]
+
+@api.get("/rcg/reports/assets/link")
+async def rcg_report_link(user=Depends(require("admin_rcg"))):
+    token = jwt.encode({"typ": "report", "uid": user["id"],
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}, JWT_SECRET, algorithm=JWT_ALG)
+    await audit(user, "EXPORT_REPORT", "assets", None)
+    return {"url": f"/api/rcg/reports/assets.xlsx?token={token}", "expires_in": 600}
+
+def build_report_xlsx(acrs, assets, cats, kpknls):
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment
+    from openpyxl.utils import get_column_letter
+    wb = Workbook()
+    head_font = Font(bold=True, color="FFFFFF"); head_fill = PatternFill("solid", fgColor="00A0A0")
+    def header(ws, cols):
+        ws.append(cols)
+        for i, _ in enumerate(cols, 1):
+            c = ws.cell(row=1, column=i); c.font = head_font; c.fill = head_fill; c.alignment = Alignment(horizontal="center")
+    def autosize(ws):
+        for i, col in enumerate(ws.columns, 1):
+            width = max((len(str(c.value)) if c.value is not None else 0) for c in col)
+            ws.column_dimensions[get_column_letter(i)].width = min(max(10, width + 2), 60)
+    # Sheet 1: summary per ACR x status
+    ws = wb.active; ws.title = "Ringkasan per ACR"
+    header(ws, ["ACR", "Identifier"] + REPORT_STATUSES + ["Total", "Nilai Harga Limit (Published+Sold)"])
+    by_acr = {}
+    for a in assets:
+        by_acr.setdefault(a["id_acr"], []).append(a)
+    for acr in acrs:
+        rows = by_acr.get(acr["id"], [])
+        counts = [sum(1 for a in rows if a["status"] == s) for s in REPORT_STATUSES]
+        value = sum((a.get("harga_limit") or 0) for a in rows if a["status"] in ("PUBLISHED", "SOLD"))
+        ws.append([acr["nama_acr"], acr.get("identifier")] + counts + [len(rows), value])
+    tot = ["TOTAL", ""] + [sum(1 for a in assets if a["status"] == s) for s in REPORT_STATUSES] + [len(assets), sum((a.get("harga_limit") or 0) for a in assets if a["status"] in ("PUBLISHED", "SOLD"))]
+    ws.append(tot)
+    for c in ws[ws.max_row]: c.font = Font(bold=True)
+    for row in ws.iter_rows(min_row=2, min_col=ws.max_column, max_col=ws.max_column):
+        for c in row: c.number_format = '"Rp"#,##0'
+    autosize(ws)
+    # Sheet 2: detail
+    ws2 = wb.create_sheet("Detail Asset")
+    header(ws2, ["Nomor Asset", "Judul", "Status", "ACR", "ACRM", "PIC Marketing", "Kategori", "Subkategori", "Provinsi", "Kabupaten/Kota",
+                 "Kecamatan", "Kelurahan/Desa", "Harga Limit", "Nilai Appraisal", "Luas Tanah", "Luas Bangunan", "Tanggal Lelang", "KPKNL",
+                 "Dipublikasikan", "Terjual", "Dibuat"])
+    for a in sorted(assets, key=lambda x: (x.get("acr_nama") or "", x.get("nomor_asset") or "")):
+        sched = a.get("schedule") or {}
+        ws2.append([a.get("nomor_asset"), a.get("judul_asset"), a.get("status"), a.get("acr_nama"), a.get("acrm_nama"), a.get("pic_nama"),
+                    cats.get(a.get("id_category")), cats.get(a.get("id_subcategory")), a.get("provinsi"), a.get("kabupaten_kota"),
+                    a.get("kecamatan"), a.get("wilayah_level_4"), a.get("harga_limit"), a.get("nilai_appraisal"), a.get("luas_tanah"), a.get("luas_bangunan"),
+                    sched.get("tanggal_lelang"), kpknls.get(sched.get("id_kpknl")), (a.get("published_at") or "")[:10], (a.get("sold_at") or "")[:10], (a.get("created_at") or "")[:10]])
+    for row in ws2.iter_rows(min_row=2, min_col=13, max_col=14):
+        for c in row: c.number_format = '"Rp"#,##0'
+    ws2.freeze_panes = "A2"; autosize(ws2)
+    # Sheet 3: per status
+    ws3 = wb.create_sheet("Ringkasan Status")
+    header(ws3, ["Status", "Jumlah Asset", "Total Harga Limit"])
+    for s in REPORT_STATUSES:
+        rows = [a for a in assets if a["status"] == s]
+        ws3.append([s, len(rows), sum((a.get("harga_limit") or 0) for a in rows)])
+    for row in ws3.iter_rows(min_row=2, min_col=3, max_col=3):
+        for c in row: c.number_format = '"Rp"#,##0'
+    autosize(ws3)
+    buf = io.BytesIO(); wb.save(buf)
+    return buf.getvalue()
+
+@api.get("/rcg/reports/assets.xlsx")
+async def rcg_report_xlsx(token: str = Query(...)):
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+    except jwt.PyJWTError:
+        raise HTTPException(401, "Tautan tidak valid atau sudah kadaluarsa")
+    if payload.get("typ") != "report":
+        raise HTTPException(401, "Tautan tidak valid")
+    u = await db.users.find_one({"id": payload.get("uid"), "role": "admin_rcg"})
+    if not u:
+        raise HTTPException(403, "Akses ditolak")
+    acrs = [a async for a in db.master_acr.find({"deleted_at": None}).sort("nama_acr", 1)]
+    assets = [a async for a in db.assets.find({"deleted_at": None})]
+    cats = {c["id"]: c["nama_category"] async for c in db.master_asset_category.find({})}
+    kpknls = {k["id"]: k["nama_kpknl"] async for k in db.master_kpknl.find({})}
+    data = await run_in_threadpool(build_report_xlsx, acrs, assets, cats, kpknls)
+    fname = f"Laporan_Asset_BSI_{datetime.now().strftime('%Y%m%d')}.xlsx"
+    return FastResponse(content=data, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'})
+
 @api.post("/rcg/assets/{asset_id}/return")
 async def rcg_return(asset_id: str, body: ReviewIn, user=Depends(require("admin_rcg"))):
     if not body.notes or not body.notes.strip():
@@ -884,7 +1042,7 @@ async def dash_rcg(user=Depends(require("admin_rcg"))):
     total_ma = await db.master_marketing_asset.count_documents({"deleted_at": None})
     total_asset = await db.assets.count_documents({"deleted_at": None})
     st = await count_status({}, ["WAITING_ACRM_REVIEW", "WAITING_RCG_APPROVAL", "UPDATE_PENDING_RCG",
-        "RETURN_TO_MARKETING", "RETURN_FROM_RCG", "PUBLISHED"])
+        "RETURN_TO_MARKETING", "RETURN_FROM_RCG", "PUBLISHED", "SOLD"])
     with_sched = await db.assets.count_documents({"deleted_at": None, "schedule.tanggal_lelang": {"$exists": True, "$ne": None}})
     # per ACR
     per_acr = []

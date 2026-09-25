@@ -31,7 +31,7 @@
 // Feel free to add as many new colors as you need to support the design guidelines.
 
 import { useMemo } from "react";
-import { Appearance, StyleSheet, useColorScheme } from "react-native";
+import { Appearance, StyleSheet, useColorScheme, TextStyle } from "react-native";
 
 export type ColorScheme = "light" | "dark";
 
@@ -98,12 +98,48 @@ export function useTheme(): { scheme: ColorScheme; colors: ThemeColors } {
 
 // Themed StyleSheet: returns a hook that builds the sheet from the active
 // scheme's colors and memoizes it until the scheme changes.
+// ---------- Typography: Lato everywhere ----------
+// Fonts are loaded in app/_layout.tsx via expo-font. Because custom fonts on
+// native need an explicit face per weight, makeStyles maps fontWeight to the
+// matching Lato face and drops fontWeight. Use `font(weight)` for inline styles.
+export const FONTS = {
+  regular: "Lato-Regular",
+  bold: "Lato-Bold",
+  black: "Lato-Black",
+  italic: "Lato-Italic",
+} as const;
+
+export function fontFamilyFor(weight?: string | number, fontStyle?: string): string {
+  const w = String(weight ?? "400");
+  if (fontStyle === "italic") return FONTS.italic;
+  if (w === "900") return FONTS.black;
+  if (w === "bold" || Number(w) >= 600) return FONTS.bold;
+  return FONTS.regular;
+}
+
+/** Inline text style helper: <Text style={[font("700"), { color }]} /> */
+export function font(weight: string | number = "400", extra: TextStyle = {}): TextStyle {
+  return { fontFamily: fontFamilyFor(weight), ...extra };
+}
+
+function withLato<T extends Record<string, any>>(sheet: T): T {
+  const out: Record<string, any> = {};
+  for (const key of Object.keys(sheet)) {
+    const st = sheet[key];
+    if (st && typeof st === "object" && !st.fontFamily && ("fontSize" in st || "fontWeight" in st || "lineHeight" in st || "letterSpacing" in st)) {
+      const { fontWeight, ...rest } = st;
+      out[key] = { ...rest, fontFamily: fontFamilyFor(fontWeight, st.fontStyle) };
+    } else out[key] = st;
+  }
+  return out as T;
+}
+
 export function makeStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet.NamedStyles<any>>(
   factory: (colors: ThemeColors) => T & StyleSheet.NamedStyles<any>,
 ): () => T {
   return function useStyles(): T {
     const { colors } = useTheme();
-    return useMemo(() => StyleSheet.create(factory(colors)), [colors]);
+    return useMemo(() => StyleSheet.create(withLato(factory(colors))), [colors]);
   };
 }
 
