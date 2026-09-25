@@ -1,6 +1,6 @@
 import React from "react";
 import {
-  View, Text, Pressable, ActivityIndicator, TextInput, ScrollView, Modal,
+  View, Text, Pressable, ActivityIndicator, TextInput, ScrollView, Modal, Platform,
   StyleProp, ViewStyle, TextStyle,
 } from "react-native";
 import Icon from "@react-native-vector-icons/feather";
@@ -195,36 +195,50 @@ export function Skeleton({ h = 16, w = "100%", style }: { h?: number; w?: any; s
 // ---------------- Select (modal dropdown) ----------------
 export function Select({
   label, value, placeholder = "Pilih...", options, onChange, required, testID, disabled,
+  searchable, loading, emptyText = "Tidak ada pilihan", hint,
 }: {
   label?: string; value?: string | null; placeholder?: string;
   options: { value: string; label: string }[];
   onChange: (v: string) => void; required?: boolean; testID?: string; disabled?: boolean;
+  searchable?: boolean; loading?: boolean; emptyText?: string; hint?: string;
 }) {
   const [open, setOpen] = React.useState(false);
+  const [q, setQ] = React.useState("");
   const s = useSelectStyles();
   const { colors } = useTheme();
   const selected = options.find((o) => o.value === value);
+  const shown = q ? options.filter((o) => o.label.toLowerCase().includes(q.toLowerCase())) : options;
+  const close = () => { setOpen(false); setQ(""); };
   return (
     <View style={{ gap: 6 }}>
       {label && (
         <Text style={s.label}>{label}{required && <Text style={{ color: colors.error }}> *</Text>}</Text>
       )}
-      <Pressable testID={testID} disabled={disabled} onPress={() => setOpen(true)} style={[s.box, disabled && { opacity: 0.5 }]}>
+      <Pressable testID={testID} disabled={disabled || loading} onPress={() => setOpen(true)} style={[s.box, (disabled || loading) && { opacity: 0.5 }]}>
         <Text style={[s.value, !selected && { color: colors.muted }]} numberOfLines={1}>
-          {selected?.label || placeholder}
+          {selected?.label || (value && !loading ? value : null) || (loading ? "Memuat..." : placeholder)}
         </Text>
-        <Icon name="chevron-down" size={18} color={colors.muted} />
+        {loading ? <ActivityIndicator size="small" color={colors.brandPrimary} /> : <Icon name="chevron-down" size={18} color={colors.muted} />}
       </Pressable>
-      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-        <Pressable style={s.backdrop} onPress={() => setOpen(false)}>
+      {hint && <Text style={s.hint}>{hint}</Text>}
+      <Modal visible={open} transparent animationType="slide" onRequestClose={close}>
+        <Pressable style={s.backdrop} onPress={close}>
           <Pressable style={s.sheet} onPress={() => {}}>
             <View style={s.sheetHead}>
               <Text style={s.sheetTitle}>{label || "Pilih"}</Text>
-              <Pressable onPress={() => setOpen(false)}><Icon name="x" size={22} color={colors.onSurface} /></Pressable>
+              <Pressable onPress={close} testID={`${testID}-close`}><Icon name="x" size={22} color={colors.onSurface} /></Pressable>
             </View>
-            <ScrollView style={{ maxHeight: 400 }}>
-              {options.map((o) => (
-                <Pressable key={o.value} testID={`option-${o.value}`} style={s.opt} onPress={() => { onChange(o.value); setOpen(false); }}>
+            {searchable && (
+              <View style={s.search}>
+                <Icon name="search" size={16} color={colors.muted} />
+                <TextInput value={q} onChangeText={setQ} placeholder="Cari..." placeholderTextColor={colors.muted} style={s.searchInput} testID={`${testID}-search`} autoFocus={Platform.OS === "web"} />
+                {q.length > 0 && <Pressable onPress={() => setQ("")}><Icon name="x" size={16} color={colors.muted} /></Pressable>}
+              </View>
+            )}
+            <ScrollView style={{ maxHeight: 400 }} keyboardShouldPersistTaps="handled">
+              {shown.length === 0 && <Text style={s.empty}>{emptyText}</Text>}
+              {shown.map((o) => (
+                <Pressable key={o.value} testID={`option-${o.value}`} style={s.opt} onPress={() => { onChange(o.value); close(); }}>
                   <Text style={[s.optTxt, o.value === value && { color: colors.brandPrimary, fontWeight: "800" }]}>{o.label}</Text>
                   {o.value === value && <Icon name="check" size={18} color={colors.brandPrimary} />}
                 </Pressable>
@@ -238,12 +252,16 @@ export function Select({
 }
 const useSelectStyles = makeStyles((c) => ({
   label: { fontSize: 13, fontWeight: "600", color: c.onSurface },
+  hint: { fontSize: 12, color: c.muted },
   box: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, paddingHorizontal: 14, height: 48 },
   value: { fontSize: 15, color: c.onSurface, flex: 1 },
   backdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.45)", justifyContent: "flex-end" },
   sheet: { backgroundColor: c.surfaceSecondary, borderTopLeftRadius: radius.lg, borderTopRightRadius: radius.lg, padding: spacing.lg },
   sheetHead: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: spacing.md },
   sheetTitle: { fontSize: 17, fontWeight: "800", color: c.onSurface },
+  search: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surfaceTertiary, borderRadius: radius.md, paddingHorizontal: 12, height: 42, marginBottom: spacing.sm },
+  searchInput: { flex: 1, fontSize: 14, color: c.onSurface },
+  empty: { color: c.muted, textAlign: "center", paddingVertical: spacing.lg },
   opt: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.divider },
   optTxt: { fontSize: 15, color: c.onSurface },
 }));

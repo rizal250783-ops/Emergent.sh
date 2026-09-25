@@ -1,24 +1,30 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform } from "react-native";
+import { View, Text, ScrollView, Pressable, KeyboardAvoidingView, Platform, Linking } from "react-native";
 import { Image } from "expo-image";
 import { useRouter, useLocalSearchParams, useFocusEffect } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import * as Location from "expo-location";
 import { makeStyles, useTheme } from "@/src/theme";
-import { apiGet, apiPost, apiPut, apiForm, fileUrl } from "@/src/api";
+import { apiGet, apiPost, apiPut, apiForm, apiDelete, fileUrl } from "@/src/api";
 import { useAuth } from "@/src/auth";
-import { rupiah } from "@/src/format";
+import { rupiah, fileSize } from "@/src/format";
 import { ScreenHeader, Field, Select, Button, Icon, Loading, spacing, radius } from "@/src/components/ui";
 import { useToast } from "@/src/components/toast";
 import { useConfirm } from "@/src/components/confirm";
+import { LocationPicker } from "@/src/components/location-picker";
+import { AssetMap } from "@/src/components/asset-map";
 
 const KONDISI = ["Baik", "Cukup", "Rusak Ringan", "Rusak Berat"];
-const STEPS = ["Info Dasar", "Lokasi", "Detail", "Foto", "Jadwal", "Review"];
+const STEPS = ["Info Dasar", "Lokasi", "Detail", "Foto", "Dokumen", "Jadwal", "Review"];
+const DOC_TYPES = ["Sertifikat (SHM/SHGB)", "IMB / PBG", "PBB", "Akta Jual Beli", "BPKB", "STNK", "Surat Roya", "Lainnya"];
 
 type FormState = {
   id_category: string | null; id_subcategory: string | null; judul_asset: string; deskripsi: string;
   provinsi: string; kabupaten_kota: string; kecamatan: string; wilayah_level_4: string; tipe_wilayah: string; alamat: string;
+  latitude: string; longitude: string;
   luas_tanah: string; luas_bangunan: string; kondisi_asset: string | null; nilai_appraisal: string; harga_limit: string;
   extra: Record<string, string>;
 };
@@ -26,6 +32,7 @@ type FormState = {
 const EMPTY: FormState = {
   id_category: null, id_subcategory: null, judul_asset: "", deskripsi: "",
   provinsi: "", kabupaten_kota: "", kecamatan: "", wilayah_level_4: "", tipe_wilayah: "Kelurahan", alamat: "",
+  latitude: "", longitude: "",
   luas_tanah: "", luas_bangunan: "", kondisi_asset: null, nilai_appraisal: "", harga_limit: "", extra: {},
 };
 
@@ -44,6 +51,9 @@ export default function AddAsset() {
   const [form, setForm] = useState<FormState>(EMPTY);
   const [assetId, setAssetId] = useState<string | null>(null);
   const [images, setImages] = useState<string[]>([]);
+  const [docs, setDocs] = useState<any[]>([]);
+  const [docType, setDocType] = useState<string>(DOC_TYPES[0]);
+  const [locating, setLocating] = useState(false);
   const [busy, setBusy] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [hasSchedule, setHasSchedule] = useState(false);
@@ -59,7 +69,7 @@ export default function AddAsset() {
   useFocusEffect(
     React.useCallback(() => {
       if (!editId) {
-        setForm(EMPTY); setAssetId(null); setImages([]); setStep(0);
+        setForm(EMPTY); setAssetId(null); setImages([]); setDocs([]); setStep(0);
         setHasSchedule(false); setTanggal(""); setKpknlId(null); setErrors({});
         setReady(true);
       }
@@ -79,11 +89,13 @@ export default function AddAsset() {
           judul_asset: a.judul_asset || "", deskripsi: a.deskripsi || "",
           provinsi: a.provinsi || "", kabupaten_kota: a.kabupaten_kota || "", kecamatan: a.kecamatan || "",
           wilayah_level_4: a.wilayah_level_4 || "", tipe_wilayah: a.tipe_wilayah || "Kelurahan", alamat: a.alamat || "",
+          latitude: a.latitude != null ? String(a.latitude) : "", longitude: a.longitude != null ? String(a.longitude) : "",
           luas_tanah: a.luas_tanah != null ? String(a.luas_tanah) : "", luas_bangunan: a.luas_bangunan != null ? String(a.luas_bangunan) : "",
           kondisi_asset: a.kondisi_asset || null, nilai_appraisal: a.nilai_appraisal != null ? String(a.nilai_appraisal) : "",
           harga_limit: a.harga_limit != null ? String(a.harga_limit) : "", extra: a.extra || {},
         });
         setImages(a.images || []);
+        setDocs(a.documents || []);
         if (a.tanggal_lelang) { setHasSchedule(true); setTanggal(a.tanggal_lelang); setKpknlId(a.schedule_kpknl_id || null); }
         setStep(0);
         setReady(true);
@@ -115,11 +127,16 @@ export default function AddAsset() {
       if (!form.deskripsi.trim()) e.deskripsi = "Deskripsi wajib diisi";
     }
     if (st === 1) {
-      if (!form.provinsi.trim()) e.provinsi = "Provinsi wajib diisi";
-      if (!form.kabupaten_kota.trim()) e.kabupaten_kota = "Kabupaten/Kota wajib diisi";
-      if (!form.kecamatan.trim()) e.kecamatan = "Kecamatan wajib diisi";
-      if (!form.wilayah_level_4.trim()) e.wilayah_level_4 = "Kelurahan/Desa wajib diisi";
+      if (!form.provinsi.trim()) e.provinsi = "Provinsi wajib dipilih";
+      if (!form.kabupaten_kota.trim()) e.kabupaten_kota = "Kabupaten/Kota wajib dipilih";
+      if (!form.kecamatan.trim()) e.kecamatan = "Kecamatan wajib dipilih";
+      if (!form.wilayah_level_4.trim()) e.wilayah_level_4 = "Kelurahan/Desa wajib dipilih";
       if (!form.alamat.trim()) e.alamat = "Alamat wajib diisi";
+      const lat = form.latitude.trim() ? Number(form.latitude) : null;
+      const lng = form.longitude.trim() ? Number(form.longitude) : null;
+      if ((lat === null) !== (lng === null)) e.koordinat = "Isi latitude dan longitude bersamaan";
+      else if (lat !== null && (isNaN(lat) || lat < -11.5 || lat > 6.5)) e.koordinat = "Latitude tidak valid untuk wilayah Indonesia (-11.5 s/d 6.5)";
+      else if (lng !== null && (isNaN(lng) || lng < 94 || lng > 141.5)) e.koordinat = "Longitude tidak valid untuk wilayah Indonesia (94 s/d 141.5)";
     }
     if (st === 2) {
       if (!isVehicle) {
@@ -138,6 +155,8 @@ export default function AddAsset() {
     id_category: form.id_category, id_subcategory: form.id_subcategory,
     alamat: form.alamat.trim(), provinsi: form.provinsi.trim(), kabupaten_kota: form.kabupaten_kota.trim(),
     kecamatan: form.kecamatan.trim(), wilayah_level_4: form.wilayah_level_4.trim(), tipe_wilayah: form.tipe_wilayah,
+    latitude: form.latitude.trim() ? Number(form.latitude) : null,
+    longitude: form.longitude.trim() ? Number(form.longitude) : null,
     luas_tanah: form.luas_tanah ? Number(form.luas_tanah) : null,
     luas_bangunan: form.luas_bangunan ? Number(form.luas_bangunan) : null,
     kondisi_asset: form.kondisi_asset, nilai_appraisal: form.nilai_appraisal ? Number(form.nilai_appraisal) : null,
@@ -197,6 +216,73 @@ export default function AddAsset() {
       toast(e.message || "Upload gagal", "error");
     } finally {
       setBusy(false);
+    }
+  };
+
+  // ---- Koordinat: GPS saat ini (permission flow: check -> explain -> request -> settings) ----
+  const useCurrentLocation = async () => {
+    setLocating(true);
+    try {
+      let perm = await Location.getForegroundPermissionsAsync();
+      if (!perm.granted) {
+        if (!perm.canAskAgain) {
+          const r = await confirm({ title: "Izin Lokasi Diblokir", message: "Aktifkan izin lokasi di Pengaturan agar titik asset bisa diambil otomatis dari GPS.", confirmText: "Buka Pengaturan" });
+          if (r.ok) Linking.openSettings();
+          return;
+        }
+        const r = await confirm({ title: "Izinkan Akses Lokasi", message: "Lokasi Anda dipakai satu kali untuk menandai titik asset di peta, memudahkan pembeli menemukan lokasi.", confirmText: "Lanjutkan" });
+        if (!r.ok) return;
+        perm = await Location.requestForegroundPermissionsAsync();
+        if (!perm.granted) { toast("Izin lokasi ditolak. Anda tetap bisa mengisi koordinat manual atau ketuk peta.", "error"); return; }
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      set("latitude", pos.coords.latitude.toFixed(6));
+      set("longitude", pos.coords.longitude.toFixed(6));
+      toast("Koordinat diambil dari GPS", "success");
+    } catch {
+      toast("Tidak dapat mengambil lokasi. Coba ketuk peta atau isi manual.", "error");
+    } finally {
+      setLocating(false);
+    }
+  };
+
+  // ---- Dokumen legal privat ----
+  const pickDocument = async () => {
+    if (!assetId) { toast("Simpan data dulu", "error"); return; }
+    const res = await DocumentPicker.getDocumentAsync({ type: ["application/pdf", "image/jpeg", "image/png"], copyToCacheDirectory: true, multiple: false });
+    if (res.canceled || !res.assets?.length) return;
+    const f = res.assets[0];
+    if ((f.size || 0) > 20 * 1024 * 1024) { toast("Ukuran dokumen maksimal 20MB", "error"); return; }
+    setBusy(true);
+    try {
+      const fd = new FormData();
+      const type = f.mimeType || (f.name?.toLowerCase().endsWith(".pdf") ? "application/pdf" : "image/jpeg");
+      if (Platform.OS === "web") {
+        const blob = f.file || (await (await fetch(f.uri)).blob());
+        fd.append("file", blob, f.name);
+      } else {
+        fd.append("file", { uri: f.uri, name: f.name, type } as any);
+      }
+      fd.append("jenis", docType);
+      const d = await apiForm(`/assets/${assetId}/documents`, fd);
+      setDocs((x) => [...x, d]);
+      toast("Dokumen tersimpan (privat)", "success");
+    } catch (e: any) {
+      toast(e.message || "Upload dokumen gagal", "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const removeDocument = async (d: any) => {
+    const r = await confirm({ title: "Hapus Dokumen", message: `Hapus "${d.nama_file}" dari asset ini?`, tone: "danger", confirmText: "Hapus" });
+    if (!r.ok) return;
+    try {
+      await apiDelete(`/assets/${assetId}/documents/${d.id}`);
+      setDocs((x) => x.filter((y) => y.id !== d.id));
+      toast("Dokumen dihapus", "success");
+    } catch (e: any) {
+      toast(e.message || "Gagal menghapus", "error");
     }
   };
 
@@ -291,14 +377,45 @@ export default function AddAsset() {
 
           {step === 1 && (
             <>
-              <Field label="Provinsi" required value={form.provinsi} onChangeText={(t) => set("provinsi", t)} error={errors.provinsi} testID="field-provinsi" />
-              <Field label="Kabupaten / Kota" required value={form.kabupaten_kota} onChangeText={(t) => set("kabupaten_kota", t)} error={errors.kabupaten_kota} testID="field-kabkota" />
-              <Field label="Kecamatan" required value={form.kecamatan} onChangeText={(t) => set("kecamatan", t)} error={errors.kecamatan} testID="field-kecamatan" />
+              <LocationPicker
+                value={{ provinsi: form.provinsi, kabupaten_kota: form.kabupaten_kota, kecamatan: form.kecamatan, wilayah_level_4: form.wilayah_level_4 }}
+                onChange={(patch) => setForm((f) => ({ ...f, ...patch }))}
+                errors={errors}
+                level4Label={form.tipe_wilayah}
+              />
               <Select label="Tipe Wilayah Terendah" value={form.tipe_wilayah}
                 options={["Kelurahan", "Desa", "Nagari"].map((v) => ({ value: v, label: v }))}
                 onChange={(v) => set("tipe_wilayah", v)} />
-              <Field label={`${form.tipe_wilayah}`} required value={form.wilayah_level_4} onChangeText={(t) => set("wilayah_level_4", t)} error={errors.wilayah_level_4} testID="field-kelurahan" />
               <Field label="Alamat Lengkap" required multiline value={form.alamat} onChangeText={(t) => set("alamat", t)} error={errors.alamat} testID="field-alamat" />
+
+              <Text style={s.sectionTitle}>Titik Lokasi (Peta)</Text>
+              <Text style={s.hint}>Opsional namun sangat disarankan. Ketuk peta, geser pin, atau gunakan GPS agar pembeli melihat lokasi persis.</Text>
+              <AssetMap
+                latitude={form.latitude.trim() ? Number(form.latitude) : null}
+                longitude={form.longitude.trim() ? Number(form.longitude) : null}
+                height={240} editable
+                onChange={(lat, lng) => setForm((f) => ({ ...f, latitude: String(lat), longitude: String(lng) }))}
+                testID="map-picker"
+              />
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Field label="Latitude" value={form.latitude} onChangeText={(t) => set("latitude", t)} keyboardType="numbers-and-punctuation" placeholder="-6.2000" testID="field-latitude" />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Field label="Longitude" value={form.longitude} onChangeText={(t) => set("longitude", t)} keyboardType="numbers-and-punctuation" placeholder="106.8166" testID="field-longitude" />
+                </View>
+              </View>
+              {errors.koordinat && <Text style={s.err}>{errors.koordinat}</Text>}
+              <View style={{ flexDirection: "row", gap: spacing.sm }}>
+                <View style={{ flex: 1 }}>
+                  <Button title="Gunakan Lokasi Saat Ini" icon="crosshair" variant="outline" onPress={useCurrentLocation} loading={locating} testID="use-gps-button" />
+                </View>
+                {(form.latitude || form.longitude) ? (
+                  <Pressable style={s.clearCoord} onPress={() => { set("latitude", ""); set("longitude", ""); }} testID="clear-coord">
+                    <Icon name="x" size={18} color={colors.muted} />
+                  </Pressable>
+                ) : null}
+              </View>
             </>
           )}
 
@@ -349,6 +466,31 @@ export default function AddAsset() {
 
           {step === 4 && (
             <>
+              <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
+                <Text style={s.sectionTitle}>Dokumen Legal</Text>
+                <View style={s.privBadge}><Icon name="lock" size={11} color={colors.onSurfaceSecondary} /><Text style={s.privTxt}>Privat • Internal</Text></View>
+              </View>
+              <Text style={s.hint}>Sertifikat, IMB/PBG, BPKB, dsb. Hanya dapat diakses tim internal (Marketing, ACRM, Admin RCG) — tidak pernah tampil di katalog publik. PDF/JPG/PNG maks 20MB.</Text>
+              {docs.map((d) => (
+                <View key={d.id} style={s.docRow} testID={`doc-row-${d.id}`}>
+                  <View style={s.docIcon}><Icon name={d.content_type === "application/pdf" ? "file-text" : "image"} size={18} color={colors.brandPrimary} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.docName} numberOfLines={1}>{d.nama_file}</Text>
+                    <Text style={s.docMeta}>{d.jenis_dokumen} • {fileSize(d.size)}</Text>
+                  </View>
+                  <Pressable onPress={() => removeDocument(d)} hitSlop={8} testID={`doc-delete-${d.id}`}>
+                    <Icon name="trash-2" size={18} color={colors.error} />
+                  </Pressable>
+                </View>
+              ))}
+              {docs.length === 0 && <Text style={[s.hint, { fontStyle: "italic" }]}>Belum ada dokumen. Dokumen bersifat opsional.</Text>}
+              <Select label="Jenis Dokumen" testID="select-doc-type" value={docType} options={DOC_TYPES.map((v) => ({ value: v, label: v }))} onChange={setDocType} />
+              <Button title="Pilih & Upload Dokumen" icon="upload" variant="outline" onPress={pickDocument} loading={busy} testID="add-document-button" />
+            </>
+          )}
+
+          {step === 5 && (
+            <>
               <Text style={s.sectionTitle}>Jadwal Lelang (Opsional)</Text>
               <Pressable style={s.toggle} onPress={() => setHasSchedule(!hasSchedule)} testID="toggle-schedule">
                 <View style={[s.checkbox, hasSchedule && s.checkboxOn]}>{hasSchedule && <Icon name="check" size={14} color="#FFF" />}</View>
@@ -372,15 +514,17 @@ export default function AddAsset() {
             </>
           )}
 
-          {step === 5 && (
+          {step === 6 && (
             <>
               <Text style={s.sectionTitle}>Review & Submit</Text>
               <View style={s.reviewCard}>
                 <ReviewRow label="Judul" value={form.judul_asset} />
                 <ReviewRow label="Kategori" value={catName + (subCats.find((c: any) => c.id === form.id_subcategory)?.nama_category ? " • " + subCats.find((c: any) => c.id === form.id_subcategory)?.nama_category : "")} />
                 <ReviewRow label="Lokasi" value={[form.wilayah_level_4, form.kecamatan, form.kabupaten_kota, form.provinsi].filter(Boolean).join(", ")} />
+                <ReviewRow label="Koordinat" value={form.latitude && form.longitude ? `${form.latitude}, ${form.longitude}` : "Belum diisi"} />
                 <ReviewRow label="Harga Limit" value={rupiah(Number(form.harga_limit))} />
                 <ReviewRow label="Foto" value={`${images.length} foto`} />
+                <ReviewRow label="Dokumen Legal" value={`${docs.length} dokumen (privat)`} />
                 <ReviewRow label="Jadwal Lelang" value={hasSchedule ? tanggal : "Belum ada"} />
               </View>
               <View style={s.infoBanner}>
@@ -436,6 +580,13 @@ const useStyles = makeStyles((c) => ({
   utamaTxt: { color: "#FFF", fontSize: 10, fontWeight: "800" },
   addImg: { width: 100, height: 100, borderRadius: radius.md, borderWidth: 1.5, borderStyle: "dashed", borderColor: c.brandPrimary, alignItems: "center", justifyContent: "center", gap: 4 },
   addImgTxt: { fontSize: 11, color: c.brandPrimary, fontWeight: "700" },
+  clearCoord: { width: 50, height: 50, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, alignItems: "center", justifyContent: "center", backgroundColor: c.surfaceSecondary },
+  privBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.surfaceTertiary, paddingHorizontal: 8, height: 24, borderRadius: radius.pill },
+  privTxt: { fontSize: 11, fontWeight: "700", color: c.onSurfaceSecondary },
+  docRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, padding: spacing.md },
+  docIcon: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: c.brandTertiary, alignItems: "center", justifyContent: "center" },
+  docName: { fontSize: 14, fontWeight: "700", color: c.onSurface },
+  docMeta: { fontSize: 12, color: c.muted, marginTop: 2 },
   toggle: { flexDirection: "row", alignItems: "center", gap: spacing.sm },
   checkbox: { width: 24, height: 24, borderRadius: 6, borderWidth: 2, borderColor: c.borderStrong, alignItems: "center", justifyContent: "center" },
   checkboxOn: { backgroundColor: c.brandPrimary, borderColor: c.brandPrimary },

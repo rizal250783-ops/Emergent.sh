@@ -399,9 +399,94 @@ async def public_detail(asset_id: str):
         raise HTTPException(404, "Asset tidak ditemukan")
     return await asset_public_view(clean(a))
 
+@api.get("/public/locations")
+async def public_locations(provinsi: Optional[str] = None, kabupaten_kota: Optional[str] = None,
+    kecamatan: Optional[str] = None):
+    """Cascading location options derived from published assets only (no empty results)."""
+    match = {"status": {"$in": ASSET_PUBLIC_STATUSES}, "public_ready": True, "deleted_at": None}
+    if not provinsi:
+        field = "provinsi"
+    elif not kabupaten_kota:
+        match["provinsi"] = provinsi; field = "kabupaten_kota"
+    elif not kecamatan:
+        match["provinsi"] = provinsi; match["kabupaten_kota"] = kabupaten_kota; field = "kecamatan"
+    else:
+        match["provinsi"] = provinsi; match["kabupaten_kota"] = kabupaten_kota
+        match["kecamatan"] = kecamatan; field = "wilayah_level_4"
+    values = await db.assets.distinct(field, match)
+    return {"level": field, "options": sorted([v for v in values if v])}
+
+# =================== WILAYAH (administrative reference, cached proxy) ===================
+WILAYAH_SRC = "https://www.emsifa.com/api-wilayah-indonesia/api"
+_KEEP_UPPER = {"DKI", "DI", "KEP.", "KEP"}
+
+def title_wilayah(name: str) -> str:
+    out = []
+    for w in (name or "").split():
+        out.append(w if w in _KEEP_UPPER else w.capitalize())
+    return " ".join(out)
+
+def fetch_wilayah(kind: str, parent_id: Optional[str]):
+    url = f"{WILAYAH_SRC}/{kind}.json" if kind == "provinces" else f"{WILAYAH_SRC}/{kind}/{parent_id}.json"
+    r = requests.get(url, timeout=20)
+    r.raise_for_status()
+    return r.json()
+
+async def wilayah_list(kind: str, parent_id: Optional[str] = None):
+    key = f"{kind}:{parent_id or 'root'}"
+    cached = await db.wilayah_cache.find_one({"_id": key})
+    if cached:
+        return cached["items"]
+    try:
+        raw = await run_in_threadpool(fetch_wilayah, kind, parent_id)
+    except Exception as e:
+        logger.warning(f"wilayah fetch failed {key}: {e}")
+        raise HTTPException(503, "Data wilayah sementara tidak tersedia. Coba lagi.")
+    items = [{"id": x["id"], "name": title_wilayah(x["name"])} for x in raw]
+    await db.wilayah_cache.update_one({"_id": key}, {"$set": {"items": items, "cached_at": now_iso()}}, upsert=True)
+    return items
+
+@api.get("/wilayah/provinces")
+async def wilayah_provinces():
+    return await wilayah_list("provinces")
+
+@api.get("/wilayah/regencies/{province_id}")
+async def wilayah_regencies(province_id: str):
+    return await wilayah_list("regencies", province_id)
+
+@api.get("/wilayah/districts/{regency_id}")
+async def wilayah_districts(regency_id: str):
+    return await wilayah_list("districts", regency_id)
+
+@api.get("/wilayah/villages/{district_id}")
+async def wilayah_villages(district_id: str):
+    return await wilayah_list("villages", district_id)
+
 # =================== FILE ===================
+@api.get("/files/private/{doc_id}")
+async def serve_private_file(doc_id: str, token: str = Query(...)):
+    """Signed-URL access for private legal documents (short-lived token)."""
+    try:
+        payload = jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+    except jwt.PyJWTError:
+        raise HTTPException(401, "Tautan tidak valid atau sudah kadaluarsa")
+    if payload.get("typ") != "doc" or payload.get("doc") != doc_id:
+        raise HTTPException(401, "Tautan tidak valid")
+    d = await db.asset_documents.find_one({"id": doc_id, "deleted_at": None})
+    if not d:
+        raise HTTPException(404, "Dokumen tidak ditemukan")
+    try:
+        content, ctype = await run_in_threadpool(get_object, d["storage_path"])
+    except Exception:
+        raise HTTPException(404, "File tidak ditemukan")
+    disp = "inline" if ctype.startswith("image/") or ctype == "application/pdf" else "attachment"
+    return FastResponse(content=content, media_type=ctype,
+        headers={"Content-Disposition": f'{disp}; filename="{d["nama_file"]}"'})
+
 @api.get("/files/{path:path}")
 async def serve_file(path: str):
+    if "/private/" in f"/{path}":
+        raise HTTPException(403, "Dokumen ini bersifat privat")
     try:
         content, ctype = await run_in_threadpool(get_object, path)
     except Exception:
@@ -558,10 +643,18 @@ async def asset_internal_view(a):
 
 @api.get("/assets/{asset_id}")
 async def get_asset_internal(asset_id: str, user=Depends(current_user)):
+    a = await assert_asset_access(asset_id, user)
+    v = await asset_internal_view(clean(a))
+    logs = [clean(l) async for l in db.approval_logs.find({"asset_id": asset_id}).sort("timestamp", 1)]
+    v["approval_history"] = logs
+    v["documents"] = [doc_view(d) async for d in db.asset_documents.find({"id_asset": asset_id, "deleted_at": None}).sort("created_at", 1)]
+    return v
+
+async def assert_asset_access(asset_id: str, user):
+    """Internal access control: MA owner, ACRM of same ACR, or Admin RCG."""
     a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
     if not a:
         raise HTTPException(404, "Asset tidak ditemukan")
-    # access control
     if user["role"] == "marketing_asset":
         ma = await db.master_marketing_asset.find_one({"id": (await db.users.find_one({"id": user["id"]}))["ref_id"]})
         if not ma or a["id_marketing_asset"] != ma["id"]:
@@ -570,10 +663,64 @@ async def get_asset_internal(asset_id: str, user=Depends(current_user)):
         acrm = await db.master_acrm.find_one({"id": (await db.users.find_one({"id": user["id"]}))["ref_id"]})
         if not acrm or a["id_acr"] != acrm["id_acr"]:
             raise HTTPException(403, "Anda tidak memiliki akses ke asset ini")
-    v = await asset_internal_view(clean(a))
-    logs = [clean(l) async for l in db.approval_logs.find({"asset_id": asset_id}).sort("timestamp", 1)]
-    v["approval_history"] = logs
-    return v
+    return a
+
+# ---------- Private legal documents (internal only) ----------
+DOC_TYPES = {"application/pdf": "pdf", "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png"}
+DOC_EDITABLE_STATUSES = ["DRAFT", "RETURN_TO_MARKETING", "RETURN_FROM_RCG", "PUBLISHED", "SOLD"]
+
+def doc_view(d):
+    d = clean(d)
+    d.pop("storage_path", None)
+    return d
+
+@api.post("/assets/{asset_id}/documents")
+async def upload_document(asset_id: str, file: UploadFile = File(...), jenis: str = Form("Sertifikat"),
+    user=Depends(require("marketing_asset"))):
+    a = await assert_asset_access(asset_id, user)
+    if file.content_type not in DOC_TYPES:
+        raise HTTPException(400, "Format tidak didukung. Gunakan PDF, JPG atau PNG.")
+    data = await file.read()
+    if len(data) > 20 * 1024 * 1024:
+        raise HTTPException(400, "Ukuran dokumen maksimal 20MB")
+    ext = DOC_TYPES[file.content_type]
+    path = f"{APP_NAME}/private/{asset_id}/{new_id()}.{ext}"
+    await run_in_threadpool(put_object, path, data, file.content_type)
+    d = {"id": new_id(), "id_asset": asset_id, "nama_file": file.filename or f"dokumen.{ext}",
+         "jenis_dokumen": jenis, "content_type": file.content_type, "size": len(data),
+         "storage_path": path, "is_public": False, "uploaded_by": user["id"],
+         "uploaded_by_nama": a.get("pic_nama"), "created_at": now_iso(), "deleted_at": None}
+    await db.asset_documents.insert_one(d)
+    await audit(user, "UPLOAD_DOCUMENT", "asset_documents", d["id"], after={"asset": asset_id, "jenis": jenis, "nama_file": d["nama_file"]})
+    return doc_view(d)
+
+@api.get("/assets/{asset_id}/documents")
+async def list_documents(asset_id: str, user=Depends(current_user)):
+    await assert_asset_access(asset_id, user)
+    return [doc_view(d) async for d in db.asset_documents.find({"id_asset": asset_id, "deleted_at": None}).sort("created_at", 1)]
+
+@api.get("/assets/{asset_id}/documents/{doc_id}/link")
+async def document_link(asset_id: str, doc_id: str, user=Depends(current_user)):
+    await assert_asset_access(asset_id, user)
+    d = await db.asset_documents.find_one({"id": doc_id, "id_asset": asset_id, "deleted_at": None})
+    if not d:
+        raise HTTPException(404, "Dokumen tidak ditemukan")
+    token = jwt.encode({"typ": "doc", "doc": doc_id, "uid": user["id"],
+        "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}, JWT_SECRET, algorithm=JWT_ALG)
+    await audit(user, "VIEW_DOCUMENT", "asset_documents", doc_id)
+    return {"url": f"/api/files/private/{doc_id}?token={token}", "expires_in": 600}
+
+@api.delete("/assets/{asset_id}/documents/{doc_id}")
+async def delete_document(asset_id: str, doc_id: str, user=Depends(require("marketing_asset"))):
+    a = await assert_asset_access(asset_id, user)
+    if a["status"] not in DOC_EDITABLE_STATUSES:
+        raise HTTPException(400, "Asset sedang dalam proses review, dokumen tidak dapat dihapus")
+    r = await db.asset_documents.update_one({"id": doc_id, "id_asset": asset_id, "deleted_at": None},
+        {"$set": {"deleted_at": now_iso(), "deleted_by": user["id"]}})
+    if r.matched_count == 0:
+        raise HTTPException(404, "Dokumen tidak ditemukan")
+    await audit(user, "DELETE_DOCUMENT", "asset_documents", doc_id)
+    return {"ok": True}
 
 @api.post("/assets/{asset_id}/images")
 async def upload_image(asset_id: str, file: UploadFile = File(...), jenis: str = Form("tambahan"),

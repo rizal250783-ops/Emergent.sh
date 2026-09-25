@@ -34,9 +34,17 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Concurrency: 409 on stale approval; optimistic status checks.
 - Validated by testing agent: 37/37 backend tests + frontend smoke passed.
 
+## Implemented (Iteration 2, 2026-06)
+- Cascading location filter (Provinsi->Kab/Kota->Kecamatan->Kelurahan) in public catalog; options derived from published assets (GET /api/public/locations). Location pill to clear.
+- Wilayah reference data proxy (emsifa, cached in Mongo `wilayah_cache`): /api/wilayah/*; Add Asset wizard Lokasi step uses searchable cascading Selects (LocationPicker).
+- Asset map: Leaflet/OpenStreetMap (WebView native, iframe web) on public + internal detail with "Buka di Google Maps"; wizard has tap/drag map picker, lat/lng fields, GPS button (expo-location, permission flow + open settings).
+- Share asset: native OS share sheet; web sheet with WhatsApp / copy link (expo-clipboard). Buttons on catalog cards, public detail, internal detail (published assets). Link = <backend>/asset/<id>.
+- Private legal documents: asset_documents collection, stored under `<app>/private/` in Object Storage; upload/list/delete by MA, view by MA owner/ACRM same ACR/RCG via signed URL (10 min JWT) at /api/files/private/{doc}?token=. Public file route rejects /private/ paths. Wizard step "Dokumen" (7 steps now). Internal detail lists documents with lock badge.
+- Demo assets: coordinates + 4-5 photos each (swipeable gallery).
+- Validated by testing agent: 26/26 backend tests + frontend flows passed.
+
 ## Backlog / Remaining
-- P1: Full cascading location filters (Provinsi->Kab->Kec->Kelurahan dependent dropdowns) using administrative-region reference data; currently provinsi + keyword.
-- P1: Private legal document upload with signed-URL access (photos done).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.
 - P2: SOLD status transition UI; category edit rename UI.
 - P2: Confirm/refresh placeholder (NOPE) data before go-live.
+- P3: Split server.py into routers; align demo KPKNL with each asset's province.

@@ -42,6 +42,13 @@ export function formatDateTime(iso?: string | null): string {
 }
 
 // status -> { label, tone }
+export function fileSize(bytes?: number | null): string {
+  if (!bytes) return "0 KB";
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+
 export type Tone = "success" | "warning" | "error" | "info" | "brand" | "neutral";
 
 export const STATUS_META: Record<string, { label: string; tone: Tone }> = {

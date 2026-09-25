@@ -46,6 +46,16 @@ export async function apiForm(path: string, form: FormData) {
   return handle(r);
 }
 
+export async function apiDelete(path: string) {
+  const r = await fetch(`${BASE}${path}`, { method: "DELETE", headers: { ...(await authHeader()) } });
+  return handle(r);
+}
+
+/** Public web link to an asset detail page (used for sharing). */
+export function publicAssetLink(id: string): string {
+  return `${process.env.EXPO_PUBLIC_BACKEND_URL}/asset/${id}`;
+}
+
 async function handle(r: Response) {
   let data: any = null;
   const text = await r.text();

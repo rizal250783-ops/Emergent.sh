@@ -1,5 +1,5 @@
 import React from "react";
-import { View, Text, ScrollView, Dimensions, Pressable } from "react-native";
+import { View, Text, ScrollView, Dimensions, Pressable, Linking, ActivityIndicator } from "react-native";
 import { Image } from "expo-image";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -7,10 +7,12 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeStyles, useTheme } from "@/src/theme";
 import { apiGet, apiPost, fileUrl } from "@/src/api";
 import { useAuth } from "@/src/auth";
-import { rupiah, formatDate, formatDateTime, statusMeta } from "@/src/format";
+import { rupiah, formatDate, formatDateTime, statusMeta, fileSize } from "@/src/format";
 import { ScreenHeader, Badge, Loading, ErrorState, Button, Card, Icon, spacing, radius } from "@/src/components/ui";
 import { useToast } from "@/src/components/toast";
 import { useConfirm } from "@/src/components/confirm";
+import { useShareAsset } from "@/src/components/share";
+import { AssetMap } from "@/src/components/asset-map";
 
 const { width } = Dimensions.get("window");
 
@@ -25,6 +27,20 @@ export default function InternalDetail() {
   const confirm = useConfirm();
   const qc = useQueryClient();
   const [busy, setBusy] = React.useState(false);
+  const [openingDoc, setOpeningDoc] = React.useState<string | null>(null);
+  const { share, sheet } = useShareAsset();
+
+  const openDoc = async (d: any) => {
+    setOpeningDoc(d.id);
+    try {
+      const r = await apiGet(`/assets/${id}/documents/${d.id}/link`);
+      await Linking.openURL(fileUrl(r.url) as string);
+    } catch (e: any) {
+      toast(e.message || "Gagal membuka dokumen", "error");
+    } finally {
+      setOpeningDoc(null);
+    }
+  };
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: ["asset-internal", id],
@@ -88,7 +104,12 @@ export default function InternalDetail() {
   return (
     <View style={s.screen}>
       <View style={{ paddingTop: insets.top }}>
-        <ScreenHeader title="Detail Asset" subtitle={data.nomor_asset} onBack={() => router.back()} />
+        <ScreenHeader title="Detail Asset" subtitle={data.nomor_asset} onBack={() => router.back()}
+          right={data.status === "PUBLISHED" || data.status === "SOLD" ? (
+            <Pressable onPress={() => share(data)} style={s.headerShare} testID="share-button">
+              <Icon name="share-2" size={20} color={colors.onBrandPrimary} />
+            </Pressable>
+          ) : undefined} />
       </View>
       <ScrollView contentContainerStyle={{ paddingBottom: hasActions ? 120 : insets.bottom + 24 }} showsVerticalScrollIndicator={false}>
         {images.length > 0 ? (
@@ -127,8 +148,40 @@ export default function InternalDetail() {
             {data.nilai_appraisal != null && <Info label="Nilai Appraisal" value={rupiah(data.nilai_appraisal)} />}
           </Card>
 
+          <Text style={s.section}>Peta Lokasi</Text>
+          {data.latitude != null && data.longitude != null ? (
+            <AssetMap latitude={data.latitude} longitude={data.longitude} height={200} testID="asset-map" />
+          ) : (
+            <View style={s.noMap} testID="asset-map-empty">
+              <Icon name="map" size={20} color={colors.muted} />
+              <Text style={s.noMapTxt}>Titik koordinat belum diisi{maCanEdit ? ". Tambahkan lewat Edit → Lokasi." : "."}</Text>
+            </View>
+          )}
+
           <Text style={s.section}>Deskripsi</Text>
           <Text style={s.desc}>{data.deskripsi}</Text>
+
+          {/* Private legal documents (internal only) */}
+          <View style={s.docHead}>
+            <Text style={s.section}>Dokumen Legal</Text>
+            <View style={s.privBadge}><Icon name="lock" size={11} color={colors.onSurfaceSecondary} /><Text style={s.privTxt}>Privat • Internal</Text></View>
+          </View>
+          <Card testID="documents-card">
+            {(data.documents || []).length === 0 ? (
+              <Text style={{ color: colors.muted }}>Belum ada dokumen legal.{maCanEdit ? " Tambahkan lewat Edit → Dokumen." : ""}</Text>
+            ) : (
+              (data.documents || []).map((d: any) => (
+                <Pressable key={d.id} style={s.docRow} onPress={() => openDoc(d)} testID={`doc-${d.id}`}>
+                  <View style={s.docIcon}><Icon name={d.content_type === "application/pdf" ? "file-text" : "image"} size={18} color={colors.brandPrimary} /></View>
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.docName} numberOfLines={1}>{d.nama_file}</Text>
+                    <Text style={s.docMeta}>{d.jenis_dokumen} • {fileSize(d.size)} • {formatDate(d.created_at)}</Text>
+                  </View>
+                  {openingDoc === d.id ? <ActivityIndicator size="small" color={colors.brandPrimary} /> : <Icon name="external-link" size={16} color={colors.muted} />}
+                </Pressable>
+              ))
+            )}
+          </Card>
 
           <Card>
             <Info label="ACR" value={data.acr_nama} />
@@ -192,6 +245,7 @@ export default function InternalDetail() {
           )}
         </View>
       )}
+      {sheet}
     </View>
   );
 }
@@ -221,6 +275,16 @@ const useStyles = makeStyles((c) => ({
   noteTitle: { fontSize: 13, fontWeight: "800", color: c.error },
   noteTxt: { fontSize: 13, color: "#7F1D1D", lineHeight: 19 },
   section: { fontSize: 15, fontWeight: "800", color: c.onSurface, marginTop: spacing.md },
+  headerShare: { width: 40, height: 40, borderRadius: 20, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center" },
+  noMap: { flexDirection: "row", alignItems: "center", gap: spacing.md, backgroundColor: c.surfaceTertiary, borderRadius: radius.md, padding: spacing.md },
+  noMapTxt: { flex: 1, fontSize: 13, color: c.muted, lineHeight: 18 },
+  docHead: { flexDirection: "row", alignItems: "flex-end", justifyContent: "space-between", gap: spacing.sm },
+  privBadge: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: c.surfaceTertiary, paddingHorizontal: 8, height: 24, borderRadius: radius.pill },
+  privTxt: { fontSize: 11, fontWeight: "700", color: c.onSurfaceSecondary },
+  docRow: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: c.divider },
+  docIcon: { width: 40, height: 40, borderRadius: radius.sm, backgroundColor: c.brandTertiary, alignItems: "center", justifyContent: "center" },
+  docName: { fontSize: 14, fontWeight: "700", color: c.onSurface },
+  docMeta: { fontSize: 12, color: c.muted, marginTop: 2 },
   desc: { fontSize: 14, color: c.onSurfaceSecondary, lineHeight: 21 },
   infoRow: { flexDirection: "row", justifyContent: "space-between", gap: spacing.md, paddingVertical: 5, borderBottomWidth: 1, borderBottomColor: c.divider },
   infoLabel: { fontSize: 13, color: c.muted, flexShrink: 0 },

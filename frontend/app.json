@@ -11,7 +11,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.emergent.mobileappbuild.lqbqqz",
       "infoPlist": {
-        "NSPhotoLibraryUsageDescription": "Pilih foto asset untuk katalog lelang"
+        "NSPhotoLibraryUsageDescription": "Pilih foto asset untuk katalog lelang",
+        "NSLocationWhenInUseUsageDescription": "Tandai titik lokasi asset di peta secara otomatis"
       }
     },
     "android": {
@@ -20,7 +21,7 @@
         "backgroundColor": "#00A0A0"
       },
       "package": "com.emergent.mobileappbuild.lqbqqz",
-      "permissions": ["READ_MEDIA_IMAGES"]
+      "permissions": ["READ_MEDIA_IMAGES", "ACCESS_COARSE_LOCATION", "ACCESS_FINE_LOCATION"]
     },
     "web": {
       "bundler": "metro",

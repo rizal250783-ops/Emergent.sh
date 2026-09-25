@@ -1,0 +1,34 @@
+{
+  "summary": "Iteration 2 testing PASSED. Backend: 26/26 pytest cases green in /app/backend/tests/test_iteration2.py covering (a) cascading GET /api/public/locations at all 4 levels including DKI Jakarta > Kota Jakarta Utara > Kelapa Gading > Kelapa Gading Barat, (b) GET /api/public/catalog with 4-level filter returns >=1 item with latitude/longitude and NO 'documents' key, (c) /api/wilayah/{provinces,regencies/31,districts/3171,villages/3171010} all 200 with title-cased names ('DKI Jakarta','Jawa Barat'), cache warm second call OK, (d) private legal docs full flow: POST /api/assets/{id}/documents with PDF returns is_public=false, no storage_path; text/plain -> 400; list, signed-URL link starts with /api/files/private/, followed URL returns application/pdf with %PDF magic; bad token -> 401; /api/files/bsi-asset-deal/private/anything.pdf -> 403; internal GET /api/assets/{id} exposes documents[] without storage_path; public /catalog/{id} still has no 'documents' key; ACRM same ACR (BANDA ACEH) 200, ACRM other ACR (PADANG) 403, Admin 200, ACRM POST -> 403, unauth GET -> 401; DELETE -> ok and list empty, (e) PUT /api/assets/{id} latitude/longitude persist and reflect on internal + public views. Frontend (390x844 web preview): public catalog card share-card-<id> opens custom sheet with share-whatsapp + share-copy; Salin Tautan shows 'Tautan disalin' toast. Filter modal cascade filter-provinsi -> filter-kabkota -> filter-kecamatan -> filter-kelurahan chosen for DKI Jakarta path yields '1 asset tersedia', filter badge '4', clear-location-filter pill; clearing pill returns to '7 asset tersedia'. Asset detail page /asset/<id> renders asset-map (iframe) + open-maps-button + share-button (top) + share-button-bottom, both open share sheet. Wizard /add?edit=<id> as MA (NIP 2190020284): Lokasi step shows pre-filled Aceh / Kota Banda Aceh / Baiturrahman / Ateuk Pahlawan with 'Cari...' search modal; map-picker visible; field-latitude=-6.2 field-longitude=106.8. Dokumen step 5/7 shows 'Privat • Internal' badge, select-doc-type, add-document-button. Review step shows 'Koordinat -6.2, 106.8' and 'Dokumen Legal' rows. Internal /detail/{id} shows 'Peta Lokasi' map, 'Dokumen Legal' card, 'Privat' badge, share-button. No red screen, no critical console errors (only benign RN web warnings: useNativeDriver, pointerEvents, shadow* deprecations — same as iter 1).",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration2.py",
+    "/app/backend/tests/backend_test.py",
+    "/app/test_reports/pytest/pytest_iter2.xml"
+  ],
+  "action_items": [
+    "None required — iteration 2 fully green. (Optional carry-overs from iter 1: split server.py by router; align demo KPKNL with asset province.)"
+  ],
+  "critical_code_review_comments": [
+    "server.py grew to ~1112 lines; still recommend router split (auth/marketing/acrm/rcg/admin/public/documents/wilayah).",
+    "wilayah_list returns cached items indefinitely (staleTime Infinity on client + no TTL server-side). Fine for MVP but consider a periodic refresh job so admin renames upstream propagate.",
+    "serve_private_file uses JWT with 10-min expiry and no revoke list; acceptable, but a jti/asset match check is not enforced beyond doc id — deleting a document keeps existing tokens usable until expiry. Non-blocking."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration2.py (new)",
+    "/app/test_reports/iteration_2.json (new)",
+    "/app/test_reports/pytest/pytest_iter2.xml (new)"
+  ],
+  "success_rate": { "backend": "100% (26/26 new + 37/37 iter1 unchanged)", "frontend": "100% of iteration-2 flows verified" },
+  "seed_data_creation": "Test uploaded 1 dummy PDF to Banda Aceh MA asset f47c9792-... and deleted it in the same run (cleanup); PUT set that asset's coordinates to (-6.2, 106.8) — visible on internal detail and asset/[id] public detail.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "All new endpoints and UI testIDs are stable. To reproduce quickly: `pytest backend/tests/test_iteration2.py -v` from /app. For UI use viewport 390x844, testIDs are consistent (share-card-<id>, filter-* selects with searchable Cari input, asset-map, open-maps-button, share-button / share-button-bottom, select-provinsi/kabkota/kecamatan/kelurahan, map-picker, field-latitude/longitude, select-doc-type, add-document-button, wizard-next/wizard-submit). Login persists via AsyncStorage key 'bsi_token' (JSON-stringified string) on web.",
+  "rca_of_issue": "No issues found. All four new features (cascading location filter, map, share sheet, private documents) function end-to-end with proper RBAC and public/private data segregation."
+}

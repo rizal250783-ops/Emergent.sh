@@ -9,8 +9,9 @@ import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { makeStyles, useTheme } from "@/src/theme";
 import { apiGet, fileUrl } from "@/src/api";
 import { rupiahShort, formatDate } from "@/src/format";
-import { Icon, Badge, EmptyState, ErrorState, Skeleton, Button, spacing, radius } from "@/src/components/ui";
+import { Icon, Badge, EmptyState, ErrorState, Skeleton, Button, Select, spacing, radius } from "@/src/components/ui";
 import { useAuth } from "@/src/auth";
+import { useShareAsset } from "@/src/components/share";
 
 const LIMIT = 20;
 
@@ -24,8 +25,9 @@ export default function PublicCatalog() {
   const [keyword, setKeyword] = useState("");
   const [search, setSearch] = useState("");
   const [categoryId, setCategoryId] = useState<string | null>(null);
-  const [provinsi, setProvinsi] = useState<string | null>(null);
+  const [loc, setLoc] = useState<Loc>(EMPTY_LOC);
   const [filterOpen, setFilterOpen] = useState(false);
+  const { share, sheet } = useShareAsset();
 
   const { data: filters } = useQuery({
     queryKey: ["public-filters"],
@@ -36,10 +38,10 @@ export default function PublicCatalog() {
     const p = new URLSearchParams();
     if (search) p.set("keyword", search);
     if (categoryId) p.set("category_id", categoryId);
-    if (provinsi) p.set("provinsi", provinsi);
+    (Object.keys(loc) as (keyof Loc)[]).forEach((k) => { if (loc[k]) p.set(k, loc[k]); });
     p.set("limit", String(LIMIT));
     return p.toString();
-  }, [search, categoryId, provinsi]);
+  }, [search, categoryId, loc]);
 
   const {
     data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isRefetching,
@@ -55,7 +57,8 @@ export default function PublicCatalog() {
 
   const items = data?.pages.flatMap((p: any) => p.items) ?? [];
   const total = data?.pages[0]?.total ?? 0;
-  const activeFilters = (categoryId ? 1 : 0) + (provinsi ? 1 : 0);
+  const activeFilters = (categoryId ? 1 : 0) + Object.values(loc).filter(Boolean).length;
+  const locLabel = [loc.wilayah_level_4, loc.kecamatan, loc.kabupaten_kota, loc.provinsi].filter(Boolean).join(", ");
 
   const categories = filters?.categories ?? [];
 
@@ -143,7 +146,7 @@ export default function PublicCatalog() {
           title="Tidak ada asset ditemukan"
           subtitle="Coba ubah kata kunci atau hapus filter."
           action={activeFilters > 0 || search ? (
-            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setProvinsi(null); setKeyword(""); setSearch(""); }} testID="reset-filter-empty" />
+            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setLoc(EMPTY_LOC); setKeyword(""); setSearch(""); }} testID="reset-filter-empty" />
           ) : undefined}
         />
       ) : (
@@ -155,12 +158,21 @@ export default function PublicCatalog() {
           columnWrapperStyle={{ gap: spacing.md, paddingHorizontal: spacing.lg }}
           contentContainerStyle={{ paddingTop: spacing.md, paddingBottom: insets.bottom + spacing.xl, gap: spacing.md }}
           ListHeaderComponent={
-            <Text style={s.resultCount}>{total} asset tersedia</Text>
+            <View style={s.resultHead}>
+              <Text style={s.resultCount}>{total} asset tersedia</Text>
+              {locLabel ? (
+                <Pressable style={s.locPill} onPress={() => setLoc(EMPTY_LOC)} testID="clear-location-filter">
+                  <Icon name="map-pin" size={12} color={colors.brandPrimary} />
+                  <Text style={s.locPillTxt} numberOfLines={1}>{locLabel}</Text>
+                  <Icon name="x" size={12} color={colors.brandPrimary} />
+                </Pressable>
+              ) : null}
+            </View>
           }
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brandPrimary} />}
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.4}
-          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} />}
+          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} />}
           ListFooterComponent={isFetchingNextPage ? <View style={{ padding: 16 }}><Skeleton h={12} w="40%" style={{ alignSelf: "center" }} /></View> : null}
         />
       )}
@@ -168,12 +180,12 @@ export default function PublicCatalog() {
       <FilterModal
         visible={filterOpen}
         onClose={() => setFilterOpen(false)}
-        provinces={filters?.provinsi ?? []}
         categories={categories}
         categoryId={categoryId}
-        provinsi={provinsi}
-        onApply={(c, p) => { setCategoryId(c); setProvinsi(p); setFilterOpen(false); }}
+        loc={loc}
+        onApply={(c: string | null, l: Loc) => { setCategoryId(c); setLoc(l); setFilterOpen(false); }}
       />
+      {sheet}
     </View>
   );
 }
@@ -187,7 +199,7 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
   );
 }
 
-function AssetCard({ item, onPress }: { item: any; onPress: () => void }) {
+function AssetCard({ item, onPress, onShare }: { item: any; onPress: () => void; onShare: () => void }) {
   const s = useStyles();
   const { colors } = useTheme();
   return (
@@ -200,6 +212,9 @@ function AssetCard({ item, onPress }: { item: any; onPress: () => void }) {
             <Text style={s.schedTxt}>Ada Lelang</Text>
           </View>
         )}
+        <Pressable style={s.cardShare} onPress={onShare} hitSlop={6} testID={`share-card-${item.id}`}>
+          <Icon name="share-2" size={14} color={colors.brandPrimary} />
+        </Pressable>
       </View>
       <View style={{ padding: spacing.sm, gap: 4 }}>
         <Text style={s.cardCat}>{item.subkategori || item.kategori}</Text>
@@ -215,12 +230,33 @@ function AssetCard({ item, onPress }: { item: any; onPress: () => void }) {
   );
 }
 
-function FilterModal({ visible, onClose, provinces, categories, categoryId, provinsi, onApply }: any) {
+type Loc = { provinsi: string; kabupaten_kota: string; kecamatan: string; wilayah_level_4: string };
+const EMPTY_LOC: Loc = { provinsi: "", kabupaten_kota: "", kecamatan: "", wilayah_level_4: "" };
+
+function useLocOptions(params: Partial<Loc>, enabled: boolean) {
+  const qs = new URLSearchParams();
+  (Object.keys(params) as (keyof Loc)[]).forEach((k) => { if (params[k]) qs.set(k, params[k] as string); });
+  const q = qs.toString();
+  return useQuery<{ level: string; options: string[] }>({
+    queryKey: ["public-locations", q],
+    queryFn: () => apiGet(`/public/locations${q ? "?" + q : ""}`),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+function FilterModal({ visible, onClose, categories, categoryId, loc, onApply }: any) {
   const s = useStyles();
   const insets = useSafeAreaInsets();
   const [c, setC] = useState<string | null>(categoryId);
-  const [p, setP] = useState<string | null>(provinsi);
-  React.useEffect(() => { setC(categoryId); setP(provinsi); }, [visible]);
+  const [l, setL] = useState<Loc>(loc);
+  React.useEffect(() => { setC(categoryId); setL(loc); }, [visible]);
+
+  const provs = useLocOptions({}, visible);
+  const kabs = useLocOptions({ provinsi: l.provinsi }, visible && !!l.provinsi);
+  const kecs = useLocOptions({ provinsi: l.provinsi, kabupaten_kota: l.kabupaten_kota }, visible && !!l.kabupaten_kota);
+  const kels = useLocOptions({ provinsi: l.provinsi, kabupaten_kota: l.kabupaten_kota, kecamatan: l.kecamatan }, visible && !!l.kecamatan);
+  const opts = (d?: { options: string[] }) => (d?.options || []).map((v) => ({ value: v, label: v }));
 
   return (
     <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
@@ -231,7 +267,7 @@ function FilterModal({ visible, onClose, provinces, categories, categoryId, prov
             <Text style={s.modalTitle}>Filter Asset</Text>
             <Pressable onPress={onClose} testID="close-filter"><Icon name="x" size={22} color="#1F2937" /></Pressable>
           </View>
-          <ScrollView style={{ maxHeight: 460 }} showsVerticalScrollIndicator={false}>
+          <ScrollView style={{ maxHeight: 520 }} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <Text style={s.filterLabel}>Jenis Asset</Text>
             <View style={s.filterChips}>
               <FChip label="Semua" active={!c} onPress={() => setC(null)} />
@@ -239,20 +275,32 @@ function FilterModal({ visible, onClose, provinces, categories, categoryId, prov
                 <FChip key={cat.id} label={cat.nama_category} active={c === cat.id} onPress={() => setC(cat.id)} />
               ))}
             </View>
-            <Text style={s.filterLabel}>Provinsi</Text>
-            <View style={s.filterChips}>
-              <FChip label="Semua" active={!p} onPress={() => setP(null)} />
-              {provinces.map((pr: string) => (
-                <FChip key={pr} label={pr} active={p === pr} onPress={() => setP(pr)} />
-              ))}
+            <Text style={s.filterLabel}>Lokasi</Text>
+            <Text style={s.filterHint}>Saring bertingkat sampai tingkat kelurahan/desa. Hanya wilayah yang memiliki asset yang ditampilkan.</Text>
+            <View style={{ gap: spacing.sm }}>
+              <Select label="Provinsi" searchable testID="filter-provinsi" value={l.provinsi || null} placeholder="Semua provinsi"
+                options={opts(provs.data)} loading={provs.isLoading}
+                onChange={(v) => setL({ provinsi: v, kabupaten_kota: "", kecamatan: "", wilayah_level_4: "" })} />
+              <Select label="Kabupaten / Kota" searchable testID="filter-kabkota" value={l.kabupaten_kota || null}
+                placeholder={l.provinsi ? "Semua kabupaten/kota" : "Pilih provinsi dulu"} disabled={!l.provinsi}
+                options={opts(kabs.data)} loading={kabs.isLoading}
+                onChange={(v) => setL({ ...l, kabupaten_kota: v, kecamatan: "", wilayah_level_4: "" })} />
+              <Select label="Kecamatan" searchable testID="filter-kecamatan" value={l.kecamatan || null}
+                placeholder={l.kabupaten_kota ? "Semua kecamatan" : "Pilih kabupaten/kota dulu"} disabled={!l.kabupaten_kota}
+                options={opts(kecs.data)} loading={kecs.isLoading}
+                onChange={(v) => setL({ ...l, kecamatan: v, wilayah_level_4: "" })} />
+              <Select label="Kelurahan / Desa" searchable testID="filter-kelurahan" value={l.wilayah_level_4 || null}
+                placeholder={l.kecamatan ? "Semua kelurahan/desa" : "Pilih kecamatan dulu"} disabled={!l.kecamatan}
+                options={opts(kels.data)} loading={kels.isLoading}
+                onChange={(v) => setL({ ...l, wilayah_level_4: v })} />
             </View>
           </ScrollView>
           <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
             <View style={{ flex: 1 }}>
-              <Button title="Reset" variant="outline" onPress={() => { setC(null); setP(null); }} testID="filter-reset" />
+              <Button title="Reset" variant="outline" onPress={() => { setC(null); setL(EMPTY_LOC); }} testID="filter-reset" />
             </View>
             <View style={{ flex: 1.4 }}>
-              <Button title="Terapkan" onPress={() => onApply(c, p)} testID="filter-apply" />
+              <Button title="Terapkan" onPress={() => onApply(c, l)} testID="filter-apply" />
             </View>
           </View>
         </View>
@@ -290,7 +338,12 @@ const useStyles = makeStyles((c) => ({
   chipActive: { backgroundColor: "#FFFFFF" },
   chipTxt: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
   chipTxtActive: { color: c.brandPrimary },
-  resultCount: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, color: c.muted, fontSize: 13, fontWeight: "600" },
+  resultHead: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 6 },
+  resultCount: { color: c.muted, fontSize: 13, fontWeight: "600" },
+  locPill: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: c.brandTertiary, paddingHorizontal: 10, height: 30, borderRadius: radius.pill, maxWidth: "100%" },
+  locPillTxt: { color: c.brandPrimary, fontSize: 12, fontWeight: "700", flexShrink: 1 },
+  filterHint: { fontSize: 12, color: c.muted, marginBottom: spacing.sm, marginTop: -4 },
+  cardShare: { position: "absolute", top: 8, right: 8, width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center" },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.md, padding: spacing.lg },
   cardWrap: { flex: 1, backgroundColor: c.surfaceSecondary, borderRadius: radius.md, borderWidth: 1, borderColor: c.border, overflow: "hidden" },
   cardImgWrap: { width: "100%", aspectRatio: 1.2, backgroundColor: c.surfaceTertiary },

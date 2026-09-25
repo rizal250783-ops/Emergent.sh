@@ -101,3 +101,11 @@
 #====================================================================================================
 # Testing Data - Main Agent and testing sub agent both should log testing data below this section
 #====================================================================================================
+## Iteration 2 (2026-06) — Main agent notes
+Features added (need testing):
+1. Cascading location filter (public): GET /api/public/locations?provinsi=&kabupaten_kota=&kecamatan= -> {level, options}; catalog accepts kabupaten_kota, kecamatan, wilayah_level_4 params. FilterModal in app/index.tsx uses Select (testIDs filter-provinsi/filter-kabkota/filter-kecamatan/filter-kelurahan, options testID option-<name>).
+2. Wilayah reference proxy (cached in Mongo wilayah_cache): GET /api/wilayah/provinces, /regencies/{id}, /districts/{id}, /villages/{id}. Used by LocationPicker in Add Asset wizard step Lokasi (testIDs select-provinsi/select-kabkota/select-kecamatan/select-kelurahan).
+3. Map: latitude/longitude on assets; AssetMap (Leaflet/OSM in WebView native, iframe web). Public detail + internal detail show map + "Buka di Google Maps". Wizard has editable map, lat/lng fields (field-latitude/field-longitude), GPS button (use-gps-button).
+4. Share: useShareAsset -> native Share sheet / web ShareSheet (share-whatsapp, share-copy). Buttons: share-button (detail top), share-button-bottom (public detail), share-card-<id> (catalog cards). Link = EXPO_PUBLIC_BACKEND_URL/asset/<id>.
+5. Private documents: POST /api/assets/{id}/documents (MA owner, multipart file+jenis, pdf/jpg/png <=20MB), GET /api/assets/{id}/documents (MA owner/ACRM same ACR/RCG), GET /api/assets/{id}/documents/{doc}/link -> signed url (10 min), GET /api/files/private/{doc}?token=, DELETE /api/assets/{id}/documents/{doc} (MA, editable statuses only). /api/files/{path} returns 403 for any path containing /private/. Public catalog/detail MUST NOT expose documents. Internal GET /api/assets/{id} includes documents[] (without storage_path).
+6. Demo assets re-seeded with coordinates and 4-5 photos each.
