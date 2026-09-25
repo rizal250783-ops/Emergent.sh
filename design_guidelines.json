@@ -1,0 +1,171 @@
+{
+  "app_name": "BSI ASSET DEAL",
+  "personality": "1 iOS-Native Clean",
+  "personality_one_liner": "Professional, trust-instilling enterprise catalog that prioritizes clarity, structural discipline, and high-quality asset presentation without gimmicky colors.",
+  "color": {
+    "surface": "#F7F8FA",
+    "onSurface": "#1F2937",
+    "surfaceSecondary": "#FFFFFF",
+    "onSurfaceSecondary": "#1F2937",
+    "surfaceTertiary": "#E5E7EB",
+    "onSurfaceTertiary": "#1F2937",
+    "surfaceInverse": "#1F2937",
+    "onSurfaceInverse": "#FFFFFF",
+    "brand": "#00A0A0",
+    "brandPrimary": "#00A0A0",
+    "onBrandPrimary": "#FFFFFF",
+    "brandSecondary": "#F0B43C",
+    "onBrandSecondary": "#1F2937",
+    "brandTertiary": "#E6F6F6",
+    "onBrandTertiary": "#007A7A",
+    "success": "#059669",
+    "onSuccess": "#FFFFFF",
+    "warning": "#D97706",
+    "onWarning": "#FFFFFF",
+    "error": "#DC2626",
+    "onError": "#FFFFFF",
+    "info": "#475569",
+    "onInfo": "#FFFFFF",
+    "border": "#E5E7EB",
+    "borderStrong": "#9CA3AF",
+    "divider": "#E5E7EB",
+    "muted": "#6B7280",
+    "onBrand": "#FFFFFF"
+  },
+  "typography": {
+    "displayFontFamily": "Plus Jakarta Sans",
+    "textFontFamily": "Plus Jakarta Sans",
+    "scale": {
+      "sm": 12,
+      "base": 14,
+      "lg": 16,
+      "xl": 20,
+      "2xl": 24
+    }
+  },
+  "spacing": {
+    "rule": "Handle spacing correctly dont have extra spaces where its not required, handle padding and margin corectly and subtle for buttons and components",
+    "xs": 4,
+    "sm": 8,
+    "md": 12,
+    "lg": 16,
+    "xl": 24,
+    "2xl": 32,
+    "3xl": 48
+  },
+  "radius_tokens": {
+    "sm": 6,
+    "md": 12,
+    "lg": 20,
+    "pill": 999
+  },
+  "shadow_tier": "1",
+  "navigation": "bottom_tabs",
+  "icon_set": "Feather",
+  "glassmorphism": {
+    "enabled": "false",
+    "do's": [
+      "Avoid glassmorphism for this enterprise banking app to maintain strict functional clarity and high contrast"
+    ],
+    "dont's": [
+      "Do not use blur or frosted glass over cards, headers, or bottom sheets"
+    ]
+  },
+  "platform_libraries": {
+    "glass": {
+      "ios": "expo-glass-effect",
+      "android": "expo-blur",
+      "low_end_android_fallback": "solid surfaceSecondary"
+    },
+    "image": "expo-image",
+    "blur": "expo-blur",
+    "bottom_sheet": "@gorhom/bottom-sheet",
+    "animation": "react-native-reanimated",
+    "gesture": "react-native-gesture-handler"
+  },
+  "screens": [
+    {
+      "name": "Public Catalog",
+      "purpose": "A browseable, card-based marketplace for prospective buyers to find auction assets.",
+      "states": {
+        "loading": "Skeleton grids representing the property cards.",
+        "empty": "Illustration of a magnifying glass over a house, text 'No assets found', button 'Clear Filters'.",
+        "error": "Text 'Unable to load assets' with 'Retry' button."
+      },
+      "layout": "Sticky search and cascaded location filter pills at the top. Two-column grid of asset cards with edge-to-edge images, bold prices, and gold/orange 'Auction Schedule' status badges overlaid. Key specifications (bedrooms, type) shown via small icons under the price."
+    },
+    {
+      "name": "Asset Detail",
+      "purpose": "Comprehensive view of a single asset leading to a direct WhatsApp contact action.",
+      "states": {
+        "loading": "Skeleton of hero image and text blocks.",
+        "empty": "N/A",
+        "error": "Text 'Asset details unavailable' with 'Go Back' button."
+      },
+      "layout": "Large hero photo gallery at the top (gradient scrim at the bottom). Clean sections for property details, location map, and auction timeline. A persistent, sticky 'Contact PIC (WhatsApp)' button anchored at the bottom inside a safe-area container."
+    },
+    {
+      "name": "Internal Login",
+      "purpose": "Secure entry point for Marketing Asset, ACRM, and Admin RCG roles.",
+      "states": {
+        "loading": "Spinner on the login button.",
+        "empty": "N/A",
+        "error": "Inline text 'Invalid credentials' in error color."
+      },
+      "layout": "Minimalist centered layout on surfaceSecondary. BSI logo at the top. Single-column input fields with labels above. Primary login button at the bottom of the form."
+    },
+    {
+      "name": "Role Dashboard",
+      "purpose": "Hub for internal roles showing quick statistics and their current action queue.",
+      "states": {
+        "loading": "Skeleton statistic cards and list items.",
+        "empty": "Illustration of an empty inbox, text 'All caught up! No assets in queue'.",
+        "error": "Text 'Could not fetch dashboard data' with 'Retry' button."
+      },
+      "layout": "Top section with stat cards (e.g., 'Pending Review', 'Approved', 'Total Published'). Below, a segmented control or tabs for queue status. List view of asset items with strict approval status badges and timeline tracking."
+    },
+    {
+      "name": "Add Asset Wizard",
+      "purpose": "A multi-step form for the Maker role to input new asset details systematically.",
+      "states": {
+        "loading": "Spinner when saving draft or submitting the final step.",
+        "empty": "N/A",
+        "error": "Toast or inline validation errors on required fields."
+      },
+      "layout": "Progress indicator at the top. Each step uses a single-column layout for form inputs (Accordion menus for grouped data). Sticky 'Next'/'Submit' button at the bottom. Use progressive disclosure to prevent overwhelming the user."
+    },
+    {
+      "name": "Approval Review",
+      "purpose": "Screen for Checker/Controller roles to review an asset submission and take action.",
+      "states": {
+        "loading": "Skeleton of asset details.",
+        "empty": "N/A",
+        "error": "Toast message on failed action."
+      },
+      "layout": "Full read-only asset detail view with an added 'Audit Timeline' section showing maker notes. Sticky bottom bar with two primary actions side-by-side: a 'Return' button (secondary/outline) and an 'Approve' button (primary green)."
+    }
+  ],
+  "images": {
+    "bsi_logo": {
+      "url": "https://images.pexels.com/photos/38084080/pexels-photo-38084080.jpeg",
+      "alt": "Bank Syariah Indonesia logo marker"
+    },
+    "property_hero": {
+      "url": "https://images.unsplash.com/photo-1580587771525-78b9dba3b914?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwxfHxtb2Rlcm4lMjBob3VzZSUyMGV4dGVyaW9yJTIwcmVhbCUyMGVzdGF0ZXxlbnwwfHx8fDE3OTAzMjI3NTh8MA&ixlib=rb-4.1.0&q=85",
+      "alt": "Modern house exterior for asset thumbnail"
+    },
+    "vehicle_hero": {
+      "url": "https://images.unsplash.com/photo-1550355291-bbee04a92027?crop=entropy&cs=srgb&fm=jpg&ixid=M3w3NTY2Nzh8MHwxfHNlYXJjaHwyfHx1c2VkJTIwY2FyJTIwYXV0b21vdGl2ZSUyMGV4dGVyaW9yfGVufDB8fHx8MTc5MDMyMjc1OHww&ixlib=rb-4.1.0&q=85",
+      "alt": "Used car exterior for asset thumbnail"
+    }
+  },
+  "instructions_to_main_agent": [
+    "Strictly follow the color palette: Primary is #00A0A0 (Green/Teal), Secondary is #F0B43C (Gold/Orange). Avoid blue everywhere.",
+    "Use 'Plus Jakarta Sans' to maintain a highly readable, professional enterprise aesthetic.",
+    "Implement the Maker-Checker-Controller workflow with distinct role dashboards and explicit approval actions.",
+    "Apply progressive disclosure in the Add Asset Wizard. Avoid long scrolling forms by separating into logical steps (e.g., General, Details, Photos, Pricing).",
+    "Ensure the Public Catalog utilizes a board-style (2-column) card layout with edge-to-edge images and bolded prices to highlight the assets.",
+    "Place a persistent sticky CTA (e.g., 'Contact WhatsApp', 'Approve/Return') at the bottom of detail and form screens.",
+    "Do not use glassmorphism effects; stick to solid surfaces and subtle shadows to preserve the 'banking enterprise' feel and maintain maximum contrast."
+  ]
+}
