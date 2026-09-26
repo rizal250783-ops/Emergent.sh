@@ -99,6 +99,11 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Demo assets diperluas 25 -> **45 aset, mewakili seluruh 45 ACR** (seeder menghapus & membuat ulang demo, aman diulang). Variasi jenis: rumah, ruko/toko, apartemen, gudang, gedung, tanah kosong/kavling/industri, sawah, kebun sawit, kebun kopi, kos-kosan, sedan/SUV/MPV/pickup/truck/bus, motor matic/bebek/sport. 4 TERJUAL, 27 berjadwal lelang, sisanya tanpa jadwal; 9 aset punya riwayat harga turun. Foto Unsplash terverifikasi HTTP 200.
 - Validated by testing agent: backend 11/11 + frontend all pass (iteration_9.json). Iteration-8 bugs (route order + username collision) sudah diperbaiki & diverifikasi curl (toggle 403/ok, delete ok, recreate NIP 200, controller protect 403).
 
+## Implemented (Iteration 10, 2026-06)
+- Bugfix: baris tab Kelola (User/Kategori/Audit/Laporan/RCG) hilang/tertindih di desktop & mobile -> tab ScrollView diberi tinggi eksplisit (50) + flexShrink:0, semua konten tab dibatasi flex:1; stray whitespace text node penyebab error "Unexpected text node" dihapus.
+- Bugfix: kotak putih di sekeliling logo BSI pada halaman login dihapus (logo tampil langsung, lebih profesional).
+- Validated by testing agent: all pass desktop + mobile (iteration_10.json).
+
 ## Backlog / Remaining
 - P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.

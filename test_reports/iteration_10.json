@@ -1,0 +1,36 @@
+{
+  "summary": "Iteration 10 bugfix verification (frontend only) — ALL PASS. Desktop (1280x800): login page shows BSI logo WITHOUT white rounded box (logoBox parent computed backgroundColor rgba(0,0,0,0), border 0px, radius 0px; naturalWidth 1839 > 0 so logo asset loads), appName 'BSI ASSET DEAL' renders Lato-Black 24px (bold via font family mapping), tagline italic (fontStyle: italic, Lato-Italic). Login as rcg_controller 2183008345/BSI@2026 succeeds -> /dashboard. Kelola (/manage): all 5 tabs (User, Kategori, Audit, Laporan, RCG) visible at top=52 height=49. After clicking RCG tab: tab row remains visible, elementFromPoint confirms NO overlap by content; RCG content (Ubah Data Diri Saya, Tambah RCG Admin, Daftar Pengguna RCG (5)) renders below. After scrolling RCG content down 2400px: tab row still visible at top=52, not overlapped. Full tab cycle users->kategori->audit->laporan->rcg->users: all tabs present+visible every step. No 'Unexpected text node' error in DOM or console. Mobile (390x844): same checks pass; logo no box; tab row stays visible after RCG click and after scroll; bottom nav not overlapped. Regression: home catalog loads and shows '45 asset tersedia'.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "RcgTab trailing spacer", "issue": "manage.tsx:182 renders `<View style={{ height: 8 }}>{isRefetching ? null : null}</View>` — a meaningless ternary rendering null/null inside a spacer View. Harmless but dead code; suggest plain `<View style={{ height: 8 }} />`. Reference: /app/frontend/app/(internal)/manage.tsx:182"},
+      {"component": "login.tsx dead styles", "issue": "login.tsx styles pwLabel, pwWrap, eye (lines 111-113) are unused leftover from a previous password-field implementation. Minor dead code. Reference: /app/frontend/app/login.tsx:111-113"}
+    ]
+  },
+  "test_report_links": [],
+  "action_items": [
+    "OPTIONAL CLEANUP: Remove dead ternary spacer at manage.tsx:182 and unused pwLabel/pwWrap/eye styles in login.tsx:111-113.",
+    "NOTE (transient, not reproducible): On the very first desktop page load a red toast 'Failed to load font Feather Network...' appeared and icons rendered as empty squares; all subsequent loads rendered Feather icons correctly. Likely a transient web font fetch hiccup in the preview environment — no code change needed unless it recurs."
+  ],
+  "critical_code_review_comments": [
+    "manage.tsx fix is correct: tabScroll has height:50 + flexGrow:0 + flexShrink:0 so the horizontal tab ScrollView can no longer collapse; tab height 49 fits inside 50 with the 1px borderBottom. Every tab content container (UsersTab wrapper View, KategoriTab/LaporanTab/RcgTab ScrollViews, AuditTab FlatList) has flex:1, so content is constrained below the tab row and cannot push it off-screen. The stray whitespace text node after the tab ScrollView closing tag is gone — verified zero 'Unexpected text node' occurrences in DOM and console across desktop and mobile.",
+    "login.tsx fix is correct: logoBox style is now only {paddingVertical: spacing.sm} with no backgroundColor/border/borderRadius; computed styles of both logoBox and its parent are transparent. Logo img naturalWidth=1839 confirms asset loads.",
+    "On 390px width, 5 tabs do not fit horizontally, so the horizontal tab ScrollView auto-scrolls to keep the active tab visible (RCG click scrolled 'User' off to left=-62). This is expected design behavior; scrolling scrollLeft back to 0 brings 'User' fully into view (verified). Not a bug.",
+    "Console shows only standard RN-web dev warnings (useNativeDriver fallback, props.pointerEvents deprecated, 'shadow*' style props deprecated) — pre-existing, non-blocking, not introduced by this bugfix."
+  ],
+  "updated_files": [
+    "/app/test_reports/iteration_10.json"
+  ],
+  "success_rate": {"backend": "N/A (frontend-only iteration; login integration implicitly verified)", "frontend": "100% (9/9 requested checks passed on desktop + mobile + regression)"},
+  "seed_data_creation": "None. Used existing rcg_controller account 2183008345/BSI@2026.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Both bugfixes (manage.tsx tab row disappearing/overlap, login.tsx white logo box) are VERIFIED FIXED on desktop 1280x800 and mobile 390x844. Tab overlap should be verified with elementFromPoint at each tab's center, not just visibility. On mobile, the horizontal tab ScrollView auto-scrolls active tab into view — a tab scrolled off horizontally (negative rect.left) is NOT a bug; scroll scrollLeft to bring it back. RCG tab shows 'Daftar Pengguna RCG (5)' (1 controller + 4 admins). Home catalog regression: '45 asset tersedia' still correct.",
+  "rca_of_issue": "Original bugs root-caused as: (1) horizontal tab ScrollView without explicit height/flex constraints could collapse or be pushed off when tab content ScrollViews lacked flex:1, and a stray whitespace text node in JSX ('Unexpected text node' error on RN-web) destabilized rendering — fixed with height:50/flexShrink:0/flexGrow:0 on tabScroll, height:49 on tabs, flex:1 on all content containers, and removal of the stray text node. (2) login logoBox previously had white background+border+borderRadius wrapping the BSI logo — now removed, logo sits directly on the surface background. Both fixes verified working."
+}

@@ -128,7 +128,7 @@ function RcgTab() {
   const rows: any[] = data || [];
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}>
       <Card>
         <Pressable style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }} onPress={() => setSelfOpen((v) => !v)} testID="toggle-self-edit">
           <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
@@ -395,7 +395,7 @@ function KategoriTab() {
   );
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}>
       <Card>
         <Text style={s.cardTitle}>Tambah Kategori</Text>
@@ -462,7 +462,7 @@ function LaporanTab() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}>
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}>
       <Card>
         <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.md }}>
           <View style={s.reportIcon}><Icon name="file-text" size={22} color={colors.brandPrimary} /></View>
@@ -495,6 +495,7 @@ function AuditTab() {
   if (isError) return <ErrorState onRetry={refetch} />;
   return (
     <FlatList
+      style={{ flex: 1 }}
       data={data || []}
       keyExtractor={(it) => it.id}
       contentContainerStyle={{ padding: spacing.lg, gap: spacing.sm, paddingBottom: spacing["2xl"] }}
@@ -519,9 +520,9 @@ const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
   pubBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, height: 32, borderRadius: 16 },
   pubBtnTxt: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
-  tabScroll: { flexGrow: 0, backgroundColor: c.surfaceSecondary, borderBottomWidth: 1, borderBottomColor: c.border },
-  tabRow: { flexDirection: "row" },
-  tab: { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderBottomWidth: 2, borderBottomColor: "transparent" },
+  tabScroll: { flexGrow: 0, flexShrink: 0, height: 50, backgroundColor: c.surfaceSecondary, borderBottomWidth: 1, borderBottomColor: c.border },
+  tabRow: { flexDirection: "row", alignItems: "center" },
+  tab: { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", height: 49, paddingHorizontal: spacing.lg, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabActive: { borderBottomColor: c.brandPrimary },
   tabTxt: { fontSize: 13, fontWeight: "700", color: c.muted },
   ctrlBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.brandSecondary, alignItems: "center", justifyContent: "center" },
