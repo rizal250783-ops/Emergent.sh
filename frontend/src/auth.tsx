@@ -2,7 +2,12 @@ import React, { createContext, useContext, useEffect, useState, useCallback } fr
 import { storage } from "@/src/utils/storage";
 import { apiGet, apiPost, TOKEN_KEY } from "@/src/api";
 
-export type Role = "marketing_asset" | "acrm" | "admin_rcg";
+export type Role = "marketing_asset" | "acrm" | "rcg_controller" | "rcg_admin";
+
+/** RCG covers both the full controller and the plain admin tier. */
+export const isRcg = (r?: string): boolean => r === "rcg_controller" || r === "rcg_admin";
+/** Only the full controller may manage other RCG users and edit its own NIP. */
+export const isController = (r?: string): boolean => r === "rcg_controller";
 
 export interface AuthUser {
   id: string;

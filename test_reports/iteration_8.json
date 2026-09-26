@@ -1,0 +1,50 @@
+{
+  "summary": "Backend 15/18 passed (83%). All 3 failures share ONE critical root cause: FastAPI route-ordering conflict — the generic '/admin/{kind}/{uid}/toggle' route (line 1395) is registered BEFORE the specific '/admin/rcg-users/{uid}/toggle' route (line 1498), so every POST to /admin/rcg-users/{uid}/toggle is captured by toggle_user() (which allows any RCG role and looks up master_acrm/master_marketing_asset collections) and returns 404 instead of hitting the controller-only handler that would return 200/403. This bypasses the RCG_CONTROLLER guard for the toggle endpoint. All frontend checks passed on mobile viewport (390x844): gradient teal + gold Pacifico tagline 'Menghubungkan Investor dengan Asset BSI' visible; 'Terdekat' and 'Pilih Titik' chips visible; 'Pilih Titik' opens map picker modal with 'Cari Aset Terdekat dari Titik Ini' CTA; controller (2183008345) sees RCG tab in Kelola with 'Ubah Data Diri Saya' + 'Tambah RCG Admin' sections; rcg_admin (2186005002) does NOT see RCG tab (only User/Kategori/Audit/Laporan). Legacy admin/admin2 login correctly returns 401. MA Manado (tad2310129981) and MA Jakarta Thamrin (tad24040100322) log in successfully. Nearest catalog search returns items sorted ascending by distance_km. Also noted a secondary risk: users.username has a unique MongoDB index but rcg-user delete is soft (sets deleted_at) without renaming username — recreating a rcg_admin with the same NIP later hits E11000 DuplicateKeyError → 500.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/admin/rcg-users/{uid}/toggle",
+        "issue": "Route-ordering bug: shadowed by generic '/admin/{kind}/{uid}/toggle' at server.py:1395 (registered earlier). Requests never reach toggle_rcg_admin() at server.py:1498. Effect: (1) rcg_admin can call it and receive 404 instead of 403 (RBAC guard bypassed — the generic handler uses require(*RCG_ROLES) which admits rcg_admin), (2) controller gets 404 on toggling a real rcg-user because generic handler queries the wrong collection (master_acrm/master_marketing_asset), (3) controller-only protection of the RCG_CONTROLLER row (403) never fires. Fix: move the two specific POST/DELETE rcg-users routes ABOVE '/admin/{kind}/{uid}/toggle' (i.e. before line 1395), or make the generic handler reject kind='rcg-users' and require an explicit whitelist.",
+        "priority": "CRITICAL"
+      },
+      {
+        "endpoint": "POST /api/admin/rcg-users",
+        "issue": "Soft-delete + unique index conflict. users collection has a unique index on 'username'; delete_rcg_admin() at server.py:1517 only sets deleted_at without renaming username. Creating a new rcg_admin with the same NIP later fails with pymongo E11000 DuplicateKeyError → 500 (the 409 pre-check at 1488 filters by deleted_at:None and returns nothing, so the insert proceeds). Fix: on delete, rename username to a tombstone (e.g. '{username}__deleted_{ts}') or drop/change the unique index to be partial on deleted_at:None.",
+        "priority": "HIGH"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": [
+      {"component": "Animated / useNativeDriver", "issue": "Console warning: 'Animated: useNativeDriver is not supported because the native animated module is missing. Falling back to JS-based animation.' Expected on Expo web; ignore unless behavior degrades on device."},
+      {"component": "pointerEvents / shadow* style props", "issue": "Deprecation warnings on web preview: 'props.pointerEvents is deprecated. Use style.pointerEvents' and '\"shadow*\" style props are deprecated. Use \"boxShadow\"'. Consider migrating shadow* → boxShadow and moving pointerEvents into style for RN 0.75+/react-native-web compat."}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration7.py",
+    "/app/test_reports/pytest/pytest_iter7.xml"
+  ],
+  "action_items": [
+    "FIX ROUTE ORDER (CRITICAL): In /app/backend/server.py move the block '@api.post(\"/admin/rcg-users\")' + '@api.post(\"/admin/rcg-users/{uid}/toggle\")' + '@api.delete(\"/admin/rcg-users/{uid}\")' + '@api.put(\"/admin/rcg/self\")' + '@api.get(\"/admin/rcg-users\")' (lines 1470-1543) to be defined BEFORE '@api.post(\"/admin/{kind}/{uid}/toggle\")' at line 1395. Alternative: change the generic route to '@api.post(\"/admin/{kind:regex(marketing-asset|acrm)}/{uid}/toggle\")' or add an explicit 404 for kind == 'rcg-users' inside toggle_user().",
+    "FIX SOFT-DELETE COLLISION (HIGH): In delete_rcg_admin (server.py:1511) and/or in create_rcg_admin (server.py:1483), either (a) rename username to a tombstone on delete: `\"username\": f\"{username}__del_{now_iso()}\"`, or (b) migrate the users.username unique index to a partial index `{ partialFilterExpression: { deleted_at: null } }`.",
+    "OPTIONAL CLEANUP: Migrate '\"shadow*\"' style props to 'boxShadow' and move 'pointerEvents' prop into style to silence deprecation warnings on web."
+  ],
+  "critical_code_review_comments": [
+    "server.py line 1395 vs 1498: FastAPI matches routes in registration order — the two overlapping toggle routes MUST be reordered or the generic one must exclude 'rcg-users'.",
+    "server.py:1483-1519: soft-delete design conflicts with the unique index on users.username; either use tombstone renames or a partial unique index. This will manifest as intermittent 500s in production the moment a controller deletes and re-adds an RCG admin with the same NIP.",
+    "server.py:1471: GET /admin/rcg-users is guarded by require(*RCG_ROLES) — so rcg_admin can list controllers/admins (their IDs are exposed). This is functionally OK per spec (rcg_admin retains read-only visibility) but confirm PII exposure is intentional; frontend does hide toggle/delete buttons for rcg_admin by not rendering the tab."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration7.py (new — pytest suite covering all 11 backend test cases from the request)"
+  ],
+  "success_rate": {"backend": "83% (15/18)", "frontend": "100% (14/14 checks)"},
+  "seed_data_creation": "None. Test suite creates one rcg_admin with a random-uuid NIP inside test_controller_full_lifecycle and cleans it up in-test. Any leftovers cleaned via `db.users.deleteMany({username: /^test_iter7/})`.",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Backend auth returns 'access_token' (NOT 'token'). Backend pytest.ini enforces `-n 2 --dist loadscope`; for tests that mutate shared DB state (RCG lifecycle), pass `-n 0` to run serially or keep all mutating tests in ONE class (loadscope pins a class to one worker). Public backend URL is EXPO_PUBLIC_BACKEND_URL in /app/frontend/.env. Route conflict at /admin/{kind}/{uid}/toggle vs /admin/rcg-users/{uid}/toggle — until main agent fixes it, expect 404 on rcg-user toggle from ANY caller.",
+  "rca_of_issue": "PRIMARY BUG (3 failing backend tests): FastAPI evaluates routes in registration order. `@api.post('/admin/{kind}/{uid}/toggle')` at server.py:1395 is defined BEFORE `@api.post('/admin/rcg-users/{uid}/toggle')` at server.py:1498. The path 'rcg-users' matches the {kind} placeholder, so every POST to /admin/rcg-users/{uid}/toggle is dispatched to toggle_user(kind='rcg-users', uid=...) which: (a) uses require(*RCG_ROLES) — admitting rcg_admin, bypassing the intended RCG_CONTROLLER guard, (b) queries db.master_acrm.find_one({...}) which never matches an rcg user id → HTTPException(404). Repro: `curl -X POST $URL/api/admin/rcg-users/<any-id>/toggle -H 'Authorization: Bearer <rcg_admin_token>'` → 404. Expected: 403. SECONDARY BUG (500 on re-create): users.username unique index + soft-delete pattern collide; observable when a controller deletes and re-adds an rcg_admin with the same NIP within the same DB instance. Mitigation for both listed in action_items."
+}

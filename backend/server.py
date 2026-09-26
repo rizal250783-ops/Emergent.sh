@@ -25,6 +25,36 @@ ACCESS_HOURS = 12
 DEFAULT_PASSWORD = os.environ.get('DEFAULT_PASSWORD', 'BSI@2026')
 ADMIN_PASSWORD = os.environ.get('ADMIN_PASSWORD', 'Admin@2026')
 
+# RCG has two tiers: full controller (can manage RCG admins + self) and admin.
+# Both hold every operational RCG right (approve, publish, master data, kelola MA/ACRM).
+RCG_CONTROLLER = "rcg_controller"
+RCG_ADMIN = "rcg_admin"
+RCG_ROLES = (RCG_CONTROLLER, RCG_ADMIN)
+
+# Seeded RCG users (idempotent). Full controller + 4 admins.
+RCG_SEED = [
+    ("2183008345", "SYAMSU RIZAL", RCG_CONTROLLER),
+    ("2186005002", "ACHMAD BASONI", RCG_ADMIN),
+    ("2188004466", "IRMA MARTHALIA", RCG_ADMIN),
+    ("2184008994", "LIA UTAMI NINGSIH", RCG_ADMIN),
+    ("2188004037", "DERI MUKTI", RCG_ADMIN),
+]
+
+# Marketing Asset PIC replacements for specific ACR (idempotent).
+MA_FIXUPS = [
+    ("ACR MANADO", "Farah Ummainah Khofifah Maturan", "TAD2310129981", "082346437429"),
+    ("ACR JAKARTA THAMRIN", "Windi Nofriantika", "TAD24040100322", "089630141361"),
+]
+
+import math
+def haversine_km(lat1, lon1, lat2, lon2):
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dphi = math.radians(lat2 - lat1)
+    dl = math.radians(lon2 - lon1)
+    a = math.sin(dphi / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(min(1.0, math.sqrt(a)))
+
 # ---------------- Object storage ----------------
 STORAGE_BASE = (os.environ.get("INTEGRATION_PROXY_URL") or "").strip() or "https://integrations.emergentagent.com"
 STORAGE_URL = STORAGE_BASE.rstrip("/") + "/objstore/api/v1/storage"
@@ -159,6 +189,47 @@ async def startup():
 
     if await db.master_acr.count_documents({}) == 0:
         await seed_all()
+    # Always run idempotent RCG user setup + MA fixups (also migrates existing DB).
+    await ensure_rcg_and_fixups()
+
+async def ensure_rcg_and_fixups():
+    # 1. Retire legacy admin accounts (replaced by named RCG users).
+    for legacy in ("admin", "admin2"):
+        await db.users.update_one({"username": legacy},
+            {"$set": {"status": "inactive", "deleted_at": now_iso(), "updated_at": now_iso()}})
+    # 2. Ensure RCG controller + admins (idempotent by username=NIP).
+    for nip, nama, role in RCG_SEED:
+        uname = nip.strip().lower()
+        existing = await db.users.find_one({"username": uname})
+        if existing:
+            await db.users.update_one({"id": existing["id"]}, {"$set": {
+                "nama": nama, "role": role, "status": "active", "deleted_at": None, "updated_at": now_iso()}})
+        else:
+            await db.users.insert_one({"id": new_id(), "username": uname,
+                "password_hash": hash_pw(DEFAULT_PASSWORD), "role": role, "ref_id": None,
+                "nama": nama, "status": "active", "data_flag": "OK", "last_login_at": None,
+                "force_password_change": True, "created_at": now_iso(),
+                "updated_at": now_iso(), "deleted_at": None})
+    # 3. Marketing Asset PIC replacements for specific ACR.
+    for acr_name, nama, nip, hp in MA_FIXUPS:
+        acr = await db.master_acr.find_one({"nama_acr": acr_name, "deleted_at": None})
+        if not acr:
+            continue
+        ma = await db.master_marketing_asset.find_one({"id_acr": acr["id"], "deleted_at": None})
+        if not ma:
+            continue
+        await db.master_marketing_asset.update_one({"id": ma["id"]}, {"$set": {
+            "nama_marketing_asset": nama, "nip": nip, "nomor_hp": hp,
+            "data_flag": "OK", "updated_at": now_iso()}})
+        uu = await db.users.find_one({"ref_id": ma["id"]})
+        if uu:
+            new_uname = nip.strip().lower()
+            clash = await db.users.find_one({"username": new_uname, "id": {"$ne": uu["id"]}, "deleted_at": None})
+            fields = {"nama": nama, "data_flag": "OK", "status": "active", "updated_at": now_iso()}
+            if not clash:
+                fields["username"] = new_uname
+            await db.users.update_one({"id": uu["id"]}, {"$set": fields})
+    logger.info("RCG users + MA fixups ensured.")
 
 async def seed_all():
     logger.info("Seeding master data...")
@@ -221,14 +292,6 @@ async def seed_all():
                 "nama_category": s, "status": "active", "created_at": now_iso(),
                 "updated_at": now_iso(), "deleted_at": None})
 
-    # Admin RCG users
-    for uname, nama in [("admin", "Admin RCG Pusat"), ("admin2", "Admin RCG Pusat 2")]:
-        if not await db.users.find_one({"username": uname}):
-            await db.users.insert_one({"id": new_id(), "username": uname,
-                "password_hash": hash_pw(ADMIN_PASSWORD), "role": "admin_rcg", "ref_id": None,
-                "nama": nama, "status": "active", "data_flag": "OK", "last_login_at": None,
-                "force_password_change": False, "created_at": now_iso(),
-                "updated_at": now_iso(), "deleted_at": None})
     logger.info("Seeding done.")
 
 async def create_user(ref_id, nama, nip, role, flag):
@@ -393,7 +456,8 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
     subcategory_id: Optional[str] = None, provinsi: Optional[str] = None,
     kabupaten_kota: Optional[str] = None, kecamatan: Optional[str] = None,
     wilayah_level_4: Optional[str] = None, sort: str = "newest",
-    price_drop: bool = False, page: int = 1, limit: int = 20):
+    price_drop: bool = False, lat: Optional[float] = None, lng: Optional[float] = None,
+    page: int = 1, limit: int = 20):
     q = {"status": {"$in": ASSET_PUBLIC_STATUSES}, "public_ready": True, "deleted_at": None}
     if category_id: q["id_category"] = category_id
     if subcategory_id: q["id_subcategory"] = subcategory_id
@@ -404,6 +468,24 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
     if keyword:
         rx = {"$regex": re.escape(keyword), "$options": "i"}
         q["$or"] = [{"judul_asset": rx}, {"alamat": rx}, {"nomor_asset": rx}, {"provinsi": rx}, {"kabupaten_kota": rx}]
+
+    # Nearest-first: order by distance from a given point (GPS or a map point the user tapped).
+    if sort == "nearest" and lat is not None and lng is not None:
+        docs = [a async for a in db.assets.find({**q, "latitude": {"$ne": None}, "longitude": {"$ne": None}})]
+        for a in docs:
+            a["_dist"] = haversine_km(lat, lng, a["latitude"], a["longitude"])
+            a["_sold"] = 1 if a.get("status") == "SOLD" else 0
+        docs.sort(key=lambda a: (a["_sold"], a["_dist"]))
+        total = len(docs)
+        page_docs = docs[(page - 1) * limit: (page - 1) * limit + limit]
+        items = []
+        for a in page_docs:
+            dist = a["_dist"]
+            v = await asset_public_view(clean(a))
+            v["distance_km"] = round(dist, 1)
+            items.append(v)
+        return {"total": total, "page": page, "limit": limit, "items": items}
+
     sort_map = {"newest": ("published_at", -1), "price_low": ("harga_limit", 1),
                 "price_high": ("harga_limit", -1), "auction": ("schedule.tanggal_lelang", 1)}
     sf, sd = sort_map.get(sort, ("published_at", -1))
@@ -902,7 +984,7 @@ async def acrm_approve(asset_id: str, user=Depends(require("acrm"))):
     ma_user = await db.users.find_one({"ref_id": a["id_marketing_asset"], "role": "marketing_asset"})
     if ma_user:
         await notify(ma_user["id"], "asset", "Disetujui ACRM", f"Asset {a['nomor_asset']} disetujui ACRM, menunggu approval RCG.")
-    for adm in await db.users.find({"role": "admin_rcg", "status": "active"}).to_list(10):
+    for adm in await db.users.find({"role": {"$in": list(RCG_ROLES)}, "status": "active"}).to_list(50):
         await notify(adm["id"], "approval", "Menunggu approval RCG", f"Asset {a['nomor_asset']} menunggu approval Anda.")
     return {"ok": True, "status": new_status}
 
@@ -927,12 +1009,12 @@ async def acrm_return(asset_id: str, body: ReviewIn, user=Depends(require("acrm"
 
 # =================== RCG ===================
 @api.get("/rcg/pending")
-async def rcg_pending(user=Depends(require("admin_rcg"))):
+async def rcg_pending(user=Depends(require(*RCG_ROLES))):
     q = {"status": {"$in": ["WAITING_RCG_APPROVAL", "UPDATE_PENDING_RCG"]}, "deleted_at": None}
     return [await asset_internal_view(clean(a)) async for a in db.assets.find(q).sort("updated_at", 1)]
 
 @api.post("/rcg/assets/{asset_id}/approve")
-async def rcg_approve(asset_id: str, user=Depends(require("admin_rcg"))):
+async def rcg_approve(asset_id: str, user=Depends(require(*RCG_ROLES))):
     a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
     if not a:
         raise HTTPException(404, "Asset tidak ditemukan")
@@ -945,7 +1027,7 @@ async def rcg_approve(asset_id: str, user=Depends(require("admin_rcg"))):
         "public_ready": public_ready, "published_at": now_iso(),
         "current_version_no": a.get("current_version_no", 1) + (1 if a["status"] == "UPDATE_PENDING_RCG" else 0),
         "updated_at": now_iso()}})
-    await approval_log(asset_id, "PUBLISH", a["status"], "PUBLISHED", {"id": user["id"], "nama": user.get("nama"), "role": "admin_rcg"})
+    await approval_log(asset_id, "PUBLISH", a["status"], "PUBLISHED", {"id": user["id"], "nama": user.get("nama"), "role": user.get("role")})
     await audit(user, "RCG_PUBLISH", "assets", asset_id, notes=None if public_ready else "Tidak tampil publik: data PIC placeholder")
     ma_user = await db.users.find_one({"ref_id": a["id_marketing_asset"], "role": "marketing_asset"})
     if ma_user:
@@ -953,7 +1035,7 @@ async def rcg_approve(asset_id: str, user=Depends(require("admin_rcg"))):
     return {"ok": True, "status": "PUBLISHED", "public_ready": public_ready}
 
 @api.post("/rcg/assets/{asset_id}/sold")
-async def rcg_mark_sold(asset_id: str, body: Optional[ReviewIn] = None, user=Depends(require("admin_rcg"))):
+async def rcg_mark_sold(asset_id: str, body: Optional[ReviewIn] = None, user=Depends(require(*RCG_ROLES))):
     """Controller marks a published asset as SOLD: stays visible with TERJUAL badge, WA contact hidden."""
     a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
     if not a:
@@ -962,7 +1044,7 @@ async def rcg_mark_sold(asset_id: str, body: Optional[ReviewIn] = None, user=Dep
         raise HTTPException(409, "Hanya asset berstatus PUBLISHED yang dapat ditandai terjual")
     notes = (body.notes if body else None) or None
     await db.assets.update_one({"id": asset_id}, {"$set": {"status": "SOLD", "sold_at": now_iso(), "sold_notes": notes, "updated_at": now_iso()}})
-    await approval_log(asset_id, "MARK_SOLD", "PUBLISHED", "SOLD", {"id": user["id"], "nama": user.get("nama"), "role": "admin_rcg"}, notes)
+    await approval_log(asset_id, "MARK_SOLD", "PUBLISHED", "SOLD", {"id": user["id"], "nama": user.get("nama"), "role": user.get("role")}, notes)
     await audit(user, "RCG_MARK_SOLD", "assets", asset_id, notes=notes)
     for role in ["marketing_asset", "acrm"]:
         ref = a["id_marketing_asset"] if role == "marketing_asset" else a["id_acrm"]
@@ -972,7 +1054,7 @@ async def rcg_mark_sold(asset_id: str, body: Optional[ReviewIn] = None, user=Dep
     return {"ok": True, "status": "SOLD"}
 
 @api.post("/rcg/assets/{asset_id}/unsold")
-async def rcg_unmark_sold(asset_id: str, user=Depends(require("admin_rcg"))):
+async def rcg_unmark_sold(asset_id: str, user=Depends(require(*RCG_ROLES))):
     """Revert an accidental SOLD mark back to PUBLISHED."""
     a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
     if not a:
@@ -980,7 +1062,7 @@ async def rcg_unmark_sold(asset_id: str, user=Depends(require("admin_rcg"))):
     if a["status"] != "SOLD":
         raise HTTPException(409, "Asset tidak berstatus SOLD")
     await db.assets.update_one({"id": asset_id}, {"$set": {"status": "PUBLISHED", "sold_at": None, "sold_notes": None, "updated_at": now_iso()}})
-    await approval_log(asset_id, "UNMARK_SOLD", "SOLD", "PUBLISHED", {"id": user["id"], "nama": user.get("nama"), "role": "admin_rcg"})
+    await approval_log(asset_id, "UNMARK_SOLD", "SOLD", "PUBLISHED", {"id": user["id"], "nama": user.get("nama"), "role": user.get("role")})
     await audit(user, "RCG_UNMARK_SOLD", "assets", asset_id)
     return {"ok": True, "status": "PUBLISHED"}
 
@@ -989,7 +1071,7 @@ REPORT_STATUSES = ["DRAFT", "WAITING_ACRM_REVIEW", "RETURN_TO_MARKETING", "WAITI
                    "PUBLISHED", "UPDATE_PENDING_ACRM", "UPDATE_PENDING_RCG", "SOLD"]
 
 @api.get("/rcg/reports/assets/link")
-async def rcg_report_link(user=Depends(require("admin_rcg"))):
+async def rcg_report_link(user=Depends(require(*RCG_ROLES))):
     token = jwt.encode({"typ": "report", "uid": user["id"],
         "exp": datetime.now(timezone.utc) + timedelta(minutes=10)}, JWT_SECRET, algorithm=JWT_ALG)
     await audit(user, "EXPORT_REPORT", "assets", None)
@@ -1074,7 +1156,7 @@ async def rcg_report_xlsx(token: str = Query(...)):
         raise HTTPException(401, "Tautan tidak valid atau sudah kadaluarsa")
     if payload.get("typ") != "report":
         raise HTTPException(401, "Tautan tidak valid")
-    u = await db.users.find_one({"id": payload.get("uid"), "role": "admin_rcg"})
+    u = await db.users.find_one({"id": payload.get("uid"), "role": {"$in": list(RCG_ROLES)}})
     if not u:
         raise HTTPException(403, "Akses ditolak")
     acrs = [a async for a in db.master_acr.find({"deleted_at": None}).sort("nama_acr", 1)]
@@ -1092,7 +1174,7 @@ async def rcg_report_xlsx(token: str = Query(...)):
         headers={"Content-Disposition": f'attachment; filename="{fname}"'})
 
 @api.post("/rcg/assets/{asset_id}/return")
-async def rcg_return(asset_id: str, body: ReviewIn, user=Depends(require("admin_rcg"))):
+async def rcg_return(asset_id: str, body: ReviewIn, user=Depends(require(*RCG_ROLES))):
     if not body.notes or not body.notes.strip():
         raise HTTPException(400, "Catatan koreksi wajib diisi")
     a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
@@ -1102,7 +1184,7 @@ async def rcg_return(asset_id: str, body: ReviewIn, user=Depends(require("admin_
         raise HTTPException(409, "Status asset sudah berubah, muat ulang data.")
     await db.assets.update_one({"id": asset_id}, {"$set": {"status": "RETURN_FROM_RCG",
         "correction_notes": body.notes, "updated_at": now_iso()}})
-    await approval_log(asset_id, "RETURN", a["status"], "RETURN_FROM_RCG", {"id": user["id"], "nama": user.get("nama"), "role": "admin_rcg"}, body.notes)
+    await approval_log(asset_id, "RETURN", a["status"], "RETURN_FROM_RCG", {"id": user["id"], "nama": user.get("nama"), "role": user.get("role")}, body.notes)
     await audit(user, "RCG_RETURN", "assets", asset_id, notes=body.notes)
     ma_user = await db.users.find_one({"ref_id": a["id_marketing_asset"], "role": "marketing_asset"})
     if ma_user:
@@ -1150,7 +1232,7 @@ async def dash_acrm(user=Depends(require("acrm"))):
     return {"total": total, "acr": acr["nama_acr"] if acr else None, "by_status": st}
 
 @api.get("/dashboard/rcg")
-async def dash_rcg(user=Depends(require("admin_rcg"))):
+async def dash_rcg(user=Depends(require(*RCG_ROLES))):
     total_acr = await db.master_acr.count_documents({"deleted_at": None})
     total_acrm = await db.master_acrm.count_documents({"deleted_at": None})
     total_ma = await db.master_marketing_asset.count_documents({"deleted_at": None})
@@ -1189,7 +1271,7 @@ async def read_all(user=Depends(current_user)):
 
 # =================== ADMIN: master + user mgmt ===================
 @api.get("/admin/acr")
-async def admin_acr(user=Depends(require("admin_rcg"))):
+async def admin_acr(user=Depends(require(*RCG_ROLES))):
     return [clean(a) async for a in db.master_acr.find({"deleted_at": None}).sort("nama_acr", 1)]
 
 class CategoryIn(BaseModel):
@@ -1197,7 +1279,7 @@ class CategoryIn(BaseModel):
     parent_category_id: Optional[str] = None
 
 @api.post("/admin/category")
-async def add_category(body: CategoryIn, user=Depends(require("admin_rcg"))):
+async def add_category(body: CategoryIn, user=Depends(require(*RCG_ROLES))):
     c = {"id": new_id(), "nama_category": body.nama_category, "parent_category_id": body.parent_category_id,
          "status": "active", "created_at": now_iso(), "updated_at": now_iso(), "deleted_at": None}
     await db.master_asset_category.insert_one(c)
@@ -1205,7 +1287,7 @@ async def add_category(body: CategoryIn, user=Depends(require("admin_rcg"))):
     return clean(c)
 
 @api.put("/admin/category/{cid}")
-async def edit_category(cid: str, body: CategoryIn, user=Depends(require("admin_rcg"))):
+async def edit_category(cid: str, body: CategoryIn, user=Depends(require(*RCG_ROLES))):
     c = await db.master_asset_category.find_one({"id": cid, "deleted_at": None})
     if not c:
         raise HTTPException(404, "Kategori tidak ditemukan")
@@ -1221,7 +1303,7 @@ async def edit_category(cid: str, body: CategoryIn, user=Depends(require("admin_
     return clean(await db.master_asset_category.find_one({"id": cid}))
 
 @api.post("/admin/category/{cid}/toggle")
-async def toggle_category(cid: str, user=Depends(require("admin_rcg"))):
+async def toggle_category(cid: str, user=Depends(require(*RCG_ROLES))):
     c = await db.master_asset_category.find_one({"id": cid})
     if not c:
         raise HTTPException(404, "Kategori tidak ditemukan")
@@ -1236,11 +1318,11 @@ class KpknlIn(BaseModel):
     provinsi: Optional[str] = None
 
 @api.get("/admin/kpknl")
-async def admin_kpknl(user=Depends(require("admin_rcg"))):
+async def admin_kpknl(user=Depends(require(*RCG_ROLES))):
     return [clean(k) async for k in db.master_kpknl.find({"deleted_at": None}).sort("nama_kpknl", 1)]
 
 @api.post("/admin/kpknl")
-async def add_kpknl(body: KpknlIn, user=Depends(require("admin_rcg"))):
+async def add_kpknl(body: KpknlIn, user=Depends(require(*RCG_ROLES))):
     k = {"id": new_id(), **body.model_dump(), "status": "active", "created_at": now_iso(),
          "updated_at": now_iso(), "deleted_at": None}
     await db.master_kpknl.insert_one(k)
@@ -1248,7 +1330,7 @@ async def add_kpknl(body: KpknlIn, user=Depends(require("admin_rcg"))):
     return clean(k)
 
 @api.get("/admin/users")
-async def admin_users(role: Optional[str] = None, keyword: Optional[str] = None, user=Depends(require("admin_rcg"))):
+async def admin_users(role: Optional[str] = None, keyword: Optional[str] = None, user=Depends(require(*RCG_ROLES))):
     coll = db.master_marketing_asset if role == "marketing_asset" else db.master_acrm if role == "acrm" else None
     result = []
     async def build(coll, r):
@@ -1280,7 +1362,7 @@ def validate_hp(hp):
     return d
 
 @api.put("/admin/marketing-asset/{mid}")
-async def edit_ma(mid: str, body: UserEditIn, user=Depends(require("admin_rcg"))):
+async def edit_ma(mid: str, body: UserEditIn, user=Depends(require(*RCG_ROLES))):
     m = await db.master_marketing_asset.find_one({"id": mid, "deleted_at": None})
     if not m:
         raise HTTPException(404, "Data tidak ditemukan")
@@ -1297,7 +1379,7 @@ async def edit_ma(mid: str, body: UserEditIn, user=Depends(require("admin_rcg"))
     return {"ok": True}
 
 @api.put("/admin/acrm/{aid}")
-async def edit_acrm(aid: str, body: UserEditIn, user=Depends(require("admin_rcg"))):
+async def edit_acrm(aid: str, body: UserEditIn, user=Depends(require(*RCG_ROLES))):
     m = await db.master_acrm.find_one({"id": aid, "deleted_at": None})
     if not m:
         raise HTTPException(404, "Data tidak ditemukan")
@@ -1310,8 +1392,92 @@ async def edit_acrm(aid: str, body: UserEditIn, user=Depends(require("admin_rcg"
     await audit(user, "UPDATE", "acrm", aid, before=before, after={"nama": body.nama})
     return {"ok": True}
 
+# =================== RCG USER MANAGEMENT (Full Controller) ===================
+# NOTE: These routes MUST be declared before the generic /admin/{kind}/{uid}/toggle
+# route below, otherwise "rcg-users" would be captured as {kind}.
+@api.get("/admin/rcg-users")
+async def list_rcg_users(user=Depends(require(*RCG_ROLES))):
+    out = []
+    async for u in db.users.find({"role": {"$in": list(RCG_ROLES)}, "deleted_at": None}).sort("created_at", 1):
+        out.append({"id": u["id"], "username": u["username"], "nama": u.get("nama"),
+            "role": u["role"], "status": u["status"], "is_self": u["id"] == user["id"]})
+    return out
+
+class RcgUserIn(BaseModel):
+    nama: str
+    nip: str
+
+@api.post("/admin/rcg-users")
+async def create_rcg_admin(body: RcgUserIn, user=Depends(require(RCG_CONTROLLER))):
+    nama = body.nama.strip()
+    nip = body.nip.strip().lower()
+    if not nama or not nip:
+        raise HTTPException(400, "Nama dan NIP wajib diisi")
+    if await db.users.find_one({"username": nip, "deleted_at": None}):
+        raise HTTPException(409, "NIP/username sudah digunakan")
+    # A soft-deleted tombstone may still hold this username on the unique index; clear it.
+    await db.users.update_many({"username": nip, "deleted_at": {"$ne": None}},
+        {"$set": {"username": f"{nip}__deleted__{new_id()[:8]}"}})
+    uid = new_id()
+    await db.users.insert_one({"id": uid, "username": nip, "password_hash": hash_pw(DEFAULT_PASSWORD),
+        "role": RCG_ADMIN, "ref_id": None, "nama": nama, "status": "active", "data_flag": "OK",
+        "last_login_at": None, "force_password_change": True, "created_at": now_iso(),
+        "updated_at": now_iso(), "deleted_at": None})
+    await audit(user, "CREATE", "rcg_user", uid, after={"nama": nama, "nip": nip})
+    return {"ok": True, "id": uid, "default_password": DEFAULT_PASSWORD}
+
+@api.post("/admin/rcg-users/{uid}/toggle")
+async def toggle_rcg_admin(uid: str, user=Depends(require(RCG_CONTROLLER))):
+    target = await db.users.find_one({"id": uid, "deleted_at": None})
+    if not target or target["role"] not in RCG_ROLES:
+        raise HTTPException(404, "User tidak ditemukan")
+    if target["role"] == RCG_CONTROLLER:
+        raise HTTPException(403, "User Full Controller tidak dapat dinonaktifkan")
+    ns = "inactive" if target["status"] == "active" else "active"
+    await db.users.update_one({"id": uid}, {"$set": {"status": ns, "updated_at": now_iso()}})
+    await audit(user, "TOGGLE_STATUS", "rcg_user", uid, after={"status": ns})
+    return {"ok": True, "status": ns}
+
+@api.delete("/admin/rcg-users/{uid}")
+async def delete_rcg_admin(uid: str, user=Depends(require(RCG_CONTROLLER))):
+    target = await db.users.find_one({"id": uid, "deleted_at": None})
+    if not target or target["role"] not in RCG_ROLES:
+        raise HTTPException(404, "User tidak ditemukan")
+    if target["role"] == RCG_CONTROLLER:
+        raise HTTPException(403, "User Full Controller tidak dapat dihapus")
+    # Tombstone-rename the username so the unique index frees the NIP for future re-use.
+    await db.users.update_one({"id": uid}, {"$set": {
+        "status": "inactive", "deleted_at": now_iso(),
+        "username": f"{target['username']}__deleted__{uid[:8]}", "updated_at": now_iso()}})
+    await audit(user, "DELETE", "rcg_user", uid)
+    return {"ok": True}
+
+class SelfProfileIn(BaseModel):
+    nama: str
+    nip: str
+    new_password: Optional[str] = None
+
+@api.put("/admin/rcg/self")
+async def update_self_profile(body: SelfProfileIn, user=Depends(require(RCG_CONTROLLER))):
+    nama = body.nama.strip()
+    nip = body.nip.strip().lower()
+    if not nama or not nip:
+        raise HTTPException(400, "Nama dan NIP wajib diisi")
+    dup = await db.users.find_one({"username": nip, "id": {"$ne": user["id"]}, "deleted_at": None})
+    if dup:
+        raise HTTPException(409, "NIP/username sudah digunakan user lain")
+    upd = {"nama": nama, "username": nip, "updated_at": now_iso()}
+    if body.new_password:
+        if len(body.new_password) < 6:
+            raise HTTPException(400, "Password baru minimal 6 karakter")
+        upd["password_hash"] = hash_pw(body.new_password)
+        upd["force_password_change"] = False
+    await db.users.update_one({"id": user["id"]}, {"$set": upd})
+    await audit(user, "UPDATE_SELF", "rcg_user", user["id"], after={"nama": nama, "nip": nip})
+    return {"ok": True}
+
 @api.post("/admin/{kind}/{uid}/toggle")
-async def toggle_user(kind: str, uid: str, user=Depends(require("admin_rcg"))):
+async def toggle_user(kind: str, uid: str, user=Depends(require(*RCG_ROLES))):
     coll = db.master_marketing_asset if kind == "marketing-asset" else db.master_acrm
     m = await coll.find_one({"id": uid, "deleted_at": None})
     if not m:
@@ -1327,7 +1493,7 @@ class MutasiIn(BaseModel):
     reason: str
 
 @api.post("/admin/marketing-asset/{mid}/mutasi")
-async def mutasi_ma(mid: str, body: MutasiIn, user=Depends(require("admin_rcg"))):
+async def mutasi_ma(mid: str, body: MutasiIn, user=Depends(require(*RCG_ROLES))):
     if not body.reason.strip():
         raise HTTPException(400, "Alasan mutasi wajib diisi")
     m = await db.master_marketing_asset.find_one({"id": mid, "deleted_at": None})
@@ -1348,7 +1514,7 @@ async def mutasi_ma(mid: str, body: MutasiIn, user=Depends(require("admin_rcg"))
     return {"ok": True}
 
 @api.post("/admin/acrm/{aid}/mutasi")
-async def mutasi_acrm(aid: str, body: MutasiIn, user=Depends(require("admin_rcg"))):
+async def mutasi_acrm(aid: str, body: MutasiIn, user=Depends(require(*RCG_ROLES))):
     if not body.reason.strip():
         raise HTTPException(400, "Alasan mutasi wajib diisi")
     m = await db.master_acrm.find_one({"id": aid, "deleted_at": None})
@@ -1369,11 +1535,11 @@ async def mutasi_acrm(aid: str, body: MutasiIn, user=Depends(require("admin_rcg"
     return {"ok": True}
 
 @api.get("/admin/audit-logs")
-async def get_audit(limit: int = 100, user=Depends(require("admin_rcg"))):
+async def get_audit(limit: int = 100, user=Depends(require(*RCG_ROLES))):
     return [clean(l) async for l in db.audit_logs.find().sort("timestamp", -1).limit(limit)]
 
 @api.get("/admin/mutation-history")
-async def get_mutations(user=Depends(require("admin_rcg"))):
+async def get_mutations(user=Depends(require(*RCG_ROLES))):
     out = []
     async for h in db.user_mutation_history.find().sort("mutation_date", -1).limit(100):
         old = await db.master_acr.find_one({"id": h["old_acr_id"]})

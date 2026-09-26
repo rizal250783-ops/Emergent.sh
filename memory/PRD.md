@@ -83,6 +83,17 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Transisi 2 arah mulus: Dari katalog publik klik "Panel" masuk ke Dashboard internal; dari Dashboard/Akun/Kelola/Antrian klik "Katalog Publik" langsung membuka Halaman Utama katalog lelang.
 - Validated by testing agent: 6/6 frontend navigation flows passed (iteration_7.json).
 
+## Implemented (Iteration 8, 2026-06)
+- RBAC dua-tingkat RCG menggantikan role tunggal `admin_rcg`:
+  - `rcg_controller` (SYAMSU RIZAL, NIP 2183008345): semua hak RCG + kelola (tambah/nonaktif/hapus) RCG Admin + ubah nama/NIP/password sendiri.
+  - `rcg_admin` (ACHMAD BASONI, IRMA MARTHALIA, LIA UTAMI NINGSIH, DERI MUKTI): semua hak operasional RCG, TIDAK bisa kelola sesama RCG. Password awal semua BSI@2026.
+  - Akun lama admin/admin2 di-retire (soft delete, tidak bisa login).
+  - Endpoint controller-only: GET/POST /admin/rcg-users, POST /admin/rcg-users/{id}/toggle, DELETE /admin/rcg-users/{id}, PUT /admin/rcg/self. Route didahulukan sebelum /admin/{kind}/{uid}/toggle; delete melakukan tombstone-rename username agar NIP bisa dipakai ulang.
+- PIC Marketing Asset diganti: ACR Manado -> Farah Ummainah Khofifah Maturan (TAD2310129981 / 082346437429); ACR Jakarta Thamrin -> Windi Nofriantika (TAD24040100322 / 089630141361). Idempotent fixup saat startup.
+- Fitur "Aset Terdekat": GET /public/catalog?sort=nearest&lat&lng (haversine, SOLD di akhir), distance_km per item. Frontend: chip "Terdekat" (GPS + permission flow) & chip "Pilih Titik" (modal peta pilih titik acuan), badge jarak km di kartu.
+- Tema dua-warna korporat BSI: teal #00A39D + gold #F8AD3C (header gradient teal, chip aktif gold, badge jarak gold). Tagline diubah "Menghubungkan Investor dengan Asset BSI" dengan font script Pacifico (assets/fonts/Pacifico-Regular.ttf via expo-font).
+- Validated by testing agent: backend 18/18 (setelah fix route-order + soft-delete collision), frontend 14/14 (iteration_8.json).
+
 ## Backlog / Remaining
 - P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.

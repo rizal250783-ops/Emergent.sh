@@ -6,8 +6,8 @@ import { fileUrl } from "@/src/api";
 import { rupiahShort, formatDate } from "@/src/format";
 import { Icon, spacing, radius } from "@/src/components/ui";
 
-export function AssetCard({ item, onPress, onShare, fav, onFav, width }: {
-  item: any; onPress: () => void; onShare?: () => void; fav?: boolean; onFav?: () => void; width?: number;
+export function AssetCard({ item, onPress, onShare, fav, onFav, width, distanceKm }: {
+  item: any; onPress: () => void; onShare?: () => void; fav?: boolean; onFav?: () => void; width?: number; distanceKm?: number;
 }) {
   const s = useStyles();
   const { colors } = useTheme();
@@ -16,6 +16,12 @@ export function AssetCard({ item, onPress, onShare, fav, onFav, width }: {
     <Pressable style={[s.cardWrap, width ? { width } : s.cardFlex]} onPress={onPress} testID={`asset-card-${item.id}`}>
       <View style={s.cardImgWrap}>
         <Image source={{ uri: fileUrl(item.images?.[0]) }} style={s.cardImg} contentFit="cover" transition={200} />
+        {distanceKm != null && (
+          <View style={s.distBadge} testID={`distance-${item.id}`}>
+            <Icon name="navigation" size={10} color={colors.onBrandSecondary} />
+            <Text style={s.distTxt}>{distanceKm < 1 ? "<1" : distanceKm} km</Text>
+          </View>
+        )}
         {sold ? (
           <View style={s.soldOverlay} testID={`sold-badge-${item.id}`}>
             <View style={s.soldRibbon}><Text style={s.soldTxt}>TERJUAL</Text></View>
@@ -72,6 +78,8 @@ const useStyles = makeStyles((c) => ({
   soldRibbon: { backgroundColor: c.error, paddingHorizontal: 14, paddingVertical: 6, borderRadius: radius.sm, transform: [{ rotate: "-8deg" }] },
   soldTxt: { color: "#FFFFFF", fontSize: 14, fontWeight: "900", letterSpacing: 1.5 },
   cardActions: { position: "absolute", top: 8, right: 8, flexDirection: "row", gap: 6 },
+  distBadge: { position: "absolute", top: 8, left: 8, flexDirection: "row", alignItems: "center", gap: 3, backgroundColor: c.brandSecondary, paddingHorizontal: 7, height: 22, borderRadius: radius.pill },
+  distTxt: { color: c.onBrandSecondary, fontSize: 10, fontWeight: "800" },
   cardIconBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: "rgba(255,255,255,0.92)", alignItems: "center", justifyContent: "center" },
   cardCat: { fontSize: 10, color: c.brandPrimary, fontWeight: "700", textTransform: "uppercase" },
   cardTitle: { fontSize: 13, fontWeight: "700", color: c.onSurface, lineHeight: 18, minHeight: 36 },

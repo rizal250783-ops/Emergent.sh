@@ -23,10 +23,11 @@ export default function RootLayout() {
     [FONTS.bold]: require("../assets/fonts/Lato-Bold.ttf"),
     [FONTS.black]: require("../assets/fonts/Lato-Black.ttf"),
     [FONTS.italic]: require("../assets/fonts/Lato-Italic.ttf"),
+    [FONTS.script]: require("../assets/fonts/Pacifico-Regular.ttf"),
   });
   if (!fontsLoaded && !fontError) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#00A0A0" }}>
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#00A39D" }}>
         <ActivityIndicator color="#FFFFFF" />
       </View>
     );

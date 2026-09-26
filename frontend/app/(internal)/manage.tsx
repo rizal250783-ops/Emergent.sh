@@ -4,26 +4,31 @@ import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeStyles, useTheme } from "@/src/theme";
-import { apiGet, apiPost, apiPut, fileUrl } from "@/src/api";
+import { apiGet, apiPost, apiPut, apiDelete, fileUrl } from "@/src/api";
 import { formatDateTime } from "@/src/format";
 import {
   ScreenHeader, Card, Badge, Field, Select, Button, Icon, Loading, ErrorState, EmptyState, spacing, radius,
 } from "@/src/components/ui";
 import { useToast } from "@/src/components/toast";
 import { useConfirm } from "@/src/components/confirm";
+import { useAuth, isController } from "@/src/auth";
 
-const TABS = [
+const BASE_TABS = [
   { key: "users", label: "User", icon: "users" },
   { key: "kategori", label: "Kategori", icon: "grid" },
   { key: "audit", label: "Audit", icon: "shield" },
   { key: "laporan", label: "Laporan", icon: "file-text" },
 ];
+const RCG_TAB = { key: "rcg", label: "RCG", icon: "user-check" };
 
 export default function Manage() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const s = useStyles();
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const controller = isController(user?.role);
+  const TABS = controller ? [...BASE_TABS, RCG_TAB] : BASE_TABS;
   const [tab, setTab] = useState("users");
 
   return (
@@ -38,19 +43,144 @@ export default function Manage() {
           </Pressable>
         }
       />
-      <View style={s.tabRow}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={s.tabScroll} contentContainerStyle={s.tabRow}>
         {TABS.map((t) => (
           <Pressable key={t.key} style={[s.tab, tab === t.key && s.tabActive]} onPress={() => setTab(t.key)} testID={`manage-tab-${t.key}`}>
             <Icon name={t.icon as any} size={16} color={tab === t.key ? colors.brandPrimary : colors.muted} />
             <Text style={[s.tabTxt, tab === t.key && { color: colors.brandPrimary }]}>{t.label}</Text>
           </Pressable>
         ))}
-      </View>
+      </ScrollView>
       {tab === "users" && <UsersTab />}
       {tab === "kategori" && <KategoriTab />}
       {tab === "audit" && <AuditTab />}
       {tab === "laporan" && <LaporanTab />}
+      {tab === "rcg" && controller && <RcgTab />}
     </View>
+  );
+}
+
+// -------- RCG user management (Full Controller only) --------
+function RcgTab() {
+  const s = useStyles();
+  const { colors } = useTheme();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const { user, refresh } = useAuth();
+
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+    queryKey: ["rcg-users"],
+    queryFn: () => apiGet("/admin/rcg-users"),
+  });
+
+  const [addName, setAddName] = useState("");
+  const [addNip, setAddNip] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  const addAdmin = async () => {
+    if (!addName.trim() || !addNip.trim()) { toast("Nama dan NIP wajib diisi", "error"); return; }
+    setBusy(true);
+    try {
+      await apiPost("/admin/rcg-users", { nama: addName.trim(), nip: addNip.trim() });
+      toast("RCG Admin ditambahkan (password: BSI@2026)", "success");
+      setAddName(""); setAddNip("");
+      qc.invalidateQueries({ queryKey: ["rcg-users"] });
+    } catch (e: any) { toast(e.message, "error"); } finally { setBusy(false); }
+  };
+
+  const toggle = async (row: any) => {
+    const r = await confirm({ title: row.status === "active" ? "Nonaktifkan RCG Admin" : "Aktifkan RCG Admin", message: `${row.nama} akan ${row.status === "active" ? "dinonaktifkan (tidak bisa login)" : "diaktifkan kembali"}.`, confirmText: "Ya", tone: row.status === "active" ? "danger" : "primary" });
+    if (!r.ok) return;
+    try { await apiPost(`/admin/rcg-users/${row.id}/toggle`); qc.invalidateQueries({ queryKey: ["rcg-users"] }); toast("Status diperbarui", "success"); }
+    catch (e: any) { toast(e.message, "error"); }
+  };
+
+  const remove = async (row: any) => {
+    const r = await confirm({ title: "Hapus RCG Admin", message: `Hapus akun ${row.nama} secara permanen dari daftar RCG?`, confirmText: "Hapus", tone: "danger" });
+    if (!r.ok) return;
+    try { await apiDelete(`/admin/rcg-users/${row.id}`); qc.invalidateQueries({ queryKey: ["rcg-users"] }); toast("RCG Admin dihapus", "success"); }
+    catch (e: any) { toast(e.message, "error"); }
+  };
+
+  // Self profile edit
+  const [selfOpen, setSelfOpen] = useState(false);
+  const [sName, setSName] = useState(user?.nama || "");
+  const [sNip, setSNip] = useState(user?.username || "");
+  const [sPw, setSPw] = useState("");
+  const [selfBusy, setSelfBusy] = useState(false);
+  React.useEffect(() => { setSName(user?.nama || ""); setSNip(user?.username || ""); }, [user?.nama, user?.username]);
+
+  const saveSelf = async () => {
+    if (!sName.trim() || !sNip.trim()) { toast("Nama dan NIP wajib diisi", "error"); return; }
+    setSelfBusy(true);
+    try {
+      await apiPut("/admin/rcg/self", { nama: sName.trim(), nip: sNip.trim(), new_password: sPw || undefined });
+      toast("Data diri diperbarui", "success");
+      setSPw(""); setSelfOpen(false);
+      await refresh();
+      qc.invalidateQueries({ queryKey: ["rcg-users"] });
+    } catch (e: any) { toast(e.message, "error"); } finally { setSelfBusy(false); }
+  };
+
+  if (isLoading) return <Loading />;
+  if (isError) return <ErrorState onRetry={refetch} />;
+  const rows: any[] = data || [];
+
+  return (
+    <ScrollView contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}>
+      <Card>
+        <Pressable style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }} onPress={() => setSelfOpen((v) => !v)} testID="toggle-self-edit">
+          <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+            <View style={s.ctrlBadge}><Icon name="award" size={14} color={colors.onBrandSecondary} /></View>
+            <Text style={s.cardTitle}>Ubah Data Diri Saya</Text>
+          </View>
+          <Icon name={selfOpen ? "chevron-up" : "chevron-down"} size={20} color={colors.muted} />
+        </Pressable>
+        <Text style={s.selfHint}>Sebagai Full Controller, Anda dapat mengganti nama, NIP, dan password sendiri (mis. saat mutasi jabatan).</Text>
+        {selfOpen && (
+          <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+            <Field label="Nama Lengkap" value={sName} onChangeText={setSName} testID="self-nama" />
+            <Field label="NIP (username login)" value={sNip} onChangeText={setSNip} autoCapitalize="none" testID="self-nip" />
+            <Field label="Password Baru (opsional)" value={sPw} onChangeText={setSPw} secureTextEntry autoCapitalize="none" placeholder="Kosongkan bila tidak diubah" testID="self-password" />
+            <Button title="Simpan Data Diri" onPress={saveSelf} loading={selfBusy} testID="save-self" />
+          </View>
+        )}
+      </Card>
+
+      <Card>
+        <Text style={s.cardTitle}>Tambah RCG Admin</Text>
+        <Text style={s.selfHint}>Akun baru berperan RCG Admin dengan password awal BSI@2026.</Text>
+        <View style={{ gap: spacing.md, marginTop: spacing.md }}>
+          <Field label="Nama Lengkap" value={addName} onChangeText={setAddName} placeholder="mis. BUDI SANTOSO" testID="rcg-add-nama" />
+          <Field label="NIP" value={addNip} onChangeText={setAddNip} autoCapitalize="none" placeholder="mis. 2188001234" testID="rcg-add-nip" />
+          <Button title="Tambah RCG Admin" icon="user-plus" onPress={addAdmin} loading={busy} testID="rcg-add-submit" />
+        </View>
+      </Card>
+
+      <Text style={s.rcgListLabel}>Daftar Pengguna RCG ({rows.length})</Text>
+      {rows.map((r) => (
+        <Card key={r.id}>
+          <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "flex-start", gap: spacing.sm }}>
+            <View style={{ flex: 1 }}>
+              <Text style={s.uName}>{r.nama}{r.is_self ? " (Anda)" : ""}</Text>
+              <Text style={s.uMeta}>NIP {r.username}</Text>
+              <View style={{ flexDirection: "row", gap: 6, marginTop: 4, flexWrap: "wrap" }}>
+                <Badge label={r.role === "rcg_controller" ? "Full Controller" : "RCG Admin"} tone={r.role === "rcg_controller" ? "warning" : "brand"} />
+                <Badge label={r.status === "active" ? "Aktif" : "Nonaktif"} tone={r.status === "active" ? "success" : "neutral"} />
+              </View>
+            </View>
+          </View>
+          {r.role !== "rcg_controller" && (
+            <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.md }}>
+              <View style={{ flex: 1 }}><Button title={r.status === "active" ? "Nonaktifkan" : "Aktifkan"} variant={r.status === "active" ? "outline" : "primary"} onPress={() => toggle(r)} testID={`rcg-toggle-${r.id}`} /></View>
+              <View style={{ flex: 1 }}><Button title="Hapus" variant="danger" icon="trash-2" onPress={() => remove(r)} testID={`rcg-delete-${r.id}`} /></View>
+            </View>
+          )}
+        </Card>
+      ))}
+      <View style={{ height: 8 }}>{isRefetching ? null : null}</View>
+    </ScrollView>
   );
 }
 
@@ -389,10 +519,14 @@ const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
   pubBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, height: 32, borderRadius: 16 },
   pubBtnTxt: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
-  tabRow: { flexDirection: "row", backgroundColor: c.surfaceSecondary, borderBottomWidth: 1, borderBottomColor: c.border },
-  tab: { flex: 1, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", paddingVertical: spacing.md, borderBottomWidth: 2, borderBottomColor: "transparent" },
+  tabScroll: { flexGrow: 0, backgroundColor: c.surfaceSecondary, borderBottomWidth: 1, borderBottomColor: c.border },
+  tabRow: { flexDirection: "row" },
+  tab: { flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", paddingVertical: spacing.md, paddingHorizontal: spacing.lg, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabActive: { borderBottomColor: c.brandPrimary },
   tabTxt: { fontSize: 13, fontWeight: "700", color: c.muted },
+  ctrlBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.brandSecondary, alignItems: "center", justifyContent: "center" },
+  selfHint: { fontSize: 12, color: c.muted, marginTop: 4, lineHeight: 17 },
+  rcgListLabel: { fontSize: 14, fontWeight: "800", color: c.onSurface, marginTop: spacing.sm },
   filterBar: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, paddingHorizontal: 12, height: 44 },
   searchInput: { flex: 1, fontSize: 14, color: c.onSurface },

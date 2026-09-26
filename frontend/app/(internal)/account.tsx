@@ -9,7 +9,7 @@ import { ScreenHeader, Card, Field, Button, Icon, Badge, spacing, radius } from 
 import { useToast } from "@/src/components/toast";
 import { useConfirm } from "@/src/components/confirm";
 
-const ROLE_LABEL: Record<string, string> = { marketing_asset: "Marketing Asset (Maker)", acrm: "ACRM (Checker)", admin_rcg: "Admin RCG (Controller)" };
+const ROLE_LABEL: Record<string, string> = { marketing_asset: "Marketing Asset (Maker)", acrm: "ACRM (Checker)", rcg_controller: "RCG Full Controller", rcg_admin: "RCG Admin" };
 
 export default function Account() {
   const insets = useSafeAreaInsets();

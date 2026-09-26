@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeStyles, useTheme, font } from "@/src/theme";
 import { apiGet, apiPost, fileUrl } from "@/src/api";
-import { useAuth } from "@/src/auth";
+import { useAuth, isRcg } from "@/src/auth";
 import { rupiah, formatDate, formatDateTime, statusMeta, fileSize } from "@/src/format";
 import { ScreenHeader, Badge, Loading, ErrorState, Button, Card, Icon, spacing, radius } from "@/src/components/ui";
 import { useToast } from "@/src/components/toast";
@@ -98,9 +98,9 @@ export default function InternalDetail() {
   const maCanSubmit = role === "marketing_asset" && ["DRAFT", "RETURN_TO_MARKETING", "RETURN_FROM_RCG"].includes(st);
   const maCanUpdate = role === "marketing_asset" && ["PUBLISHED", "SOLD"].includes(st);
   const acrmCanAct = role === "acrm" && ["WAITING_ACRM_REVIEW", "UPDATE_PENDING_ACRM"].includes(st);
-  const rcgCanAct = role === "admin_rcg" && ["WAITING_RCG_APPROVAL", "UPDATE_PENDING_RCG"].includes(st);
-  const rcgCanSell = role === "admin_rcg" && st === "PUBLISHED";
-  const rcgCanUnsell = role === "admin_rcg" && st === "SOLD";
+  const rcgCanAct = isRcg(role) && ["WAITING_RCG_APPROVAL", "UPDATE_PENDING_RCG"].includes(st);
+  const rcgCanSell = isRcg(role) && st === "PUBLISHED";
+  const rcgCanUnsell = isRcg(role) && st === "SOLD";
   const hasActions = maCanEdit || maCanSubmit || acrmCanAct || rcgCanAct || rcgCanSell || rcgCanUnsell;
 
   const markSold = () =>

@@ -3,16 +3,22 @@ import {
   View, Text, FlatList, Pressable, ScrollView, Modal, TextInput, RefreshControl, useWindowDimensions,
 } from "react-native";
 import { Image } from "expo-image";
+import { LinearGradient } from "expo-linear-gradient";
+import * as Location from "expo-location";
+import { Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { makeStyles, useTheme } from "@/src/theme";
+import { makeStyles, useTheme, SCRIPT_FONT } from "@/src/theme";
 import { apiGet } from "@/src/api";
 import { Icon, EmptyState, ErrorState, Skeleton, Button, Select, spacing, radius } from "@/src/components/ui";
 import { useAuth } from "@/src/auth";
+import { useToast } from "@/src/components/toast";
+import { useConfirm } from "@/src/components/confirm";
 import { useShareAsset } from "@/src/components/share";
 import { useFavorites, useFavoriteUpdates } from "@/src/favorites";
 import { AssetCard } from "@/src/components/asset-card";
+import { AssetMap } from "@/src/components/asset-map";
 import { PublicFooter } from "@/src/components/public-footer";
 
 const LIMIT = 20;
@@ -31,9 +37,40 @@ export default function PublicCatalog() {
   const [loc, setLoc] = useState<Loc>(EMPTY_LOC);
   const [priceDrop, setPriceDrop] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
+  const [origin, setOrigin] = useState<{ lat: number; lng: number; label: string } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [mapPickOpen, setMapPickOpen] = useState(false);
   const { share, sheet } = useShareAsset();
   const { ids: favIds, has: favHas, toggle: toggleFav } = useFavorites();
   const { updates: favUpdates } = useFavoriteUpdates();
+  const toast = useToast();
+  const confirm = useConfirm();
+
+  // Nearest-asset: use device GPS (with contextual permission flow) as the origin point.
+  const useMyLocation = async () => {
+    setLocating(true);
+    try {
+      let perm = await Location.getForegroundPermissionsAsync();
+      if (!perm.granted) {
+        if (!perm.canAskAgain) {
+          const r = await confirm({ title: "Izin Lokasi Diblokir", message: "Aktifkan izin lokasi di Pengaturan agar kami bisa mengurutkan aset dari yang terdekat dengan Anda.", confirmText: "Buka Pengaturan" });
+          if (r.ok) Linking.openSettings();
+          return;
+        }
+        const r = await confirm({ title: "Izinkan Akses Lokasi", message: "Lokasi Anda dipakai untuk menampilkan aset lelang terdekat lebih dulu.", confirmText: "Lanjutkan" });
+        if (!r.ok) return;
+        perm = await Location.requestForegroundPermissionsAsync();
+        if (!perm.granted) { toast("Izin lokasi ditolak. Anda bisa pilih titik di peta.", "error"); return; }
+      }
+      const pos = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setOrigin({ lat: pos.coords.latitude, lng: pos.coords.longitude, label: "Lokasi Anda" });
+      toast("Menampilkan aset terdekat dari lokasi Anda", "success");
+    } catch {
+      toast("Tidak dapat mengambil lokasi. Coba pilih titik di peta.", "error");
+    } finally {
+      setLocating(false);
+    }
+  };
 
   // Live search: apply keyword automatically while typing (debounced)
   React.useEffect(() => {
@@ -52,9 +89,10 @@ export default function PublicCatalog() {
     if (categoryId) p.set("category_id", categoryId);
     (Object.keys(loc) as (keyof Loc)[]).forEach((k) => { if (loc[k]) p.set(k, loc[k]); });
     if (priceDrop) p.set("price_drop", "true");
+    if (origin) { p.set("sort", "nearest"); p.set("lat", String(origin.lat)); p.set("lng", String(origin.lng)); }
     p.set("limit", String(LIMIT));
     return p.toString();
-  }, [search, categoryId, loc, priceDrop]);
+  }, [search, categoryId, loc, priceDrop, origin]);
 
   const {
     data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isRefetching,
@@ -87,14 +125,14 @@ export default function PublicCatalog() {
   return (
     <View style={[s.screen, { paddingTop: insets.top }]}>
       {/* Header */}
-      <View style={s.header}>
+      <LinearGradient colors={[colors.brandPrimary, colors.brandPrimaryDark]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={s.header}>
         <View style={s.brandRow}>
           <View style={s.logoBox}>
             <Image source={require("../assets/images/bsi-logo.png")} style={s.logoImg} contentFit="contain" />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={s.appName}>BSI ASSET DEAL</Text>
-            <Text style={s.tagline}>Menghubungkan Pembeli dengan Aset BSI</Text>
+            <Text style={s.tagline}>Menghubungkan Investor dengan Asset BSI</Text>
           </View>
           <Pressable testID="map-entry-button" style={s.iconBtn} onPress={openMap}>
             <Icon name="map" size={18} color={colors.onBrandPrimary} />
@@ -149,6 +187,14 @@ export default function PublicCatalog() {
 
         {/* Category chips: wrap so every option is visible without horizontal scrolling */}
         <View style={s.chipsWrap}>
+          <Pressable onPress={origin ? () => setOrigin(null) : useMyLocation} style={[s.chip, s.nearChip, origin && s.nearChipActive]} testID="chip-terdekat">
+            <Icon name={locating ? "loader" : "navigation"} size={14} color={origin ? colors.onBrandSecondary : "#FFFFFF"} />
+            <Text style={[s.chipTxt, origin && { color: colors.onBrandSecondary }]}>{locating ? "Mencari..." : "Terdekat"}</Text>
+          </Pressable>
+          <Pressable onPress={() => setMapPickOpen(true)} style={[s.chip, s.nearChip]} testID="chip-pilih-titik">
+            <Icon name="map-pin" size={14} color="#FFFFFF" />
+            <Text style={s.chipTxt}>Pilih Titik</Text>
+          </Pressable>
           <Pressable onPress={() => setPriceDrop((v) => !v)} style={[s.chip, s.dropChip, priceDrop && s.dropChipActive]} testID="chip-harga-turun">
             <Icon name="trending-down" size={14} color={priceDrop ? "#FFFFFF" : colors.brandSecondary} />
             <Text style={[s.chipTxt, priceDrop && { color: "#FFFFFF" }]}>Harga Turun</Text>
@@ -158,7 +204,7 @@ export default function PublicCatalog() {
             <Chip key={c.id} label={c.nama_category} active={categoryId === c.id} onPress={() => setCategoryId(c.id)} />
           ))}
         </View>
-      </View>
+      </LinearGradient>
 
       {/* Body */}
       {isLoading ? (
@@ -179,8 +225,8 @@ export default function PublicCatalog() {
           icon="search"
           title="Tidak ada asset ditemukan"
           subtitle="Coba ubah kata kunci atau hapus filter."
-          action={activeFilters > 0 || search ? (
-            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setLoc(EMPTY_LOC); setPriceDrop(false); setKeyword(""); setSearch(""); }} testID="reset-filter-empty" />
+          action={activeFilters > 0 || search || origin ? (
+            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setLoc(EMPTY_LOC); setPriceDrop(false); setKeyword(""); setSearch(""); setOrigin(null); }} testID="reset-filter-empty" />
           ) : undefined}
         />
       ) : (
@@ -194,12 +240,19 @@ export default function PublicCatalog() {
           ListHeaderComponent={
             <View style={s.resultHead}>
               <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
-                <Text style={s.resultCount}>{total} asset {priceDrop ? "dengan harga turun" : "tersedia"}</Text>
+                <Text style={s.resultCount}>{total} asset {origin ? "terdekat" : priceDrop ? "dengan harga turun" : "tersedia"}</Text>
                 <Pressable style={s.mapPill} onPress={openMap} testID="view-on-map">
                   <Icon name="map" size={12} color={colors.brandPrimary} />
                   <Text style={s.mapPillTxt}>Lihat di Peta</Text>
                 </Pressable>
               </View>
+              {origin ? (
+                <Pressable style={s.originPill} onPress={() => setOrigin(null)} testID="clear-origin-filter">
+                  <Icon name="navigation" size={12} color={colors.onBrandSecondary} />
+                  <Text style={s.originPillTxt} numberOfLines={1}>Diurutkan dari: {origin.label}</Text>
+                  <Icon name="x" size={12} color={colors.onBrandSecondary} />
+                </Pressable>
+              ) : null}
               {locLabel ? (
                 <Pressable style={s.locPill} onPress={() => setLoc(EMPTY_LOC)} testID="clear-location-filter">
                   <Icon name="map-pin" size={12} color={colors.brandPrimary} />
@@ -212,7 +265,7 @@ export default function PublicCatalog() {
           refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={colors.brandPrimary} />}
           onEndReached={() => hasNextPage && fetchNextPage()}
           onEndReachedThreshold={0.4}
-          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} fav={favHas(item.id)} onFav={() => toggleFav(item.id, item)} width={cardW} />}
+          renderItem={({ item }) => <AssetCard item={item} onPress={() => router.push(`/asset/${item.id}`)} onShare={() => share(item)} fav={favHas(item.id)} onFav={() => toggleFav(item.id, item)} width={cardW} distanceKm={item.distance_km} />}
           ListFooterComponent={
             <View>
               {isFetchingNextPage && <View style={{ padding: 16 }}><Skeleton h={12} w="40%" style={{ alignSelf: "center" }} /></View>}
@@ -230,6 +283,12 @@ export default function PublicCatalog() {
         loc={loc}
         onApply={(c: string | null, l: Loc, reset?: boolean) => { setCategoryId(c); setLoc(l); if (reset) setPriceDrop(false); setFilterOpen(false); }}
       />
+      <MapPickModal
+        visible={mapPickOpen}
+        initial={origin}
+        onClose={() => setMapPickOpen(false)}
+        onPick={(lat, lng) => { setOrigin({ lat, lng, label: "Titik peta pilihan" }); setMapPickOpen(false); }}
+      />
       {sheet}
     </View>
   );
@@ -241,6 +300,41 @@ function Chip({ label, active, onPress }: { label: string; active: boolean; onPr
     <Pressable onPress={onPress} style={[s.chip, active && s.chipActive]} testID={`chip-${label}`}>
       <Text style={[s.chipTxt, active && s.chipTxtActive]}>{label}</Text>
     </Pressable>
+  );
+}
+
+/** Modal to pick a reference point on the map, then sort assets nearest to it. */
+function MapPickModal({ visible, initial, onClose, onPick }: {
+  visible: boolean; initial: { lat: number; lng: number } | null; onClose: () => void; onPick: (lat: number, lng: number) => void;
+}) {
+  const s = useStyles();
+  const insets = useSafeAreaInsets();
+  const [pt, setPt] = useState<{ lat: number; lng: number }>(initial || { lat: -6.2, lng: 106.8166 });
+  React.useEffect(() => { if (visible && initial) setPt(initial); }, [visible]);
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View style={s.modalBackdrop}>
+        <View style={[s.modalSheet, { paddingBottom: insets.bottom + spacing.lg }]}>
+          <View style={s.modalHandle} />
+          <View style={s.modalHead}>
+            <Text style={s.modalTitle}>Pilih Titik Lokasi</Text>
+            <Pressable onPress={onClose} testID="close-map-pick"><Icon name="x" size={22} color="#1F2937" /></Pressable>
+          </View>
+          <Text style={s.filterHint}>Ketuk atau geser pin ke lokasi acuan, lalu aset lelang akan diurutkan dari yang terdekat.</Text>
+          <AssetMap
+            latitude={pt.lat}
+            longitude={pt.lng}
+            height={320}
+            editable
+            onChange={(lat, lng) => setPt({ lat, lng })}
+            testID="origin-map-picker"
+          />
+          <View style={{ marginTop: spacing.md }}>
+            <Button title="Cari Aset Terdekat dari Titik Ini" icon="navigation" onPress={() => onPick(pt.lat, pt.lng)} testID="apply-map-pick" />
+          </View>
+        </View>
+      </View>
+    </Modal>
   );
 }
 
@@ -387,7 +481,7 @@ const useStyles = makeStyles((c) => ({
   locChipTxtActive: { color: c.brandPrimary },
   locChipLbl: { fontSize: 9, color: "rgba(255,255,255,0.75)", fontWeight: "700", textTransform: "uppercase" },
   appName: { color: "#FFFFFF", fontWeight: "800", fontSize: 14, letterSpacing: 0.2 },
-  tagline: { color: "#E6F6F6", fontSize: 10 },
+  tagline: { color: c.brandSecondary, fontSize: 15, fontFamily: SCRIPT_FONT, marginTop: 1 },
   loginBtn: { flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, backgroundColor: "#FFFFFF", width: 48, height: 40, borderRadius: radius.md },
   loginTxt: { color: c.brandPrimary, fontWeight: "800", fontSize: 9 },
   searchRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.lg },
@@ -398,12 +492,16 @@ const useStyles = makeStyles((c) => ({
   filterDot: { position: "absolute", top: -4, right: -4, backgroundColor: c.brandSecondary, minWidth: 18, height: 18, borderRadius: 9, alignItems: "center", justifyContent: "center", paddingHorizontal: 4 },
   filterDotTxt: { color: c.onBrandSecondary, fontSize: 10, fontWeight: "800" },
   chip: { height: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", flexShrink: 0 },
-  chipActive: { backgroundColor: "#FFFFFF" },
+  chipActive: { backgroundColor: c.brandSecondary },
   alertDot: { backgroundColor: c.error },
+  nearChip: { flexDirection: "row", gap: 6, borderWidth: 1, borderColor: "rgba(255,255,255,0.5)" },
+  nearChipActive: { backgroundColor: c.brandSecondary, borderColor: c.brandSecondary },
   dropChip: { flexDirection: "row", gap: 6, borderWidth: 1, borderColor: c.brandSecondary },
   dropChipActive: { backgroundColor: c.success, borderColor: c.success },
   chipTxt: { color: "#FFFFFF", fontWeight: "600", fontSize: 13 },
-  chipTxtActive: { color: c.brandPrimary },
+  chipTxtActive: { color: c.onBrandSecondary },
+  originPill: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: c.brandSecondarySoft, paddingHorizontal: 10, height: 30, borderRadius: radius.pill, maxWidth: "100%" },
+  originPillTxt: { color: c.onBrandSecondary, fontSize: 12, fontWeight: "700", flexShrink: 1 },
   resultHead: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 6 },
   resultCount: { color: c.muted, fontSize: 13, fontWeight: "600" },
   mapPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.brandPrimary, paddingHorizontal: 10, height: 30, borderRadius: radius.pill },

@@ -46,14 +46,18 @@ const light = {
   onSurfaceInverse: "#FFFFFF",
   muted: "#6B7280",
 
-  brand: "#00A0A0",
+  brand: "#00A39D",
   onBrand: "#FFFFFF",
-  brandPrimary: "#00A0A0",
+  brandPrimary: "#00A39D",
   onBrandPrimary: "#FFFFFF",
-  brandSecondary: "#F0B43C",
-  onBrandSecondary: "#1F2937",
-  brandTertiary: "#E6F6F6",
-  onBrandTertiary: "#007A7A",
+  brandPrimaryDark: "#007C77",
+  brandSecondary: "#F8AD3C",
+  onBrandSecondary: "#3A2A00",
+  brandSecondaryDark: "#E0961F",
+  brandSecondarySoft: "#FEF3DC",
+  onBrandSecondarySoft: "#8A5A00",
+  brandTertiary: "#E4F5F3",
+  onBrandTertiary: "#007C77",
 
   success: "#059669",
   onSuccess: "#FFFFFF",
@@ -107,7 +111,11 @@ export const FONTS = {
   bold: "Lato-Bold",
   black: "Lato-Black",
   italic: "Lato-Italic",
+  script: "Pacifico-Regular",
 } as const;
+
+/** Decorative script face for the brand tagline (loaded in app/_layout.tsx). */
+export const SCRIPT_FONT = FONTS.script;
 
 export function fontFamilyFor(weight?: string | number, fontStyle?: string): string {
   const w = String(weight ?? "400");

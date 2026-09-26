@@ -3,7 +3,7 @@ import { Redirect, Tabs } from "expo-router";
 import { View } from "react-native";
 import Icon from "@react-native-vector-icons/feather";
 import { useTheme } from "@/src/theme";
-import { useAuth } from "@/src/auth";
+import { useAuth, isRcg } from "@/src/auth";
 import { Loading } from "@/src/components/ui";
 
 export default function InternalLayout() {
@@ -16,7 +16,7 @@ export default function InternalLayout() {
   const role = user.role;
   const ma = role === "marketing_asset";
   const acrm = role === "acrm";
-  const rcg = role === "admin_rcg";
+  const rcg = isRcg(role);
 
   const queueLabel = ma ? "Asset Saya" : acrm ? "Review" : "Approval";
   const queueIcon = ma ? "folder" : "check-square";
