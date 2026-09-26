@@ -111,11 +111,7 @@ export const FONTS = {
   bold: "Lato-Bold",
   black: "Lato-Black",
   italic: "Lato-Italic",
-  script: "Pacifico-Regular",
 } as const;
-
-/** Decorative script face for the brand tagline (loaded in app/_layout.tsx). */
-export const SCRIPT_FONT = FONTS.script;
 
 export function fontFamilyFor(weight?: string | number, fontStyle?: string): string {
   const w = String(weight ?? "400");

@@ -9,7 +9,7 @@ import { Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { makeStyles, useTheme, SCRIPT_FONT } from "@/src/theme";
+import { makeStyles, useTheme } from "@/src/theme";
 import { apiGet } from "@/src/api";
 import { Icon, EmptyState, ErrorState, Skeleton, Button, Select, spacing, radius } from "@/src/components/ui";
 import { useAuth } from "@/src/auth";
@@ -480,8 +480,8 @@ const useStyles = makeStyles((c) => ({
   locChipTxt: { flex: 1, fontSize: 12, fontWeight: "700", color: c.onBrandPrimary },
   locChipTxtActive: { color: c.brandPrimary },
   locChipLbl: { fontSize: 9, color: "rgba(255,255,255,0.75)", fontWeight: "700", textTransform: "uppercase" },
-  appName: { color: "#FFFFFF", fontWeight: "800", fontSize: 14, letterSpacing: 0.2 },
-  tagline: { color: c.brandSecondary, fontSize: 15, fontFamily: SCRIPT_FONT, marginTop: 1 },
+  appName: { color: "#FFFFFF", fontWeight: "900", fontSize: 15, letterSpacing: 0.4 },
+  tagline: { color: c.onBrandPrimary, fontSize: 13, fontStyle: "italic", marginTop: 1 },
   loginBtn: { flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, backgroundColor: "#FFFFFF", width: 48, height: 40, borderRadius: radius.md },
   loginTxt: { color: c.brandPrimary, fontWeight: "800", fontSize: 9 },
   searchRow: { flexDirection: "row", gap: spacing.sm, paddingHorizontal: spacing.lg, marginTop: spacing.lg },

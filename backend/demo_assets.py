@@ -34,6 +34,20 @@ IMGS = {
     "motor2": [U("1609630875171-b1321377ee65"), U("1591637333184-19aa84b3e01f"), U("1558981285-6f0c94958bb6")],
     "apart": [U("1545324418-cc1a3fa10c00"), U("1502672260266-1c1ef2d93688"), U("1522708323590-d24dbb6b0267"), U("1484154218962-a197022b5858"), U("1493809842364-78817add7ffb")],
     "apart2": [U("1560448204-e02f11c3d0e2"), U("1493809842364-78817add7ffb"), U("1502672260266-1c1ef2d93688"), U("1522708323590-d24dbb6b0267")],
+    # Iteration 9: verified realistic photos for new asset types
+    "kos": [U("1523217582562-09d0def993a6"), U("1605146769289-440113cc3d00"), U("1574362848149-11496d93a7c7"), U("1554995207-c18c203602cb")],
+    "toko": [U("1567958451986-2de427a4a0be"), U("1571902943202-507ec2618e8f"), U("1524758631624-e2822e304c36"), U("1497366216548-37526070297c")],
+    "sawit": [U("1560493676-04071c5f467b"), U("1592982537447-7440770cbfc9"), U("1500382017468-9049fed747ef"), U("1470071459604-3b5ec3a7fe05")],
+    "kopi": [U("1595981267035-7b04ca84a82d"), U("1500937386664-56d1dfef3854"), U("1625246333195-78d9c38ad449")],
+    "gudang2": [U("1578575437130-527eed3abbec"), U("1620200423727-8127f75d7f53"), U("1553413077-190dd305871c"), U("1586528116311-ad8dd3c8310d")],
+    "bus": [U("1570125909232-eb263c188f7e"), U("1544620347-c4fd4a3d5957")],
+    "motorbebek": [U("1568772585407-9361f9bf3a87"), U("1558981359-219d6364c9c8")],
+    "motorsport": [U("1558981403-c5f9899a28bc"), U("1591637333184-19aa84b3e01f"), U("1609630875171-b1321377ee65")],
+    "mpv2": [U("1592805144716-feeccccef5ac"), U("1533473359331-0135ef1b58bf"), U("1502877338535-766e1452684a")],
+    "sedan2": [U("1494976388531-d1058494cdd8"), U("1552519507-da3b142c6e3d"), U("1603386329225-868f9b1ee6c9")],
+    "rumah4": [U("1600585154340-be6161a56a0c"), U("1600607687939-ce8a6c25118c"), U("1600566753190-17f0baa2a6c3")],
+    "tanah3": [U("1500530855697-b586d89ba3ee"), U("1500076656116-558758c991c1"), U("1500382017468-9049fed747ef")],
+    "apart3": [U("1522708323590-d24dbb6b0267"), U("1545324418-cc1a3fa10c00"), U("1493809842364-78817add7ffb")],
 }
 
 # (judul, img, kategori, sub, alamat, provinsi, kab/kota, kecamatan, kelurahan, harga, LT, LB, kondisi, ACR, KPKNL|None, lat, lng, status, tanggal_lelang)
@@ -63,12 +77,34 @@ DEMO = [
     ("Apartemen Studio Tamansari Manado", "apart2", "PROPERTI", "Apartemen", "Jl. Piere Tendean Boulevard", "Sulawesi Utara", "Kota Manado", "Wenang", "Wenang Selatan", 520_000_000, None, 28, "Baik", "ACR MANADO", None, 1.4850, 124.8400, "PUBLISHED", None),
     ("Honda Civic Turbo 2020 (TERJUAL)", "sedan", "KENDARAAN - Roda Empat", "Sedan", "Pool Kendaraan BSI Fatmawati", "DKI Jakarta", "Kota Jakarta Selatan", "Cilandak", "Cilandak Barat", 385_000_000, None, None, "Baik", "ACR JAKARTA FATMAWATI", "KPKNL Jakarta II", -6.2900, 106.7970, "SOLD", "2026-05-20"),
     ("Rumah Cluster Citra Garden (TERJUAL)", "rumah2", "PROPERTI", "Rumah", "Jl. Citra Garden 6 Blok D5", "DKI Jakarta", "Kota Jakarta Barat", "Kalideres", "Tegal Alur", 1_250_000_000, 120, 140, "Baik", "ACR JAKARTA BARAT", "KPKNL Jakarta I", -6.1300, 106.7100, "SOLD", "2026-06-03"),
+    # Iteration 9: +20 assets so all 45 ACR are represented, varied types / schedule / sold
+    ("Toko Kelontong & ATK Pasar Cunda", "toko", "PROPERTI", "Ruko", "Jl. Medan-Banda Aceh No. 45", "Aceh", "Kota Lhokseumawe", "Banda Sakti", "Kota Hulu", 540_000_000, 96, 120, "Baik", "ACR LHOKSEUMAWE", "KPKNL Lhokseumawe", 5.1801, 97.1507, "PUBLISHED", "2026-08-08"),
+    ("Kos-Kosan 12 Kamar Dekat Kampus", "kos", "PROPERTI", "Rumah", "Jl. Cumpleng Gampong Paya", "Aceh", "Kabupaten Aceh Barat", "Johan Pahlawan", "Suak Sigadeng", 1_150_000_000, 400, 280, "Baik", "ACR MEULABOH", None, 4.1440, 96.1269, "PUBLISHED", None),
+    ("Ruko 2 Lantai Nagoya Business Center", "ruko2", "PROPERTI", "Ruko", "Komplek Nagoya Business Center Blok F", "Kepulauan Riau", "Kota Batam", "Lubuk Baja", "Lubuk Baja Kota", 2_300_000_000, 80, 160, "Baik", "ACR BATAM", "KPKNL Batam", 1.1301, 104.0529, "PUBLISHED", "2026-07-27"),
+    ("Gudang Bekas Bengkel Tembung", "gudang2", "PROPERTI", "Gudang", "Jl. Letda Sujono No. 210", "Sumatera Utara", "Kota Medan", "Medan Tembung", "Tembung", 980_000_000, 850, 620, "Cukup", "ACR MEDAN RAYA", None, 3.6290, 98.7180, "PUBLISHED", None),
+    ("Rumah Tinggal Asri Siantar Utara", "rumah4", "PROPERTI", "Rumah", "Jl. Melanthon Siregar No. 18", "Sumatera Utara", "Kota Pematangsiantar", "Siantar Utara", "Kahean", 465_000_000, 210, 150, "Baik", "ACR PEMATANGSIANTAR", "KPKNL Pematang Siantar", 2.9594, 99.0600, "PUBLISHED", "2026-08-14"),
+    ("Kebun Sawit Produktif 5 Hektar", "sawit", "TANAH", "Tanah Kosong", "Jl. Lintas Bengkulu-Mukomuko KM 12", "Bengkulu", "Kota Bengkulu", "Kampung Melayu", "Sawah Lebar Baru", 875_000_000, 50000, None, "Baik", "ACR BENGKULU", "KPKNL Bengkulu", -3.8004, 102.2655, "PUBLISHED", "2026-08-10"),
+    ("Suzuki Ertiga GL 2021", "mpv2", "KENDARAAN - Roda Empat", "MPV", "Kantor ACR Jambi", "Jambi", "Kota Jambi", "Pasar Jambi", "Sungai Asam", 168_000_000, None, None, "Baik", "ACR JAMBI", None, -1.6101, 103.6131, "PUBLISHED", None),
+    ("Rumah Tropis Minimalis Serang Utara", "rumah3", "PROPERTI", "Rumah", "Jl. Raya Cilegon KM 4 No. 33", "Banten", "Kota Serang", "Serang", "Cimuncang", 890_000_000, 180, 160, "Baik", "ACR BANTEN", "KPKNL Serang", -6.1214, 106.2003, "PUBLISHED", "2026-07-24"),
+    ("Apartemen 2BR Dekat Kampus UI", "apart3", "PROPERTI", "Apartemen", "Jl. KH Agus Salim No. 10", "Jawa Barat", "Kota Depok", "Beji", "Kemiri Muka", 610_000_000, None, 48, "Baik", "ACR DEPOK", None, -6.4025, 106.7942, "PUBLISHED", None),
+    ("Tanah Pekarangan Siap Bangun Bintaro", "tanah3", "TANAH", "Tanah Kosong", "Jl. Bintaro Raya Sektor 3", "Banten", "Kota Tangerang Selatan", "Pondok Aren", "Pondok Karya", 1_600_000_000, 320, None, "Baik", "ACR TANGERANG SELATAN", "KPKNL Tangerang II", -6.2885, 106.7177, "PUBLISHED", "2026-08-18"),
+    ("Kebun Kopi Arabika 3 Hektar Cikajang", "kopi", "TANAH", "Tanah Kosong", "Kampung Cipicung, Desa Cikajang", "Jawa Barat", "Kabupaten Garut", "Cikajang", "Margamulya", 1_900_000_000, 30000, None, "Baik", "ACR BANDUNG RAYA", None, -7.3862, 107.7070, "PUBLISHED", None),
+    ("Isuzu Elf Minibus 2018 (TERJUAL)", "bus", "KENDARAAN - Roda Empat", "Bus", "Pool Kendaraan BSI Cirebon", "Jawa Barat", "Kota Cirebon", "Harjamukti", "Kalijaga", 210_000_000, None, None, "Cukup", "ACR CIREBON", "KPKNL Cirebon", -6.7320, 108.5523, "SOLD", "2026-06-15"),
+    ("Tanah Kavling Hook Perumahan Pekalongan", "kavling", "TANAH", "Tanah Kavling", "Jl. Pangeran Diponegoro No. 51", "Jawa Tengah", "Kota Pekalongan", "Pekalongan Utara", "Krapyak", 425_000_000, 190, None, "Baik", "ACR PEKALONGAN", "KPKNL Pekalongan", -6.8886, 109.6753, "PUBLISHED", "2026-08-01"),
+    ("Rumah 1.5 Lantai Purbalingga", "rumah1", "PROPERTI", "Rumah", "Jl. A. Yani No. 77", "Jawa Tengah", "Kabupaten Purbalingga", "Purbalingga", "Penambongan", 375_000_000, 140, 110, "Baik", "ACR PURWOKERTO", None, -7.3906, 109.3638, "PUBLISHED", None),
+    ("Gudang Distribusi Banjaran Kediri", "gudang", "PROPERTI", "Gudang", "Jl. Erlangga No. 5", "Jawa Timur", "Kota Kediri", "Kediri Kota", "Banjaran", 1_150_000_000, 950, 700, "Baik", "ACR KEDIRI", None, -7.8166, 112.0118, "PUBLISHED", None),
+    ("Honda Supra X 125 2020", "motorbebek", "KENDARAAN - Roda Dua", "Motor Bebek", "Kantor ACR Surabaya Raya", "Jawa Timur", "Kota Surabaya", "Tegalsari", "Dr. Sutomo", 16_500_000, None, None, "Baik", "ACR SURABAYA RAYA", "KPKNL Surabaya", -7.2742, 112.7400, "PUBLISHED", "2026-07-21"),
+    ("Toko Sembako Jl. Tanjungpura", "toko", "PROPERTI", "Ruko", "Jl. Tanjungpura No. 201", "Kalimantan Barat", "Kota Pontianak", "Pontianak Selatan", "Benua Melayu Darat", 760_000_000, 120, 180, "Baik", "ACR PONTIANAK", None, -0.0263, 109.3425, "PUBLISHED", None),
+    ("Kos-Kosan Mahasiswa Dekat Untad", "kos", "PROPERTI", "Rumah", "Jl. Soekarno Hatta No. 112", "Sulawesi Tengah", "Kota Palu", "Palu Timur", "Besusu Barat", 1_400_000_000, 600, 450, "Baik", "ACR PALU", "KPKNL Palu", -0.8917, 119.8707, "PUBLISHED", "2026-08-07"),
+    ("Mitsubishi Xpander Cross 2022", "suv", "KENDARAAN - Roda Empat", "SUV", "Pool Kendaraan BSI Rawamangun", "DKI Jakarta", "Kota Jakarta Timur", "Pulogadung", "Jati", 265_000_000, None, None, "Baik", "ACR JAKARTA RAWAMANGUN", None, -6.1915, 106.9028, "PUBLISHED", None),
+    ("Yamaha R15 V4 2023 (TERJUAL)", "motorsport", "KENDARAAN - Roda Dua", "Motor Sport", "Kantor ACR Saharjo", "DKI Jakarta", "Kota Jakarta Selatan", "Tebet", "Tebet Barat", 32_000_000, None, None, "Baik", "ACR JAKARTA SAHARJO", "KPKNL Jakarta I", -6.2296, 106.8538, "SOLD", "2026-06-28"),
 ]
 
 import random
 from datetime import timedelta
 PRICE_DROPS = {"Rumah 2 Lantai Siap Huni": 0.12, "Toyota Hilux Double Cabin 2020": 0.08, "Ruko 3 Lantai Harapan Indah": 0.15,
-               "Tanah Kavling Perumahan Sleman": 0.10, "Villa View Sawah Canggu": 0.06, "Honda CR-V Turbo 2021": 0.07}
+               "Tanah Kavling Perumahan Sleman": 0.10, "Villa View Sawah Canggu": 0.06, "Honda CR-V Turbo 2021": 0.07,
+               "Rumah Tropis Minimalis Serang Utara": 0.09, "Kos-Kosan Mahasiswa Dekat Untad": 0.11, "Tanah Pekarangan Siap Bangun Bintaro": 0.05}
 
 def seed_history(judul, harga):
     t = datetime.now(timezone.utc)

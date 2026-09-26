@@ -94,6 +94,11 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Tema dua-warna korporat BSI: teal #00A39D + gold #F8AD3C (header gradient teal, chip aktif gold, badge jarak gold). Tagline diubah "Menghubungkan Investor dengan Asset BSI" dengan font script Pacifico (assets/fonts/Pacifico-Regular.ttf via expo-font).
 - Validated by testing agent: backend 18/18 (setelah fix route-order + soft-delete collision), frontend 14/14 (iteration_8.json).
 
+## Implemented (Iteration 9, 2026-06)
+- Typography branding: tagline kembali Lato **putih italic** ("Menghubungkan Investor dengan Asset BSI"), nama aplikasi BSI ASSET DEAL fontWeight 900 (Lato-Black) lebih menonjol; font Pacifico dihapus.
+- Demo assets diperluas 25 -> **45 aset, mewakili seluruh 45 ACR** (seeder menghapus & membuat ulang demo, aman diulang). Variasi jenis: rumah, ruko/toko, apartemen, gudang, gedung, tanah kosong/kavling/industri, sawah, kebun sawit, kebun kopi, kos-kosan, sedan/SUV/MPV/pickup/truck/bus, motor matic/bebek/sport. 4 TERJUAL, 27 berjadwal lelang, sisanya tanpa jadwal; 9 aset punya riwayat harga turun. Foto Unsplash terverifikasi HTTP 200.
+- Validated by testing agent: backend 11/11 + frontend all pass (iteration_9.json). Iteration-8 bugs (route order + username collision) sudah diperbaiki & diverifikasi curl (toggle 403/ok, delete ok, recreate NIP 200, controller protect 403).
+
 ## Backlog / Remaining
 - P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.

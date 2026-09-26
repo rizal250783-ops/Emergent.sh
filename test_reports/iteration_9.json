@@ -1,0 +1,39 @@
+{
+  "summary": "Iteration 9 verified: Backend 11/11 passed (100%). GET /api/public/catalog returns total=45; all 45 assets have distinct ACR identifiers (via nomor_asset BLC-2026-{ACR}-seq); /api/public/locations returns 22 provinsi; 4 SOLD items with is_sold=True appearing at the end of default sort; healthy mix of has_schedule true/false; new asset types present (Kos-Kosan Untad, Yamaha R15 V4 2023, Toko Sembako Tanjungpura, Kebun Sawit, Kebun Kopi, Motor Bebek/Sport, Sawah, etc.); all items have images; nearest search (?sort=nearest&lat=-6.19&lng=106.82) returns distance_km ascending; login regression OK — rcg_controller 2183008345 and rcg_admin 2186005002 return 200 with access_token, legacy admin returns 401. Frontend (375x667): home shows '45 asset tersedia'; header appName uses Lato-Black (900 mapped via theme fontFamilyFor) 17px white; tagline is Lato-Italic italic white 13px (no Pacifico script font); catalog cards render with loaded Unsplash photos for new types (Kos-Kosan, Toko Sembako naturalWidth>0); SOLD card (Yamaha R15) shows rotated red TERJUAL overlay + 'Telah terjual' + line-through price; 'Sudah Ada Jadwal Lelang' badge visible on scheduled cards; login page shows Lato-Black 24px appName + italic Lato tagline; rcg_admin login flow redirects to /dashboard successfully.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home header (375px)", "issues": ["'BSI ASSET DEAL' (17px, letterSpacing 0.6) wraps onto 2 lines and the tagline wraps onto 3 lines inside the brand row, making the header look cramped on 375px width. Consider fontSize ~15-16 for appName or flexWrap handling / smaller tagline (11-12px) so each fits on one line."]}
+    ],
+    "react_native_issues": [
+      {"component": "FONTS.script / SCRIPT_FONT", "issue": "Pacifico-Regular is still loaded in app/_layout.tsx:26 and SCRIPT_FONT is still exported from src/theme.ts:118 even though the tagline no longer uses the script font. Dead font asset adds bundle weight. Reference: /app/frontend/src/theme.ts:114-118, /app/frontend/app/_layout.tsx:26"}
+    ]
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration9.py",
+    "/app/test_reports/pytest/pytest_iter9.xml"
+  ],
+  "action_items": [
+    "MINOR CLEANUP: Remove Pacifico-Regular font load from app/_layout.tsx and FONTS.script/SCRIPT_FONT from src/theme.ts (tagline is now Lato-Italic; script font is dead weight).",
+    "MINOR DESIGN: Home header brand text wraps at 375px (appName 2 lines, tagline 3 lines) — tighten sizes/spacing for one-line rendering."
+  ],
+  "critical_code_review_comments": [
+    "src/theme.ts withLato() intentionally maps fontWeight to Lato font faces (900 -> Lato-Black) and drops fontWeight, so computed CSS fontWeight:400 is EXPECTED on web; boldness comes from the Lato-Black family. Verified via computed fontFamily.",
+    "demo_assets.py: 45 DEMO rows map 1:1 to 45 distinct ACR names; PRICE_DROPS keys correctly match judul_clean (post-'(TERJUAL)' strip). Seed is idempotent (deletes demo:true first). No issues.",
+    "Iteration-8 known bugs (route-order conflict on /admin/rcg-users/{uid}/toggle, soft-delete username unique-index collision) were NOT retested this iteration per request scope (only regression of logins + nearest endpoint) but remain open from iteration_8 report."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration9.py (new pytest suite, 11 tests)"
+  ],
+  "success_rate": {"backend": "100% (11/11)", "frontend": "100% (all requested checks passed; earlier TERJUAL=0 was a web FlatList scroll limitation, verified via search instead)"},
+  "seed_data_creation": "None. All 45 demo assets were already seeded by main agent's demo_assets.py.",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "Public backend URL is EXPO_PUBLIC_BACKEND_URL in /app/frontend/.env. Iteration 9 fully passes. To verify SOLD badges in UI, use the catalog search (e.g. keyword 'R15') instead of scrolling — mouse.wheel does not reliably page the RN-web FlatList. appName bold check: assert fontFamily=Lato-Black, not fontWeight. Iteration-8 backend bugs (rcg-users toggle route order, soft-delete unique index) still open.",
+  "rca_of_issue": "No new bugs found. Two cosmetic notes: (1) dead Pacifico font load remains after tagline switched to Lato-Italic; (2) brand-row text wrapping at 375px is a pure layout sizing issue in index.tsx styles (appName fontSize 17 + letterSpacing 0.6 + flex row with logo and 3 buttons leaves ~150px for the text block)."
+}

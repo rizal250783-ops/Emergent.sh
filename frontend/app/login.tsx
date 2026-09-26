@@ -3,7 +3,7 @@ import { View, Text, Pressable, KeyboardAvoidingView, Platform, ScrollView } fro
 import { useRouter } from "expo-router";
 import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { makeStyles, useTheme, SCRIPT_FONT } from "@/src/theme";
+import { makeStyles, useTheme } from "@/src/theme";
 import { useAuth } from "@/src/auth";
 import { Icon, Field, Button, spacing, radius } from "@/src/components/ui";
 import { useToast } from "@/src/components/toast";
@@ -103,8 +103,8 @@ const useStyles = makeStyles((c) => ({
   content: { flexGrow: 1, alignItems: "center", justifyContent: "center", padding: spacing.xl },
   logoBox: { backgroundColor: "#FFFFFF", borderRadius: radius.md, paddingHorizontal: 20, paddingVertical: 14, borderWidth: 1, borderColor: c.border },
   logoImg: { width: 200, height: 56 },
-  appName: { fontSize: 22, fontWeight: "900", color: c.onSurface, marginTop: spacing.lg },
-  tagline: { fontSize: 20, color: c.brandSecondaryDark, fontFamily: SCRIPT_FONT, marginTop: 6 },
+  appName: { fontSize: 24, fontWeight: "900", color: c.onSurface, marginTop: spacing.lg, letterSpacing: 0.5 },
+  tagline: { fontSize: 14, color: c.onSurface, fontStyle: "italic", marginTop: 4 },
   org: { fontSize: 13, color: c.onSurface, fontWeight: "700", marginTop: spacing.md },
   orgSub: { fontSize: 12, color: c.muted, textAlign: "center", marginTop: 2 },
   form: { width: "100%", marginTop: spacing.xl, gap: spacing.md },

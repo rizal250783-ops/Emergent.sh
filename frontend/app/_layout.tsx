@@ -23,7 +23,6 @@ export default function RootLayout() {
     [FONTS.bold]: require("../assets/fonts/Lato-Bold.ttf"),
     [FONTS.black]: require("../assets/fonts/Lato-Black.ttf"),
     [FONTS.italic]: require("../assets/fonts/Lato-Italic.ttf"),
-    [FONTS.script]: require("../assets/fonts/Pacifico-Regular.ttf"),
   });
   if (!fontsLoaded && !fontError) {
     return (
