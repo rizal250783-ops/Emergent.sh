@@ -61,6 +61,8 @@ export const STATUS_META: Record<string, { label: string; tone: Tone }> = {
   PUBLISHED: { label: "Dipublikasikan", tone: "success" },
   UPDATE_PENDING_ACRM: { label: "Update: Review ACRM", tone: "warning" },
   UPDATE_PENDING_RCG: { label: "Update: Approval RCG", tone: "warning" },
+  DELETE_PENDING_ACRM: { label: "Menunggu Persetujuan Hapus", tone: "error" },
+  DELETED: { label: "Dihapus", tone: "neutral" },
   SOLD: { label: "Terjual", tone: "info" },
   INACTIVE: { label: "Nonaktif", tone: "neutral" },
 };

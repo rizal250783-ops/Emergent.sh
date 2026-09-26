@@ -86,6 +86,18 @@ export default function InternalDetail() {
     confirm({ title: "Kembalikan Asset", tone: "danger", confirmText: "Kembalikan", requireNote: true, noteLabel: "Catatan Koreksi (wajib)", notePlaceholder: "Jelaskan yang perlu diperbaiki..." })
       .then((r) => r.ok && doAction(() => apiPost(`/rcg/assets/${id}/return`, { notes: r.note }), "Asset dikembalikan"));
 
+  const requestDelete = () =>
+    confirm({ title: "Ajukan Hapus Asset", tone: "danger", confirmText: "Ajukan Hapus", requireNote: true, noteLabel: "Alasan penghapusan (wajib)", notePlaceholder: "Mis. aset ditarik pemilik / dobel input / batal lelang..." })
+      .then((r) => r.ok && doAction(() => apiPost(`/assets/${id}/request-delete`, { reason: r.note }), "Permintaan hapus dikirim ke ACRM"));
+
+  const acrmApproveDelete = () =>
+    confirm({ title: "Setujui Penghapusan", tone: "danger", message: "Asset akan dihapus dari katalog. Penghapusan cukup di level ACRM, tidak perlu approval RCG.", confirmText: "Setujui Hapus" })
+      .then((r) => r.ok && doAction(() => apiPost(`/acrm/assets/${id}/approve-delete`), "Asset berhasil dihapus"));
+
+  const acrmRejectDelete = () =>
+    confirm({ title: "Tolak Penghapusan", confirmText: "Tolak Hapus", requireNote: true, noteLabel: "Alasan penolakan (wajib)", notePlaceholder: "Jelaskan alasan menolak permintaan hapus..." })
+      .then((r) => r.ok && doAction(() => apiPost(`/acrm/assets/${id}/reject-delete`, { notes: r.note }), "Permintaan hapus ditolak"));
+
   if (isLoading) return <View style={s.screen}><View style={{ paddingTop: insets.top }}><ScreenHeader title="Detail Asset" onBack={() => router.back()} /></View><Loading /></View>;
   if (isError || !data) return <View style={s.screen}><View style={{ paddingTop: insets.top }}><ScreenHeader title="Detail Asset" onBack={() => router.back()} /></View><ErrorState onRetry={refetch} /></View>;
 
@@ -97,11 +109,13 @@ export default function InternalDetail() {
   const maCanEdit = role === "marketing_asset" && ["DRAFT", "RETURN_TO_MARKETING", "RETURN_FROM_RCG", "PUBLISHED", "SOLD"].includes(st);
   const maCanSubmit = role === "marketing_asset" && ["DRAFT", "RETURN_TO_MARKETING", "RETURN_FROM_RCG"].includes(st);
   const maCanUpdate = role === "marketing_asset" && ["PUBLISHED", "SOLD"].includes(st);
+  const maCanDelete = role === "marketing_asset" && ["PUBLISHED", "SOLD"].includes(st);
   const acrmCanAct = role === "acrm" && ["WAITING_ACRM_REVIEW", "UPDATE_PENDING_ACRM"].includes(st);
+  const acrmCanDelete = role === "acrm" && st === "DELETE_PENDING_ACRM";
   const rcgCanAct = isRcg(role) && ["WAITING_RCG_APPROVAL", "UPDATE_PENDING_RCG"].includes(st);
   const rcgCanSell = isRcg(role) && st === "PUBLISHED";
   const rcgCanUnsell = isRcg(role) && st === "SOLD";
-  const hasActions = maCanEdit || maCanSubmit || acrmCanAct || rcgCanAct || rcgCanSell || rcgCanUnsell;
+  const hasActions = maCanEdit || maCanSubmit || maCanDelete || acrmCanAct || acrmCanDelete || rcgCanAct || rcgCanSell || rcgCanUnsell;
 
   const markSold = () =>
     confirm({ title: "Tandai Terjual", message: "Asset akan ditandai TERJUAL di katalog publik dan kontak WhatsApp PIC disembunyikan agar tidak menerima pertanyaan lagi.", confirmText: "Tandai Terjual", optionalNote: true, noteLabel: "Catatan (opsional)", notePlaceholder: "Mis. terjual di lelang KPKNL tgl ..." })
@@ -145,6 +159,16 @@ export default function InternalDetail() {
                 <Text style={s.noteTitle}>Catatan Koreksi</Text>
               </View>
               <Text style={s.noteTxt}>{data.correction_notes}</Text>
+            </View>
+          )}
+
+          {data.delete_reason && st === "DELETE_PENDING_ACRM" && (
+            <View style={s.noteBox} testID="delete-reason-note">
+              <View style={{ flexDirection: "row", gap: 6, alignItems: "center" }}>
+                <Icon name="trash-2" size={16} color={colors.error} />
+                <Text style={s.noteTitle}>Alasan Pengajuan Hapus</Text>
+              </View>
+              <Text style={s.noteTxt}>{data.delete_reason}</Text>
             </View>
           )}
 
@@ -243,13 +267,28 @@ export default function InternalDetail() {
         <View style={[s.actionBar, { paddingBottom: insets.bottom + spacing.md }]}>
           {maCanEdit && (
             <View style={{ flex: 1 }}>
-              <Button title={maCanUpdate ? "Ajukan Update" : "Edit"} icon="edit-2" variant="outline" onPress={() => router.push(`/add?edit=${id}`)} testID="edit-asset-button" />
+              <Button title={maCanUpdate ? "Koreksi" : "Edit"} icon="edit-2" variant="outline" onPress={() => router.push(`/add?edit=${id}`)} testID="edit-asset-button" />
             </View>
           )}
           {maCanSubmit && (
             <View style={{ flex: 1 }}>
               <Button title="Kirim ke ACRM" icon="send" onPress={submit} loading={busy} testID="submit-asset-button" />
             </View>
+          )}
+          {maCanDelete && (
+            <View style={{ flex: 1 }}>
+              <Button title="Hapus" icon="trash-2" variant="danger" onPress={requestDelete} loading={busy} testID="request-delete-button" />
+            </View>
+          )}
+          {acrmCanDelete && (
+            <>
+              <View style={{ flex: 1 }}>
+                <Button title="Tolak Hapus" icon="x" variant="outline" onPress={acrmRejectDelete} loading={busy} testID="reject-delete-button" />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Button title="Setujui Hapus" icon="trash-2" variant="danger" onPress={acrmApproveDelete} loading={busy} testID="approve-delete-button" />
+              </View>
+            </>
           )}
           {rcgCanSell && (
             <View style={{ flex: 1 }}>
@@ -280,7 +319,9 @@ export default function InternalDetail() {
 
 function actionLabel(a: string) {
   return ({ SUBMIT: "Disubmit Marketing", RESUBMIT: "Disubmit Ulang", APPROVE: "Disetujui", RETURN: "Dikembalikan",
-    PUBLISH: "Dipublikasikan RCG", UPDATE_SUBMIT: "Update Disubmit", UPDATE_APPROVE: "Update Disetujui" } as any)[a] || a;
+    PUBLISH: "Dipublikasikan RCG", UPDATE_SUBMIT: "Update Disubmit", UPDATE_APPROVE: "Update Disetujui",
+    REQUEST_DELETE: "Diajukan Hapus (Marketing)", DELETE_APPROVED: "Penghapusan Disetujui ACRM",
+    DELETE_REJECTED: "Penghapusan Ditolak ACRM", MARK_SOLD: "Ditandai Terjual", UNMARK_SOLD: "Batal Terjual" } as any)[a] || a;
 }
 
 function Info({ label, value }: { label: string; value?: string }) {

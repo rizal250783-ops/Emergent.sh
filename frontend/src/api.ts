@@ -46,8 +46,12 @@ export async function apiForm(path: string, form: FormData) {
   return handle(r);
 }
 
-export async function apiDelete(path: string) {
-  const r = await fetch(`${BASE}${path}`, { method: "DELETE", headers: { ...(await authHeader()) } });
+export async function apiDelete(path: string, body?: any) {
+  const r = await fetch(`${BASE}${path}`, {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json", ...(await authHeader()) },
+    body: body ? JSON.stringify(body) : undefined,
+  });
   return handle(r);
 }
 

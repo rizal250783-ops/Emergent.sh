@@ -104,6 +104,12 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Bugfix: kotak putih di sekeliling logo BSI pada halaman login dihapus (logo tampil langsung, lebih profesional).
 - Validated by testing agent: all pass desktop + mobile (iteration_10.json).
 
+## Implemented (Iteration 11, 2026-06)
+- Fix katalog kosong di lingkungan baru/deploy: demo assets kini di-seed OTOMATIS saat startup bila belum ada (demo_assets.py di-refactor jadi seed_demo_assets(db, force) idempotent; server memanggilnya di startup). Standalone run pakai force=True.
+- MA workflow aset publish: tombol berubah jadi **Koreksi** (alur update lama, approval sampai RCG) + **Hapus** (alur baru). Hapus butuh alasan free-text wajib; approval CUKUP sampai ACRM (status DELETE_PENDING_ACRM -> ACRM approve = soft delete final / reject = kembali PUBLISHED). ACRM queue kini memuat permintaan hapus; detail ACRM menampilkan alasan + tombol Setujui/Tolak Hapus. Endpoint: POST /assets/{id}/request-delete, /acrm/assets/{id}/approve-delete, /acrm/assets/{id}/reject-delete.
+- Kategori: kini bisa DIHAPUS (bukan hanya nonaktif) dengan alasan wajib. RCG Full Controller hapus langsung; RCG Admin -> permintaan menunggu approval Full Controller (badge "Menunggu Hapus", section "Permintaan Hapus Kategori" untuk controller: Setujui/Tolak). Cascade soft-delete subkategori. Endpoint: DELETE /admin/category/{id}, /admin/category/{id}/approve-delete, /reject-delete, GET /admin/category-delete-requests.
+- Verified by curl: delete-asset flow (400 no reason, pending->ACRM approve->DELETED, hilang dari katalog), category delete (controller direct, admin pending->controller approve, admin approve 403).
+
 ## Backlog / Remaining
 - P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.

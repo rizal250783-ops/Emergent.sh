@@ -1,0 +1,32 @@
+{
+  "summary": "Iteration 12 re-test after main agent restored GET /api/assets/mine. Backend: 7/7 tests in test_iteration11.py PASS (catalog auto-seed 45, MA request-delete 400 empty/200 pending + drops from public catalog, ACRM reject restores + re-request + approve deletes, RCG Category delete controller-direct 400 empty + 200 deleted, RCG Admin pending + admin-approve 403 + controller sees in /admin/category-delete-requests + controller approve). Frontend mobile 390x844: RCG Full Controller Kelola>Kategori direct delete flow VERIFIED (delete-cat-<id> icon -> delete-category-reason modal -> delete-save -> row disappears; toast 'Kategori dihapus'). RCG Admin delete flow VERIFIED (modal mentions Full Controller / 'Ajukan Hapus', after submit category shows 'Menunggu Hapus' badge; toast 'Permintaan hapus dikirim ke RCG Full Controller'). Controller then sees 'Permintaan Hapus Kategori' section with Setujui Hapus (cat-approve-del-<id>) and Tolak (cat-reject-del-<id>) VERIFIED. MA request-delete API from browser session returned 200 DELETE_PENDING_ACRM. MA/ACRM detail-page action-bar testIDs (edit-asset-button, request-delete-button, reject-delete-button, approve-delete-button, delete-reason-note) verified present in source with correct conditional rendering (maCanUpdate/maCanDelete/acrmCanDelete gates). Deprecated Expo package check: no expo-av / expo-barcode-scanner / expo-background-fetch usages found.",
+  "backend_issues": { "critical": [], "minor": [] },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration11.py",
+    "/app/test_reports/pytest/pytest_iter12.xml"
+  ],
+  "action_items": [
+    "OPTIONAL hardening: the demo asset seeder only re-seeds when the demo collection is empty (count of demo:True AND deleted_at:null > 0 => skip). If an MA-owned demo asset is soft-deleted (via /acrm/approve-delete), that specific row is not re-created on next startup, so the seeded pool can shrink below 45 over time. Consider making seed_demo_assets top-up missing titles individually instead of an all-or-nothing skip.",
+    "OPTIONAL: server.py is 1697 lines - split by domain (assets, acrm, rcg, admin/category, master data) per the >700 line guideline."
+  ],
+  "critical_code_review_comments": [
+    "server.py length still >1500 lines - suggest domain-level modularization for maintainability.",
+    "seed_demo_assets is idempotent only 'if empty' - after any approve-delete the total public count drifts down permanently unless force=True is triggered."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "7/7 = 100% (test_iteration11.py, serial run)",
+    "frontend": "RCG Controller direct category delete PASS; RCG Admin pending + Controller approval-section PASS; MA detail Koreksi/Hapus + ACRM Setujui/Tolak Hapus confirmed via source (testIDs present + gated correctly) and MA request-delete verified via live API"
+  },
+  "seed_data_creation": "Two throwaway categories created via /api/admin/category and deleted as part of the test: UITEST_CTRL_<hex> (direct delete by controller) and UITEST_ADM_<hex> (admin pending -> controller approve). Also test cycled MA 2190020284's single PUBLISHED asset (Rumah 2 Lantai Siap Huni, id 4ba680ea-3c62-4a94-858c-42e63b39de7d) through request-delete -> reject to restore it to PUBLISHED at end of run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All iteration-11 feature flows are now GREEN. MA 2190020284's asset was left in PUBLISHED state after run. If you consume it via approve-delete you will need to force-reseed (`python -c 'from demo_assets import seed_demo_assets; ...' force=True`) to restore the 45-asset baseline. pytest is configured with xdist loadscope by default which can create ordering issues for the MA/ACRM delete flow (fixtures skip when parallel workers race the same asset); prefer `pytest -o addopts=` for serial runs.",
+  "rca_of_issue": "N/A - regression is fixed. Iteration 11's missing @api.get('/assets/mine') decorator was restored by main agent; /api/assets/mine now returns the MA's asset list correctly and every downstream delete-request/approve/reject flow works end-to-end."
+}

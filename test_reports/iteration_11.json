@@ -1,0 +1,45 @@
+{
+  "summary": "Iteration 11 backend testing: Catalog auto-seed OK (45 assets). RCG category delete (controller direct + admin pending + approve) OK. CRITICAL bug found: GET /api/assets/mine returns 404 because the route decorator/signature was accidentally replaced by /assets/{id}/request-delete in server.py (~line 827); orphan MA-list code sits below the return statement (lines 854-861) with no @api.get('/assets/mine') decorator. Consequence: MA 'Asset Saya' tab is completely broken and every dependent flow (finding published assets, request-delete integration test, ACRM delete-approve/reject) cannot be exercised end-to-end. Frontend UI testing was skipped for MA/ACRM delete flows because the underlying API is broken; the RCG-only category-delete flow is verified via backend tests.",
+  "backend_issues": {
+    "critical": [
+      {"endpoint": "GET /api/assets/mine", "issue": "Endpoint does not exist. server.py lines ~827-861 show the request_delete_asset function ends with 'return {...}' (line 853), then dead code (`ma, acr, acrm = await ma_context(user) ... return items`) that was clearly meant to be the /assets/mine handler but is missing its @api.get('/assets/mine') decorator + function signature. Request /api/assets/mine is captured by /assets/{asset_id} and yields 404. Frontend calls this URL from the 'Asset Saya' tab.", "priority": "CRITICAL"}
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [
+      {"flow": "MA Asset Saya list + request-delete UI", "issue": "Blocked by missing /assets/mine backend route. UI cannot render the MA queue nor drive the Hapus button.", "affected_testIDs": ["queue-item-*", "request-delete-button", "edit-asset-button"]}
+    ],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration11.py",
+    "/app/test_reports/pytest/pytest_iter11.xml"
+  ],
+  "action_items": [
+    "Fix server.py: re-add the missing endpoint. Insert immediately after line 853:\n    @api.get('/assets/mine')\n    async def my_assets(status: Optional[str] = None, user=Depends(require('marketing_asset'))):\nand keep the existing body (ma_context -> query -> internal view -> return items). Remove the orphan dead code that sits directly after `return {'ok': True, 'status': 'DELETE_PENDING_ACRM'}`.",
+    "After fix, rerun /app/backend/tests/test_iteration11.py — MA/ACRM delete flow tests will exercise: 400 empty reason, 200 DELETE_PENDING_ACRM, disappearance from public catalog, ACRM reject-then-approve, and final soft-delete.",
+    "Then do frontend regression for MA (2190020284): 'Asset Saya' > Dipublikasikan > detail must show both Koreksi + Hapus buttons; Hapus opens reason modal; on submit asset leaves list.",
+    "ACRM (2188009250) review queue must show DELETE_PENDING_ACRM item with delete_reason and Setujui/Tolak Hapus buttons.",
+    "RCG Admin (2186005002) delete-category should produce 'Menunggu Hapus' badge; RCG Controller (2183008345) sees 'Permintaan Hapus Kategori' with Setujui/Tolak."
+  ],
+  "critical_code_review_comments": [
+    "server.py has dead code after `return {'ok': True, 'status': 'DELETE_PENDING_ACRM'}` (lines 854-861) — clear evidence of an accidental route deletion; must be fixed before shipping.",
+    "Route ordering: even after re-adding, /assets/mine must be declared BEFORE /assets/{asset_id} (line 884) or FastAPI will still route it to the dynamic path. Current server.py order (mine at ~854, {asset_id} at 884) is fine only if the decorator is present.",
+    "server.py is 1697 lines — consider splitting per domain (assets, acrm, rcg, admin/category, admin/master data) as per >700 line guideline."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration11.py (new)"
+  ],
+  "success_rate": {
+    "backend": "3/7 executed passed (43%), 2 skipped due to blocking bug, 2 errored on missing endpoint; catalog + category-delete flows PASS",
+    "frontend": "not executed (blocked by backend)"
+  },
+  "seed_data_creation": "Created 2 throwaway categories named TEST_ITER11_CTRL_* and TEST_ITER11_ADM_* via POST /api/admin/category; both were subsequently deleted as part of the test (controller direct-delete + controller approve-delete).",
+  "retest_needed": true,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "After main agent restores GET /api/assets/mine (see action_items #1), rerun test_iteration11.py. To simulate MA delete for a fresh test, prefer creating a throwaway asset owned by MA 2190020284 rather than consuming their only published seed asset (Rumah 2 Lantai Siap Huni, ACR BANDA ACEH). Login response uses 'access_token' not 'token'. Public catalog is paginated (default 20) — use ?limit=100 or read the 'total' field.",
+  "rca_of_issue": "During iteration 11 edits to add POST /assets/{id}/request-delete (line 827+), the developer overwrote the pre-existing GET /assets/mine handler. The function body of my_assets survived below the new return, but its decorator and function signature were lost. Reproduction: `curl -H 'Authorization: Bearer <MA-token>' $BASE/api/assets/mine` -> 404 'Asset tidak ditemukan' (matched by /assets/{asset_id}). Mitigation: re-add the two lost lines (decorator + `async def my_assets(...)`) and remove the orphan snippet above them; verify with test_iteration11.py."
+}

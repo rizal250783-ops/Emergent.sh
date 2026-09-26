@@ -113,7 +113,10 @@ def seed_history(judul, harga):
         return [{"harga": old, "at": (t - timedelta(days=35)).isoformat()}, {"harga": harga, "at": (t - timedelta(days=random.randint(1, 6))).isoformat()}]
     return [{"harga": harga, "at": (t - timedelta(days=40)).isoformat()}]
 
-async def main():
+async def seed_demo_assets(db, force=False):
+    """Idempotent: seed demo assets only when none exist (or force=True)."""
+    if not force and await db.assets.count_documents({"demo": True, "deleted_at": None}) > 0:
+        return 0
     await db.assets.delete_many({"demo": True})
     await db.asset_images.delete_many({"demo": True})
     await db.master_asset_category.delete_many({"nama_category": "TEST_KATEGORI"})
@@ -151,6 +154,9 @@ async def main():
             await db.asset_images.insert_one({"id": nid(), "id_asset": aid, "url": url,
                 "storage_path": None, "jenis_foto": "utama", "is_public": True,
                 "uploaded_by": None, "demo": True, "created_at": now(), "deleted_at": None})
-    print("demo assets:", await db.assets.count_documents({"demo": True}))
+    n = await db.assets.count_documents({"demo": True})
+    print("demo assets:", n)
+    return n
 
-asyncio.run(main())
+if __name__ == "__main__":
+    asyncio.run(seed_demo_assets(db, force=True))

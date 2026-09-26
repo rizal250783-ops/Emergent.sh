@@ -334,11 +334,14 @@ function KategoriTab() {
   const qc = useQueryClient();
   const toast = useToast();
   const confirm = useConfirm();
+  const { user } = useAuth();
+  const controller = isController(user?.role);
   const [name, setName] = useState("");
   const [parent, setParent] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
 
   const { data, isLoading, refetch, isRefetching } = useQuery({ queryKey: ["all-categories"], queryFn: () => apiGet("/master/categories?active_only=false") });
+  const { data: delReqs } = useQuery({ queryKey: ["cat-delete-reqs"], queryFn: () => apiGet("/admin/category-delete-requests"), enabled: controller });
 
   const add = async () => {
     if (!name.trim()) { toast("Nama kategori wajib diisi", "error"); return; }
@@ -352,7 +355,7 @@ function KategoriTab() {
     } catch (e: any) { toast(e.message, "error"); } finally { setBusy(false); }
   };
 
-  const refreshCats = () => { qc.invalidateQueries({ queryKey: ["all-categories"] }); qc.invalidateQueries({ queryKey: ["categories"] }); qc.invalidateQueries({ queryKey: ["public-filters"] }); };
+  const refreshCats = () => { qc.invalidateQueries({ queryKey: ["all-categories"] }); qc.invalidateQueries({ queryKey: ["categories"] }); qc.invalidateQueries({ queryKey: ["public-filters"] }); qc.invalidateQueries({ queryKey: ["cat-delete-reqs"] }); };
 
   const toggle = async (cat: any) => {
     const activating = cat.status !== "active";
@@ -381,16 +384,49 @@ function KategoriTab() {
     } catch (e: any) { toast(e.message, "error"); } finally { setBusy(false); }
   };
 
+  // Delete category (controller = direct; admin = request awaiting controller approval). Reason mandatory.
+  const [deleting, setDeleting] = useState<any | null>(null);
+  const [delReason, setDelReason] = useState("");
+  const startDelete = (cat: any) => { setDeleting(cat); setDelReason(""); };
+  const saveDelete = async () => {
+    if (!delReason.trim()) { toast("Alasan penghapusan wajib diisi", "error"); return; }
+    setBusy(true);
+    try {
+      const r = await apiDelete(`/admin/category/${deleting.id}`, { reason: delReason.trim() });
+      toast(r.pending ? "Permintaan hapus dikirim ke RCG Full Controller" : "Kategori dihapus", "success");
+      setDeleting(null); refreshCats();
+    } catch (e: any) { toast(e.message, "error"); } finally { setBusy(false); }
+  };
+
+  const approveDel = async (cat: any) => {
+    const r = await confirm({ title: "Setujui Hapus Kategori", message: `Hapus kategori "${cat.nama_category}" secara permanen dari daftar?`, confirmText: "Setujui Hapus", tone: "danger" });
+    if (!r.ok) return;
+    try { await apiPost(`/admin/category/${cat.id}/approve-delete`); toast("Kategori dihapus", "success"); refreshCats(); }
+    catch (e: any) { toast(e.message, "error"); }
+  };
+  const rejectDel = async (cat: any) => {
+    const r = await confirm({ title: "Tolak Hapus Kategori", confirmText: "Tolak", requireNote: true, noteLabel: "Alasan penolakan (opsional)", notePlaceholder: "Alasan menolak..." });
+    if (!r.ok) return;
+    try { await apiPost(`/admin/category/${cat.id}/reject-delete`, { notes: r.note || null }); toast("Permintaan hapus ditolak", "success"); refreshCats(); }
+    catch (e: any) { toast(e.message, "error"); }
+  };
+
   const parents = data || [];
 
   const CatActions = ({ cat }: { cat: any }) => (
     <View style={{ flexDirection: "row", alignItems: "center", gap: spacing.sm }}>
+      {cat.pending_delete ? <Badge label="Menunggu Hapus" tone="warning" /> : null}
       <Pressable onPress={() => startRename(cat)} hitSlop={8} style={s.iconBtn} testID={`rename-cat-${cat.id}`}>
         <Icon name="edit-2" size={15} color={colors.brandPrimary} />
       </Pressable>
       <Pressable onPress={() => toggle(cat)} testID={`toggle-cat-${cat.id}`}>
         <Badge label={cat.status === "active" ? "Aktif" : "Nonaktif"} tone={cat.status === "active" ? "success" : "neutral"} />
       </Pressable>
+      {!cat.pending_delete && (
+        <Pressable onPress={() => startDelete(cat)} hitSlop={8} style={s.iconBtn} testID={`delete-cat-${cat.id}`}>
+          <Icon name="trash-2" size={15} color={colors.error} />
+        </Pressable>
+      )}
     </View>
   );
 
@@ -407,6 +443,24 @@ function KategoriTab() {
           <Button title="Tambah" icon="plus" onPress={add} loading={busy} testID="add-category" />
         </View>
       </Card>
+
+      {controller && (delReqs || []).length > 0 && (
+        <Card testID="cat-delete-requests">
+          <Text style={s.cardTitle}>Permintaan Hapus Kategori ({(delReqs || []).length})</Text>
+          <Text style={s.selfHint}>Diajukan RCG Admin, menunggu persetujuan Anda sebagai Full Controller.</Text>
+          {(delReqs || []).map((c: any) => (
+            <View key={c.id} style={s.delReqRow}>
+              <Text style={s.catName}>{c.nama_category}</Text>
+              <Text style={s.delReqMeta}>Oleh: {c.delete_requested_by}</Text>
+              <Text style={s.delReqReason}>{`"${c.delete_reason}"`}</Text>
+              <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
+                <View style={{ flex: 1 }}><Button title="Tolak" variant="outline" onPress={() => rejectDel(c)} testID={`cat-reject-del-${c.id}`} /></View>
+                <View style={{ flex: 1 }}><Button title="Setujui Hapus" variant="danger" icon="trash-2" onPress={() => approveDel(c)} testID={`cat-approve-del-${c.id}`} /></View>
+              </View>
+            </View>
+          ))}
+        </Card>
+      )}
 
       {isLoading ? <Loading /> : parents.map((p: any) => (
         <Card key={p.id}>
@@ -432,6 +486,24 @@ function KategoriTab() {
             <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
               <View style={{ flex: 1 }}><Button title="Batal" variant="outline" onPress={() => setRenaming(null)} testID="rename-cancel" /></View>
               <View style={{ flex: 1 }}><Button title="Simpan" onPress={saveRename} loading={busy} testID="rename-save" /></View>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal visible={!!deleting} transparent animationType="fade" onRequestClose={() => setDeleting(null)}>
+        <Pressable style={s.renameBackdrop} onPress={() => setDeleting(null)}>
+          <Pressable style={s.renameCard} onPress={() => {}}>
+            <Text style={s.cardTitle}>Hapus Kategori</Text>
+            <Text style={s.modalHint}>
+              {controller
+                ? `"${deleting?.nama_category}" akan dihapus permanen. Wajib isi alasan.`
+                : `Permintaan hapus "${deleting?.nama_category}" akan dikirim ke RCG Full Controller untuk disetujui. Wajib isi alasan.`}
+            </Text>
+            <Field label="Alasan Penghapusan (wajib)" value={delReason} onChangeText={setDelReason} placeholder="Mis. kategori dobel / tidak dipakai lagi" testID="delete-category-reason" />
+            <View style={{ flexDirection: "row", gap: spacing.sm, marginTop: spacing.sm }}>
+              <View style={{ flex: 1 }}><Button title="Batal" variant="outline" onPress={() => setDeleting(null)} testID="delete-cancel" /></View>
+              <View style={{ flex: 1 }}><Button title={controller ? "Hapus" : "Ajukan Hapus"} variant="danger" onPress={saveDelete} loading={busy} testID="delete-save" /></View>
             </View>
           </Pressable>
         </Pressable>
@@ -528,6 +600,9 @@ const useStyles = makeStyles((c) => ({
   ctrlBadge: { width: 26, height: 26, borderRadius: 13, backgroundColor: c.brandSecondary, alignItems: "center", justifyContent: "center" },
   selfHint: { fontSize: 12, color: c.muted, marginTop: 4, lineHeight: 17 },
   rcgListLabel: { fontSize: 14, fontWeight: "800", color: c.onSurface, marginTop: spacing.sm },
+  delReqRow: { borderTopWidth: 1, borderTopColor: c.divider, paddingTop: spacing.md, marginTop: spacing.md, gap: 2 },
+  delReqMeta: { fontSize: 12, color: c.muted },
+  delReqReason: { fontSize: 13, color: c.onSurfaceSecondary, fontStyle: "italic", marginTop: 2 },
   filterBar: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, paddingHorizontal: 12, height: 44 },
   searchInput: { flex: 1, fontSize: 14, color: c.onSurface },

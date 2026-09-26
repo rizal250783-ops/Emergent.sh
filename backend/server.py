@@ -191,6 +191,12 @@ async def startup():
         await seed_all()
     # Always run idempotent RCG user setup + MA fixups (also migrates existing DB).
     await ensure_rcg_and_fixups()
+    # Ensure the public catalog is never empty (fresh/deployed DB): seed demo assets once.
+    try:
+        from demo_assets import seed_demo_assets
+        await seed_demo_assets(db)
+    except Exception as e:
+        logger.warning(f"demo asset seed skipped: {e}")
 
 async def ensure_rcg_and_fixups():
     # 1. Retire legacy admin accounts (replaced by named RCG users).
@@ -815,6 +821,37 @@ async def submit_asset(asset_id: str, user=Depends(require("marketing_asset"))):
         await notify(acrm_user["id"], "review", "Asset menunggu review", f"Asset {a['nomor_asset']} menunggu review Anda.")
     return {"ok": True, "status": new_status}
 
+class DeleteRequestIn(BaseModel):
+    reason: str
+
+@api.post("/assets/{asset_id}/request-delete")
+async def request_delete_asset(asset_id: str, body: DeleteRequestIn, user=Depends(require("marketing_asset"))):
+    """Marketing Asset requests deletion of a published/sold asset.
+    Deletion only needs ACRM approval (NOT RCG), with a mandatory free-text reason."""
+    if not body.reason or not body.reason.strip():
+        raise HTTPException(400, "Alasan penghapusan wajib diisi")
+    a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
+    if not a:
+        raise HTTPException(404, "Asset tidak ditemukan")
+    ma, acr, acrm = await ma_context(user)
+    if a["id_marketing_asset"] != ma["id"]:
+        raise HTTPException(403, "Anda tidak memiliki akses ke asset ini")
+    if a["status"] not in ["PUBLISHED", "SOLD"]:
+        raise HTTPException(409, "Hanya asset yang sudah dipublikasikan yang dapat diajukan penghapusan")
+    if not acrm:
+        raise HTTPException(400, "Belum ada ACRM aktif untuk ACR Anda")
+    before = a["status"]
+    await db.assets.update_one({"id": asset_id}, {"$set": {
+        "status": "DELETE_PENDING_ACRM", "delete_reason": body.reason.strip(),
+        "status_before_delete": before, "public_ready": False, "updated_at": now_iso()}})
+    await approval_log(asset_id, "REQUEST_DELETE", before, "DELETE_PENDING_ACRM",
+        {"id": user["id"], "nama": ma["nama_marketing_asset"], "role": "marketing_asset"}, body.reason.strip())
+    await audit(user, "REQUEST_DELETE", "assets", asset_id, notes=body.reason.strip())
+    acrm_user = await db.users.find_one({"ref_id": acrm["id"], "role": "acrm"})
+    if acrm_user:
+        await notify(acrm_user["id"], "review", "Permintaan hapus asset", f"Asset {a['nomor_asset']} diajukan untuk dihapus, menunggu persetujuan Anda.")
+    return {"ok": True, "status": "DELETE_PENDING_ACRM"}
+
 @api.get("/assets/mine")
 async def my_assets(status: Optional[str] = None, user=Depends(require("marketing_asset"))):
     ma, acr, acrm = await ma_context(user)
@@ -829,6 +866,7 @@ async def my_assets(status: Optional[str] = None, user=Depends(require("marketin
 async def asset_internal_view(a):
     v = await asset_public_view(a)
     v["correction_notes"] = a.get("correction_notes")
+    v["delete_reason"] = a.get("delete_reason")
     v["acr_nama"] = a.get("acr_nama")
     v["acrm_nama"] = a.get("acrm_nama")
     v["created_at"] = a.get("created_at")
@@ -965,7 +1003,7 @@ async def acrm_of(user):
 @api.get("/acrm/pending")
 async def acrm_pending(user=Depends(require("acrm"))):
     acrm = await acrm_of(user)
-    q = {"id_acr": acrm["id_acr"], "status": {"$in": ["WAITING_ACRM_REVIEW", "UPDATE_PENDING_ACRM"]}, "deleted_at": None}
+    q = {"id_acr": acrm["id_acr"], "status": {"$in": ["WAITING_ACRM_REVIEW", "UPDATE_PENDING_ACRM", "DELETE_PENDING_ACRM"]}, "deleted_at": None}
     return [await asset_internal_view(clean(a)) async for a in db.assets.find(q).sort("updated_at", 1)]
 
 @api.post("/acrm/assets/{asset_id}/approve")
@@ -1007,7 +1045,46 @@ async def acrm_return(asset_id: str, body: ReviewIn, user=Depends(require("acrm"
         await notify(ma_user["id"], "asset", "Dikembalikan ACRM", f"Asset {a['nomor_asset']} dikembalikan ACRM. Lihat catatan koreksi.")
     return {"ok": True}
 
-# =================== RCG ===================
+@api.post("/acrm/assets/{asset_id}/approve-delete")
+async def acrm_approve_delete(asset_id: str, user=Depends(require("acrm"))):
+    """ACRM approves a deletion request -> asset is soft-deleted (final, no RCG needed)."""
+    acrm = await acrm_of(user)
+    a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
+    if not a or a["id_acr"] != acrm["id_acr"]:
+        raise HTTPException(403, "Anda tidak memiliki akses ke asset ini")
+    if a["status"] != "DELETE_PENDING_ACRM":
+        raise HTTPException(409, "Status asset sudah berubah, muat ulang data.")
+    await db.assets.update_one({"id": asset_id}, {"$set": {
+        "status": "DELETED", "public_ready": False, "deleted_at": now_iso(), "updated_at": now_iso()}})
+    await approval_log(asset_id, "DELETE_APPROVED", "DELETE_PENDING_ACRM", "DELETED",
+        {"id": user["id"], "nama": acrm["nama_acrm"], "role": "acrm"}, a.get("delete_reason"))
+    await audit(user, "ACRM_APPROVE_DELETE", "assets", asset_id, notes=a.get("delete_reason"))
+    ma_user = await db.users.find_one({"ref_id": a["id_marketing_asset"], "role": "marketing_asset"})
+    if ma_user:
+        await notify(ma_user["id"], "asset", "Penghapusan disetujui", f"Asset {a['nomor_asset']} telah dihapus dari katalog (disetujui ACRM).")
+    return {"ok": True, "status": "DELETED"}
+
+@api.post("/acrm/assets/{asset_id}/reject-delete")
+async def acrm_reject_delete(asset_id: str, body: ReviewIn, user=Depends(require("acrm"))):
+    """ACRM rejects a deletion request -> asset is restored to its previous published state."""
+    acrm = await acrm_of(user)
+    a = await db.assets.find_one({"id": asset_id, "deleted_at": None})
+    if not a or a["id_acr"] != acrm["id_acr"]:
+        raise HTTPException(403, "Anda tidak memiliki akses ke asset ini")
+    if a["status"] != "DELETE_PENDING_ACRM":
+        raise HTTPException(409, "Status asset sudah berubah, muat ulang data.")
+    restore = a.get("status_before_delete") or "PUBLISHED"
+    ma_flag = (await db.master_marketing_asset.find_one({"id": a["id_marketing_asset"]}) or {}).get("data_flag")
+    await db.assets.update_one({"id": asset_id}, {"$set": {
+        "status": restore, "public_ready": ma_flag != "PERLU_KONFIRMASI_DATA",
+        "delete_reason": None, "status_before_delete": None, "updated_at": now_iso()}})
+    await approval_log(asset_id, "DELETE_REJECTED", "DELETE_PENDING_ACRM", restore,
+        {"id": user["id"], "nama": acrm["nama_acrm"], "role": "acrm"}, body.notes)
+    await audit(user, "ACRM_REJECT_DELETE", "assets", asset_id, notes=body.notes)
+    ma_user = await db.users.find_one({"ref_id": a["id_marketing_asset"], "role": "marketing_asset"})
+    if ma_user:
+        await notify(ma_user["id"], "asset", "Penghapusan ditolak", f"Permintaan hapus asset {a['nomor_asset']} ditolak ACRM. Asset tetap tampil.")
+    return {"ok": True, "status": restore}
 @api.get("/rcg/pending")
 async def rcg_pending(user=Depends(require(*RCG_ROLES))):
     q = {"status": {"$in": ["WAITING_RCG_APPROVAL", "UPDATE_PENDING_RCG"]}, "deleted_at": None}
@@ -1311,6 +1388,69 @@ async def toggle_category(cid: str, user=Depends(require(*RCG_ROLES))):
     await db.master_asset_category.update_one({"id": cid}, {"$set": {"status": ns, "updated_at": now_iso()}})
     await audit(user, "TOGGLE_STATUS", "category", cid, after={"status": ns})
     return {"ok": True, "status": ns}
+
+class CategoryDeleteIn(BaseModel):
+    reason: str
+
+async def _soft_delete_category(cid):
+    """Soft-delete a category and cascade to its subcategories."""
+    ts = now_iso()
+    await db.master_asset_category.update_one({"id": cid},
+        {"$set": {"status": "inactive", "deleted_at": ts, "pending_delete": False, "updated_at": ts}})
+    await db.master_asset_category.update_many({"parent_category_id": cid, "deleted_at": None},
+        {"$set": {"status": "inactive", "deleted_at": ts, "pending_delete": False, "updated_at": ts}})
+
+@api.delete("/admin/category/{cid}")
+async def delete_category(cid: str, body: CategoryDeleteIn, user=Depends(require(*RCG_ROLES))):
+    """RCG Full Controller deletes directly; RCG Admin's request awaits controller approval.
+    A free-text reason is mandatory in both cases."""
+    if not body.reason or not body.reason.strip():
+        raise HTTPException(400, "Alasan penghapusan wajib diisi")
+    c = await db.master_asset_category.find_one({"id": cid, "deleted_at": None})
+    if not c:
+        raise HTTPException(404, "Kategori tidak ditemukan")
+    reason = body.reason.strip()
+    if user["role"] == RCG_CONTROLLER:
+        await _soft_delete_category(cid)
+        await audit(user, "DELETE", "category", cid, before={"nama": c["nama_category"]}, notes=reason)
+        return {"ok": True, "deleted": True}
+    # RCG Admin -> needs controller approval
+    await db.master_asset_category.update_one({"id": cid}, {"$set": {
+        "pending_delete": True, "delete_reason": reason,
+        "delete_requested_by": user.get("nama") or user["username"], "updated_at": now_iso()}})
+    await audit(user, "REQUEST_DELETE", "category", cid, before={"nama": c["nama_category"]}, notes=reason)
+    for adm in await db.users.find({"role": RCG_CONTROLLER, "status": "active"}).to_list(20):
+        await notify(adm["id"], "approval", "Permintaan hapus kategori",
+            f"Kategori \"{c['nama_category']}\" diajukan untuk dihapus, menunggu persetujuan Anda.")
+    return {"ok": True, "deleted": False, "pending": True}
+
+@api.get("/admin/category-delete-requests")
+async def category_delete_requests(user=Depends(require(RCG_CONTROLLER))):
+    out = []
+    async for c in db.master_asset_category.find({"pending_delete": True, "deleted_at": None}).sort("updated_at", -1):
+        out.append({"id": c["id"], "nama_category": c["nama_category"],
+            "parent_category_id": c.get("parent_category_id"), "delete_reason": c.get("delete_reason"),
+            "delete_requested_by": c.get("delete_requested_by")})
+    return out
+
+@api.post("/admin/category/{cid}/approve-delete")
+async def approve_category_delete(cid: str, user=Depends(require(RCG_CONTROLLER))):
+    c = await db.master_asset_category.find_one({"id": cid, "deleted_at": None})
+    if not c or not c.get("pending_delete"):
+        raise HTTPException(404, "Permintaan hapus tidak ditemukan")
+    await _soft_delete_category(cid)
+    await audit(user, "APPROVE_DELETE", "category", cid, before={"nama": c["nama_category"]}, notes=c.get("delete_reason"))
+    return {"ok": True, "deleted": True}
+
+@api.post("/admin/category/{cid}/reject-delete")
+async def reject_category_delete(cid: str, body: ReviewIn, user=Depends(require(RCG_CONTROLLER))):
+    c = await db.master_asset_category.find_one({"id": cid, "deleted_at": None})
+    if not c or not c.get("pending_delete"):
+        raise HTTPException(404, "Permintaan hapus tidak ditemukan")
+    await db.master_asset_category.update_one({"id": cid}, {"$set": {
+        "pending_delete": False, "delete_reason": None, "delete_requested_by": None, "updated_at": now_iso()}})
+    await audit(user, "REJECT_DELETE", "category", cid, notes=body.notes)
+    return {"ok": True}
 
 class KpknlIn(BaseModel):
     nama_kpknl: str
