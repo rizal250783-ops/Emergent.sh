@@ -110,6 +110,10 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Kategori: kini bisa DIHAPUS (bukan hanya nonaktif) dengan alasan wajib. RCG Full Controller hapus langsung; RCG Admin -> permintaan menunggu approval Full Controller (badge "Menunggu Hapus", section "Permintaan Hapus Kategori" untuk controller: Setujui/Tolak). Cascade soft-delete subkategori. Endpoint: DELETE /admin/category/{id}, /admin/category/{id}/approve-delete, /reject-delete, GET /admin/category-delete-requests.
 - Verified by curl: delete-asset flow (400 no reason, pending->ACRM approve->DELETED, hilang dari katalog), category delete (controller direct, admin pending->controller approve, admin approve 403).
 
+## Implemented (Iteration 13, 2026-06)
+- Tab "Terhapus" (Aset Terhapus) di Kelola untuk semua role RCG: menampilkan aset yang dihapus lewat alur MA->ACRM beserta alasan penghapusan, pengaju, penyetuju, dan tanggal; tombol "Pulihkan Asset" mengembalikan aset ke katalog. Endpoint: GET /rcg/deleted-assets, POST /rcg/assets/{id}/restore (RCG only; MA/ACRM 403).
+- Verified testing agent: backend 9/9 (setelah fix), frontend mobile 100% (iteration_13.json). Fixed 2 decorator-drop regressions selama iterasi ini (GET /assets/mine dan POST /rcg/assets/{id}/sold) — keduanya sudah dipulihkan & diverifikasi.
+
 ## Backlog / Remaining
 - P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.

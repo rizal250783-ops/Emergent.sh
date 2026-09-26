@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 import { View, Text, ScrollView, FlatList, Pressable, RefreshControl, TextInput, Linking, Modal } from "react-native";
 import { useRouter } from "expo-router";
+import { Image } from "expo-image";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeStyles, useTheme } from "@/src/theme";
 import { apiGet, apiPost, apiPut, apiDelete, fileUrl } from "@/src/api";
-import { formatDateTime } from "@/src/format";
+import { formatDateTime, rupiah } from "@/src/format";
 import {
   ScreenHeader, Card, Badge, Field, Select, Button, Icon, Loading, ErrorState, EmptyState, spacing, radius,
 } from "@/src/components/ui";
@@ -16,6 +17,7 @@ import { useAuth, isController } from "@/src/auth";
 const BASE_TABS = [
   { key: "users", label: "User", icon: "users" },
   { key: "kategori", label: "Kategori", icon: "grid" },
+  { key: "deleted", label: "Terhapus", icon: "rotate-ccw" },
   { key: "audit", label: "Audit", icon: "shield" },
   { key: "laporan", label: "Laporan", icon: "file-text" },
 ];
@@ -53,6 +55,7 @@ export default function Manage() {
       </ScrollView>
       {tab === "users" && <UsersTab />}
       {tab === "kategori" && <KategoriTab />}
+      {tab === "deleted" && <DeletedTab />}
       {tab === "audit" && <AuditTab />}
       {tab === "laporan" && <LaporanTab />}
       {tab === "rcg" && controller && <RcgTab />}
@@ -328,6 +331,63 @@ function EditUserModal({ row, acrs, onClose, onSaved }: any) {
 }
 
 // -------- Kategori --------
+function DeletedTab() {
+  const s = useStyles();
+  const { colors } = useTheme();
+  const qc = useQueryClient();
+  const toast = useToast();
+  const confirm = useConfirm();
+  const { data, isLoading, isError, refetch, isRefetching } = useQuery({
+    queryKey: ["deleted-assets"],
+    queryFn: () => apiGet("/rcg/deleted-assets"),
+  });
+
+  const restore = async (a: any) => {
+    const r = await confirm({ title: "Pulihkan Asset", message: `"${a.judul_asset}" akan dikembalikan dan tampil lagi di katalog publik.`, confirmText: "Pulihkan" });
+    if (!r.ok) return;
+    try {
+      await apiPost(`/rcg/assets/${a.id}/restore`);
+      toast("Asset dipulihkan", "success");
+      qc.invalidateQueries({ queryKey: ["deleted-assets"] });
+      qc.invalidateQueries();
+    } catch (e: any) { toast(e.message, "error"); }
+  };
+
+  if (isLoading) return <Loading />;
+  if (isError) return <ErrorState onRetry={refetch} />;
+  const rows: any[] = data || [];
+
+  return (
+    <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}
+      refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}>
+      <Text style={s.selfHint}>Asset yang telah dihapus (disetujui ACRM). Anda dapat memulihkannya kembali beserta melihat alasan penghapusan.</Text>
+      {rows.length === 0 ? (
+        <EmptyState icon="trash-2" title="Belum ada asset terhapus" message="Semua asset masih aktif." />
+      ) : rows.map((a) => (
+        <Card key={a.id} testID={`deleted-asset-${a.id}`}>
+          <View style={{ flexDirection: "row", gap: spacing.md }}>
+            <Image source={{ uri: fileUrl(a.image) }} style={s.delThumb} contentFit="cover" />
+            <View style={{ flex: 1 }}>
+              <Text style={s.uName} numberOfLines={2}>{a.judul_asset}</Text>
+              <Text style={s.uMeta}>{a.nomor_asset}</Text>
+              <Text style={s.uMeta}>{[a.kabupaten_kota, a.provinsi].filter(Boolean).join(", ")}</Text>
+              <Text style={s.delPrice}>{rupiah(a.harga_limit)}</Text>
+            </View>
+          </View>
+          <View style={s.delReasonBox}>
+            <Text style={s.delReasonLabel}>Alasan penghapusan</Text>
+            <Text style={s.delReasonTxt}>{a.delete_reason ? `"${a.delete_reason}"` : "-"}</Text>
+            <Text style={s.delReqMeta}>Diajukan: {a.requested_by || "-"} • Disetujui: {a.approved_by || "-"} • {formatDateTime(a.deleted_at)}</Text>
+          </View>
+          <View style={{ marginTop: spacing.md }}>
+            <Button title="Pulihkan Asset" icon="rotate-ccw" onPress={() => restore(a)} testID={`restore-asset-${a.id}`} />
+          </View>
+        </Card>
+      ))}
+    </ScrollView>
+  );
+}
+
 function KategoriTab() {
   const s = useStyles();
   const { colors } = useTheme();
@@ -603,6 +663,11 @@ const useStyles = makeStyles((c) => ({
   delReqRow: { borderTopWidth: 1, borderTopColor: c.divider, paddingTop: spacing.md, marginTop: spacing.md, gap: 2 },
   delReqMeta: { fontSize: 12, color: c.muted },
   delReqReason: { fontSize: 13, color: c.onSurfaceSecondary, fontStyle: "italic", marginTop: 2 },
+  delThumb: { width: 72, height: 72, borderRadius: radius.md, backgroundColor: c.surfaceTertiary },
+  delPrice: { fontSize: 15, fontWeight: "900", color: c.brandPrimary, marginTop: 2 },
+  delReasonBox: { backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md, gap: 2 },
+  delReasonLabel: { fontSize: 12, fontWeight: "800", color: c.error },
+  delReasonTxt: { fontSize: 13, color: "#7F1D1D", lineHeight: 19 },
   filterBar: { paddingHorizontal: spacing.lg, paddingTop: spacing.md },
   searchBox: { flexDirection: "row", alignItems: "center", gap: 8, backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.border, borderRadius: radius.md, paddingHorizontal: 12, height: 44 },
   searchInput: { flex: 1, fontSize: 14, color: c.onSurface },

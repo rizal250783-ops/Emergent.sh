@@ -321,7 +321,7 @@ function actionLabel(a: string) {
   return ({ SUBMIT: "Disubmit Marketing", RESUBMIT: "Disubmit Ulang", APPROVE: "Disetujui", RETURN: "Dikembalikan",
     PUBLISH: "Dipublikasikan RCG", UPDATE_SUBMIT: "Update Disubmit", UPDATE_APPROVE: "Update Disetujui",
     REQUEST_DELETE: "Diajukan Hapus (Marketing)", DELETE_APPROVED: "Penghapusan Disetujui ACRM",
-    DELETE_REJECTED: "Penghapusan Ditolak ACRM", MARK_SOLD: "Ditandai Terjual", UNMARK_SOLD: "Batal Terjual" } as any)[a] || a;
+    DELETE_REJECTED: "Penghapusan Ditolak ACRM", MARK_SOLD: "Ditandai Terjual", UNMARK_SOLD: "Batal Terjual", RESTORE: "Dipulihkan RCG" } as any)[a] || a;
 }
 
 function Info({ label, value }: { label: string; value?: string }) {

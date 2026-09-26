@@ -1,0 +1,42 @@
+{
+  "summary": "Iteration 13 (Terhapus tab + RCG restore). BACKEND (test_iteration13.py, serial): 8/9 PASS. Verified GET /api/rcg/deleted-assets returns rows with delete_reason, deleted_at, requested_by='Abdul Hadi AR' (MA) and approved_by='FERI SAPUTRA' (ACRM) once an MA request-delete is approved by ACRM; verified POST /api/rcg/assets/{id}/restore restores DELETED -> PUBLISHED, asset disappears from /rcg/deleted-assets, reappears in /public/catalog, and public catalog total is back to 45. RBAC verified: MA and ACRM both get 403 on GET /rcg/deleted-assets AND POST /rcg/assets/{id}/restore. Restore with unknown id returns 404. FRONTEND (Expo web, mobile 390x844): Full end-to-end walk-through as RCG Full Controller 2183008345 -> Kelola -> tab row shows [User, Kategori, Terhapus, Audit, Laporan, RCG] with testIDs manage-tab-users/kategori/deleted/audit/laporan/rcg all present. Terhapus tab renders header helper text 'Asset yang telah dihapus (disetujui ACRM). Anda dapat memulihkannya kembali beserta melihat alasan penghapusan.' plus a card [deleted-asset-<id>] containing the asset title (Rumah 2 Lantai Siap Huni), red 'Alasan penghapusan' box quoting the MA-supplied reason ('UITEST_ITER13 alasan hapus'), 'Diajukan: Abdul Hadi AR / Disetujui: FERI SAPUTRA' meta line, and 'Pulihkan Asset' button [restore-asset-<id>]. Tapping restore opens a confirm modal titled 'Pulihkan Asset' with Batal/Pulihkan buttons ([confirm-cancel]/[confirm-ok]); confirming removes the card, empty-state 'Belum ada asset terhapus' displayed, and asset returns to /public/catalog (total back to 45). REGRESSION FOUND (CRITICAL): POST /api/rcg/assets/{id}/sold returns 404 because the newly-added /restore endpoint was inserted immediately above the rcg_mark_sold coroutine and consumed its @api.post decorator (server.py line ~1149-1150). This breaks the RCG 'Tandai Terjual' controller action.",
+  "backend_issues": {
+    "critical": [
+      {
+        "endpoint": "POST /api/rcg/assets/{id}/sold",
+        "issue": "Returns 404 - the @api.post('/rcg/assets/{asset_id}/sold') decorator is missing. server.py line 1149 ends with `return {\"ok\": True, \"status\": restore}` (last line of rcg_restore_asset) and line 1150 immediately begins `async def rcg_mark_sold(...)` with no decorator. Insert `@api.post(\"/rcg/assets/{asset_id}/sold\")` between line 1149 and 1150 to restore the endpoint. Confirmed live: curl POST returns 404. This regresses the RCG mark-as-SOLD flow.",
+        "priority": "CRITICAL"
+      }
+    ],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration13.py",
+    "/app/test_reports/pytest/pytest_iter13.xml"
+  ],
+  "action_items": [
+    "CRITICAL: In /app/backend/server.py, insert `@api.post(\"/rcg/assets/{asset_id}/sold\")` on the line directly before `async def rcg_mark_sold(...)` (~line 1150). The /restore addition orphaned rcg_mark_sold, so tandai-terjual is now 404.",
+    "OPTIONAL (carried from iter 12): seed_demo_assets currently top-fills only when the entire demo pool is empty; a single approve-delete can permanently shrink the pool below 45 until a force reseed. Consider per-title top-up.",
+    "OPTIONAL (carried): server.py is now ~1735 lines - split by domain (assets, acrm, rcg, admin/category, master data)."
+  ],
+  "critical_code_review_comments": [
+    "server.py:1149-1150 - Missing @api.post decorator for rcg_mark_sold caused directly by inserting the new /rcg/assets/{id}/restore route without adding the sold decorator back. Always leave a blank line + decorator between adjacent route handlers to avoid this class of accident.",
+    "server.py still >1500 lines; a domain split would have made this decorator regression more visible in review."
+  ],
+  "updated_files": [],
+  "success_rate": {
+    "backend": "8/9 = 88.9% - 8 new-feature tests PASS, 1 regression test FAIL for /rcg/assets/{id}/sold missing decorator",
+    "frontend": "100% - Terhapus tab renders, deleted-asset-<id> card + Alasan penghapusan (with reason + requested_by + approved_by) + Pulihkan Asset button all present; confirm modal + restore flow works; empty state shown after restore; regression tabs (User/Kategori/Terhapus/Audit/Laporan/RCG) all present"
+  },
+  "seed_data_creation": "One end-to-end delete cycle on MA 2190020284's asset 'Rumah 2 Lantai Siap Huni' (id 4ba680ea-3c62-4a94-858c-42e63b39de7d): request-delete (UITEST_ITER13) -> approve-delete -> restore via UI. Asset returned to PUBLISHED at end of run and public catalog total is 45. No other seed data left behind.",
+  "retest_needed": true,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "After main agent adds the missing `@api.post('/rcg/assets/{asset_id}/sold')` decorator, rerun `pytest /app/backend/tests/test_iteration13.py -v -o addopts=` - expect 9/9. UI flow already fully verified (screenshots in /tmp/terhapus_tab.png, /tmp/terhapus_confirm.png, /tmp/terhapus_after.png). MA asset is currently PUBLISHED (catalog=45); if reused for further delete testing, restore or force-reseed at end.",
+  "rca_of_issue": "New feature POST /rcg/assets/{asset_id}/restore was added to server.py at lines 1133-1149, but the diff also removed the standalone `@api.post('/rcg/assets/{asset_id}/sold')` line that used to sit immediately above `async def rcg_mark_sold`. As a result, rcg_mark_sold is now an undecorated coroutine and FastAPI no longer registers /rcg/assets/{id}/sold. Reproduction: `curl -X POST -H 'Authorization: Bearer <RCG-JWT>' -H 'Content-Type: application/json' -d '{\"notes\":\"x\"}' <BASE>/api/rcg/assets/<PUBLISHED_ID>/sold` -> HTTP 404 {\"detail\":\"Not Found\"}. Mitigation: re-add the decorator (single line). No data-model change needed."
+}

@@ -1111,6 +1111,43 @@ async def rcg_approve(asset_id: str, user=Depends(require(*RCG_ROLES))):
         await notify(ma_user["id"], "asset", "Dipublikasikan", f"Asset {a['nomor_asset']} telah dipublikasikan ke katalog publik.")
     return {"ok": True, "status": "PUBLISHED", "public_ready": public_ready}
 
+@api.get("/rcg/deleted-assets")
+async def rcg_deleted_assets(user=Depends(require(*RCG_ROLES))):
+    """Assets that were deleted via the MA->ACRM deletion workflow, with reason, for review/restore."""
+    out = []
+    async for a in db.assets.find({"status": "DELETED", "deleted_at": {"$ne": None}}).sort("deleted_at", -1):
+        log = await db.approval_logs.find_one({"asset_id": a["id"], "action": "DELETE_APPROVED"}, sort=[("timestamp", -1)])
+        req = await db.approval_logs.find_one({"asset_id": a["id"], "action": "REQUEST_DELETE"}, sort=[("timestamp", -1)])
+        img = await db.asset_images.find_one({"id_asset": a["id"], "deleted_at": None})
+        out.append({
+            "id": a["id"], "nomor_asset": a.get("nomor_asset"), "judul_asset": a.get("judul_asset"),
+            "harga_limit": a.get("harga_limit"), "provinsi": a.get("provinsi"), "kabupaten_kota": a.get("kabupaten_kota"),
+            "pic_nama": a.get("pic_nama"), "acr_nama": a.get("acr_nama"),
+            "delete_reason": a.get("delete_reason"), "deleted_at": a.get("deleted_at"),
+            "requested_by": (req or {}).get("reviewer_name"),
+            "approved_by": (log or {}).get("reviewer_name"),
+            "image": img["url"] if img else None,
+        })
+    return out
+
+@api.post("/rcg/assets/{asset_id}/restore")
+async def rcg_restore_asset(asset_id: str, user=Depends(require(*RCG_ROLES))):
+    """Restore a deleted asset back to its previous published state."""
+    a = await db.assets.find_one({"id": asset_id, "status": "DELETED"})
+    if not a:
+        raise HTTPException(404, "Asset terhapus tidak ditemukan")
+    restore = a.get("status_before_delete") or "PUBLISHED"
+    ma_flag = (await db.master_marketing_asset.find_one({"id": a["id_marketing_asset"]}) or {}).get("data_flag")
+    await db.assets.update_one({"id": asset_id}, {"$set": {
+        "status": restore, "deleted_at": None, "public_ready": ma_flag != "PERLU_KONFIRMASI_DATA",
+        "delete_reason": None, "status_before_delete": None, "updated_at": now_iso()}})
+    await approval_log(asset_id, "RESTORE", "DELETED", restore, {"id": user["id"], "nama": user.get("nama"), "role": user.get("role")})
+    await audit(user, "RESTORE", "assets", asset_id)
+    ma_user = await db.users.find_one({"ref_id": a["id_marketing_asset"], "role": "marketing_asset"})
+    if ma_user:
+        await notify(ma_user["id"], "asset", "Asset dipulihkan", f"Asset {a['nomor_asset']} dipulihkan kembali oleh RCG.")
+    return {"ok": True, "status": restore}
+
 @api.post("/rcg/assets/{asset_id}/sold")
 async def rcg_mark_sold(asset_id: str, body: Optional[ReviewIn] = None, user=Depends(require(*RCG_ROLES))):
     """Controller marks a published asset as SOLD: stays visible with TERJUAL badge, WA contact hidden."""
