@@ -78,6 +78,11 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Peta Sebaran Asset (/map): GET /public/catalog/map pins; Leaflet + markercluster (iframe web / WebView native) via generic HtmlFrame; pin tap -> summary card -> detail/favorite; legend (tersedia/harga turun/terjual); follows home filters (map-entry-button, view-on-map pill). Header compacted.
 - Validated by testing agent: 7/7 backend + all frontend flows.
 
+## Implemented (Iteration 7, 2026-06)
+- Tombol akses cepat Halaman Utama / Katalog Publik dari seluruh panel internal (Dashboard, Antrian/Asset Saya, Kelola, dan Akun) serta tombol "Kembali ke Katalog Publik" di layar login.
+- Transisi 2 arah mulus: Dari katalog publik klik "Panel" masuk ke Dashboard internal; dari Dashboard/Akun/Kelola/Antrian klik "Katalog Publik" langsung membuka Halaman Utama katalog lelang.
+- Validated by testing agent: 6/6 frontend navigation flows passed (iteration_7.json).
+
 ## Backlog / Remaining
 - P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.

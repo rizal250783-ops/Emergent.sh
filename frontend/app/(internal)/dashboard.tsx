@@ -24,9 +24,23 @@ function useDash(path: string, key: string) {
 function Wrap({ title, subtitle, children, loading, error, refetch, refreshing }: any) {
   const s = useStyles();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
   return (
     <View style={[s.screen, { paddingTop: insets.top }]}>
-      <ScreenHeader title={title} subtitle={subtitle} />
+      <ScreenHeader
+        title={title}
+        subtitle={subtitle}
+        right={
+          <Pressable
+            onPress={() => router.push("/")}
+            testID="open-public-catalog-btn"
+            style={s.pubBtn}
+          >
+            <Icon name="grid" size={14} color="#FFFFFF" />
+            <Text style={s.pubBtnTxt}>Katalog Publik</Text>
+          </Pressable>
+        }
+      />
       {loading ? <Loading /> : error ? <ErrorState onRetry={refetch} message="Gagal memuat dashboard" /> : (
         <ScrollView
           contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}
@@ -179,6 +193,8 @@ const styleLabel = { fontSize: 15, fontWeight: "800" as const, color: "#1F2937",
 
 const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
+  pubBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, height: 32, borderRadius: 16 },
+  pubBtnTxt: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
   tblHead: { flexDirection: "row", paddingBottom: 8, borderBottomWidth: 1, borderBottomColor: c.border },
   th: { flex: 1, fontSize: 11, fontWeight: "700", color: c.muted, textAlign: "center" },
   tblRow: { flexDirection: "row", paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: c.divider },

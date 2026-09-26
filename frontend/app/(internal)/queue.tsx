@@ -44,7 +44,16 @@ export default function Queue() {
 
   return (
     <View style={[s.screen, { paddingTop: insets.top }]}>
-      <ScreenHeader title={title} subtitle={subtitle} />
+      <ScreenHeader
+        title={title}
+        subtitle={subtitle}
+        right={
+          <Pressable onPress={() => router.push("/")} testID="queue-open-public-catalog" style={s.pubBtn}>
+            <Icon name="grid" size={14} color="#FFFFFF" />
+            <Text style={s.pubBtnTxt}>Katalog Publik</Text>
+          </Pressable>
+        }
+      />
       {isMA && (
         <View style={{ height: 56, justifyContent: "center", backgroundColor: colors.surfaceSecondary, borderBottomWidth: 1, borderBottomColor: colors.border }}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: spacing.sm, paddingHorizontal: spacing.lg }}>
@@ -97,6 +106,8 @@ export default function Queue() {
 
 const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
+  pubBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, height: 32, borderRadius: 16 },
+  pubBtnTxt: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
   chip: { height: 36, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: c.surfaceTertiary, alignItems: "center", justifyContent: "center", flexShrink: 0, borderWidth: 1, borderColor: c.border },
   chipActive: { backgroundColor: c.brandPrimary, borderColor: c.brandPrimary },
   chipTxt: { color: c.onSurfaceTertiary, fontWeight: "600", fontSize: 13 },

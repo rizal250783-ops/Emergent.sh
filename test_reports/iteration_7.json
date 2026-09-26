@@ -1,0 +1,24 @@
+{
+  "summary": "Frontend-only navigation testing for the new 'Katalog Publik / Halaman Utama' entrypoints. All 6 requested navigation flows verified end-to-end on mobile viewport (390x844) against the public preview URL. Public catalog → Login, Login → back to public catalog, Login → Dashboard (admin), Dashboard header 'Katalog Publik' → /, Public catalog 'Panel' → /dashboard, and Account 'Buka Katalog Publik' → / all work. Additionally verified header 'Katalog Publik' button on /manage (admin) and /queue (marketing_asset user) — both navigate to /. Login switch to 'Panel' when authenticated also works.",
+  "backend_issues": {"critical": [], "minor": []},
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "Playwright flows executed inline (no persisted script)."
+  ],
+  "action_items": [],
+  "critical_code_review_comments": [
+    "Header 'Katalog Publik' button uses inconsistent testIDs across screens: dashboard='open-public-catalog-btn', manage='manage-open-public-catalog', queue='queue-open-public-catalog', account='account-open-public-catalog'. Consider unifying to a shared testID (e.g. 'open-public-catalog-btn') to simplify regression scripts. Not a functional bug."
+  ],
+  "updated_files": [],
+  "success_rate": {"backend": "n/a (skipped)", "frontend": "100%"},
+  "seed_data_creation": "None. Used existing seeded credentials (admin / Admin@2026, MA NIP 2190020284 / BSI@2026).",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "Login inputs from Field component render as <input data-testid=...> directly, so use page.fill('[data-testid=\"login-username\"]', ...) — do NOT nest ' input'. Multiple react-native-web wrappers may cause a testID to resolve to 2 nodes on the catalog header; use locator(...).first.click(force=True). Header 'Katalog Publik' pub button testIDs differ per screen (dashboard/manage/queue/account) — see critical_code_review_comments.",
+  "rca_of_issue": "N/A — feature-verification, no bug found."
+}

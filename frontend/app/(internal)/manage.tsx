@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { View, Text, ScrollView, FlatList, Pressable, RefreshControl, TextInput, Linking, Modal } from "react-native";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { makeStyles, useTheme } from "@/src/theme";
@@ -19,6 +20,7 @@ const TABS = [
 ];
 
 export default function Manage() {
+  const router = useRouter();
   const insets = useSafeAreaInsets();
   const s = useStyles();
   const { colors } = useTheme();
@@ -26,7 +28,16 @@ export default function Manage() {
 
   return (
     <View style={[s.screen, { paddingTop: insets.top }]}>
-      <ScreenHeader title="Kelola" subtitle="Master data & audit" />
+      <ScreenHeader
+        title="Kelola"
+        subtitle="Master data & audit"
+        right={
+          <Pressable onPress={() => router.push("/")} testID="manage-open-public-catalog" style={s.pubBtn}>
+            <Icon name="grid" size={14} color="#FFFFFF" />
+            <Text style={s.pubBtnTxt}>Katalog Publik</Text>
+          </Pressable>
+        }
+      />
       <View style={s.tabRow}>
         {TABS.map((t) => (
           <Pressable key={t.key} style={[s.tab, tab === t.key && s.tabActive]} onPress={() => setTab(t.key)} testID={`manage-tab-${t.key}`}>
@@ -376,6 +387,8 @@ function AuditTab() {
 
 const useStyles = makeStyles((c) => ({
   screen: { flex: 1, backgroundColor: c.surface },
+  pubBtn: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: "rgba(255,255,255,0.2)", paddingHorizontal: 10, height: 32, borderRadius: 16 },
+  pubBtnTxt: { color: "#FFFFFF", fontSize: 11, fontWeight: "700" },
   tabRow: { flexDirection: "row", backgroundColor: c.surfaceSecondary, borderBottomWidth: 1, borderBottomColor: c.border },
   tab: { flex: 1, flexDirection: "row", gap: 6, alignItems: "center", justifyContent: "center", paddingVertical: spacing.md, borderBottomWidth: 2, borderBottomColor: "transparent" },
   tabActive: { borderBottomColor: c.brandPrimary },

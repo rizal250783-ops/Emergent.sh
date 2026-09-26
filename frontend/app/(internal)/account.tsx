@@ -72,6 +72,19 @@ export default function Account() {
         )}
 
         <Card>
+          <Text style={s.cardTitle}>Navigasi</Text>
+          <View style={{ marginTop: spacing.sm }}>
+            <Button
+              title="Buka Katalog Publik (Halaman Utama)"
+              variant="outline"
+              icon="grid"
+              onPress={() => router.push("/")}
+              testID="account-open-public-catalog"
+            />
+          </View>
+        </Card>
+
+        <Card>
           <Pressable style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }} onPress={() => setShowPw(!showPw)} testID="toggle-change-password">
             <Text style={s.cardTitle}>Ubah Password</Text>
             <Icon name={showPw ? "chevron-up" : "chevron-down"} size={20} color={colors.muted} />

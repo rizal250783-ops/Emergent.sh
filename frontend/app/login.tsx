@@ -82,6 +82,13 @@ export default function Login() {
               </View>
             ) : null}
             <Button title="Masuk" onPress={submit} loading={loading} testID="login-submit" />
+            <Button
+              title="Kembali ke Katalog Publik"
+              variant="outline"
+              icon="arrow-left"
+              onPress={() => router.replace("/")}
+              testID="login-back-button"
+            />
             <Text style={s.hint}>Gunakan NIP dan password yang diberikan Admin RCG.</Text>
           </View>
         </ScrollView>
