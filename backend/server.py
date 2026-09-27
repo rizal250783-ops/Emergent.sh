@@ -1748,6 +1748,60 @@ async def get_mutations(user=Depends(require(*RCG_ROLES))):
         out.append(h)
     return out
 
+@api.get("/export/test-accounts")
+async def export_test_accounts():
+    """Generate an .xlsx of all UAT accounts (MA + ACRM + RCG) with default password, for testers."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+    acrs = {a["id"]: a["nama_acr"] for a in await db.master_acr.find({"deleted_at": None}).to_list(500)}
+    ma_rows, acrm_rows, rcg_rows = [], [], []
+    async for m in db.master_marketing_asset.find({"deleted_at": None}).sort("nama_marketing_asset", 1):
+        u = await db.users.find_one({"ref_id": m["id"], "role": "marketing_asset"})
+        if u:
+            ma_rows.append(["Marketing Asset", m.get("nama_marketing_asset"), u["username"], acrs.get(m["id_acr"], "-"), m.get("nomor_hp") or "-", DEFAULT_PASSWORD, "Aktif" if u.get("status") == "active" else "Nonaktif"])
+    async for c in db.master_acrm.find({"deleted_at": None}).sort("nama_acrm", 1):
+        u = await db.users.find_one({"ref_id": c["id"], "role": "acrm"})
+        if u:
+            acrm_rows.append(["ACRM", c.get("nama_acrm"), u["username"], acrs.get(c["id_acr"], "-"), c.get("nomor_hp") or "-", DEFAULT_PASSWORD, "Aktif" if u.get("status") == "active" else "Nonaktif"])
+    async for u in db.users.find({"role": {"$in": list(RCG_ROLES)}, "deleted_at": None}).sort("role", 1):
+        label = "RCG Full Controller" if u["role"] == RCG_CONTROLLER else "RCG Admin"
+        rcg_rows.append([label, u.get("nama"), u["username"], "-", "-", DEFAULT_PASSWORD, "Aktif" if u.get("status") == "active" else "Nonaktif"])
+
+    HEAD = ["Peran", "Nama Lengkap", "NIP / Username", "ACR / Wilayah", "No. WA", "Password Awal", "Status"]
+    widths = [20, 32, 20, 26, 16, 16, 10]
+    wb = Workbook()
+    hfill = PatternFill("solid", fgColor="00A39D"); hfont = Font(bold=True, color="FFFFFF", size=11)
+    title_font = Font(bold=True, size=14, color="00A39D")
+    thin = Side(style="thin", color="D0D0D0"); border = Border(left=thin, right=thin, top=thin, bottom=thin)
+
+    def build(ws, rows, title):
+        ws.append([title]); ws["A1"].font = title_font
+        ws.append(["Login: gunakan NIP sebagai username + Password Awal. Wajib ganti password saat pertama login."])
+        ws["A2"].font = Font(italic=True, size=9, color="666666")
+        ws.append([]); ws.append(HEAD)
+        hr = ws.max_row
+        for ci in range(1, len(HEAD) + 1):
+            cell = ws.cell(row=hr, column=ci); cell.fill = hfill; cell.font = hfont
+            cell.alignment = Alignment(horizontal="center", vertical="center"); cell.border = border
+        for r in rows:
+            ws.append(r)
+            for ci in range(1, len(HEAD) + 1):
+                ws.cell(row=ws.max_row, column=ci).border = border
+        for i, w in enumerate(widths, 1):
+            ws.column_dimensions[chr(64 + i)].width = w
+        ws.freeze_panes = ws.cell(row=hr + 1, column=1)
+
+    ws1 = wb.active; ws1.title = "Semua Akun"
+    build(ws1, ma_rows + acrm_rows + rcg_rows, "DAFTAR AKUN UJI COBA — BSI ASSET DEAL")
+    build(wb.create_sheet("Marketing Asset"), ma_rows, f"MARKETING ASSET ({len(ma_rows)} akun)")
+    build(wb.create_sheet("ACRM"), acrm_rows, f"ACRM ({len(acrm_rows)} akun)")
+    build(wb.create_sheet("Admin RCG"), rcg_rows, f"ADMIN RCG ({len(rcg_rows)} akun)")
+
+    buf = io.BytesIO(); wb.save(buf); buf.seek(0)
+    return FastResponse(content=buf.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=daftar_akun_uji_bsi_asset_deal.xlsx"})
+
 app.include_router(api)
 app.add_middleware(CORSMiddleware, allow_credentials=True, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
