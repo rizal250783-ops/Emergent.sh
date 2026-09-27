@@ -1,0 +1,40 @@
+{
+  "summary": "Iteration 14 (radius filter + 30-day retention + ACR filter on Terhapus). BACKEND (test_iteration14.py, 9/9 PASS): (1) Radius filter on nearest — no radius returns 45 (both plain and nearest without radius_km), radius_km=5 returns 1 asset with every item having distance_km<=5, radius_km=25 returns 10 items strictly more than 5km (all distance_km<=25). (2) Retention flow — created delete via MA 2190020284 request-delete {reason:UITEST_ITER14} + ACRM 2188009250 approve-delete; GET /api/rcg/deleted-assets (as RCG 2183008345) returns the record with retention_days=30 and days_left in (0,30]. (3) Restore within retention — POST /api/rcg/assets/{id}/restore returns 200 with status=PUBLISHED and catalog immediately returns to 45. (4) Regressions — /assets/mine returns 200 (list) and /rcg/assets/{id}/sold + /rcg/assets/{id}/unsold both return 200; catalog stays at 45 after the sold->unsold cycle. FRONTEND (Expo web mobile 390x844): (a) Home -> tap 'Pilih Titik' -> tap 'Cari Aset Terdekat dari Titik Ini' -> 'Radius:' chip row renders with all five chips (testIDs radius-1, radius-5, radius-10, radius-25, radius-all); tapping 5 km cuts visible list to 1 asset with '1.9 km' distance badge on the card, and 'Diurutkan dari: Titik peta pilihan' pill (with X) is shown; asset cards display km distance badges (1.9 km / 8.1 km / 9.6 km / 10.9 km). (b) Login as RCG controller 2183008345 -> Kelola -> tab row exposes all six testIDs manage-tab-users/kategori/deleted/audit/laporan/rcg; Terhapus tab shows ACR filter chip row (deleted-acr-all + deleted-acr-ACR BANDA ACEH) plus the deleted-asset-<id> card with title 'Rumah 2 Lantai Siap Huni', retention badge 'Dibersihkan dalam 30 hari', red Alasan penghapusan box quoting 'UITEST_ITER14 UI test', 'Diajukan: Abdul Hadi AR / Disetujui: FERI SAPUTRA' meta line, and restore-asset-<id> button. ACR filter click and 'Semua ACR' both keep the card visible (only one ACR present, expected). Prior regression from iter 13 (rcg /sold missing decorator) is FIXED. Test-deleted MA asset was restored at end; catalog is back to 45.",
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration14.py",
+    "/app/test_reports/pytest/pytest_iter14.xml"
+  ],
+  "action_items": [
+    "No action required — iteration 14 features and prior regressions all green.",
+    "OPTIONAL (carried): server.py is >1700 lines; consider splitting by domain (assets, acrm, rcg, admin/category, master data) to reduce risk of decorator/regression accidents like iter 13.",
+    "OPTIONAL (carried): seed_demo_assets currently top-fills only when demo pool is fully empty; a permanent purge (retention lapse) could shrink the pool below 45 with no auto top-up. Consider per-title top-up in the lazy purge path."
+  ],
+  "critical_code_review_comments": [
+    "Radius filter uses simple <= radius_km on distance_km — correct for nearest branch; verified 5km/25km both produce strictly bounded distance lists.",
+    "Retention values (retention_days=30, days_left computed from deleted_at) are consistent between backend response and UI badge 'Dibersihkan dalam N hari'.",
+    "Public catalog with sort=nearest but no radius_km still returns all 45 (radius_km is optional) — matches spec."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration14.py (new)",
+    "/app/test_reports/pytest/pytest_iter14.xml (new, junit)"
+  ],
+  "success_rate": {
+    "backend": "9/9 = 100% (radius filter x4, retention flow x3, regressions x2)",
+    "frontend": "100% — radius chip row + km distance badges + Terhapus ACR filter + retention badge + restore button all render as spec; manage-tab-* testIDs all present"
+  },
+  "seed_data_creation": "One end-to-end delete cycle on MA 2190020284's asset 'Rumah 2 Lantai Siap Huni' (id 4ba680ea-3c62-4a94-858c-42e63b39de7d): request-delete (reason: UITEST_ITER14 retention -> UITEST_ITER14 UI test) -> ACRM approve-delete -> RCG restore. Asset finished PUBLISHED; public catalog total = 45 at end of run.",
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+  "context_for_next_testing_agent": "All iter14 backend + UI checks green. If a future iteration further modifies /rcg routes, rerun `pytest /app/backend/tests/test_iteration14.py -v -o addopts=` — it exercises restore + sold + unsold + assets/mine as a regression guard. UI testIDs to remember: radius-1/5/10/25/all (home after 'Pilih Titik'), deleted-acr-all + deleted-acr-<ACR NAME>, deleted-asset-<id>, restore-asset-<id>.",
+  "rca_of_issue": "No new issues. Verified prior iter13 regression (/rcg/sold missing @api.post decorator) is fixed — POST /api/rcg/assets/{id}/sold now returns 200."
+}

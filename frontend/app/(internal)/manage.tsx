@@ -337,6 +337,7 @@ function DeletedTab() {
   const qc = useQueryClient();
   const toast = useToast();
   const confirm = useConfirm();
+  const [acrFilter, setAcrFilter] = useState<string | null>(null);
   const { data, isLoading, isError, refetch, isRefetching } = useQuery({
     queryKey: ["deleted-assets"],
     queryFn: () => apiGet("/rcg/deleted-assets"),
@@ -356,23 +357,40 @@ function DeletedTab() {
   if (isLoading) return <Loading />;
   if (isError) return <ErrorState onRetry={refetch} />;
   const rows: any[] = data || [];
+  const acrs: string[] = Array.from(new Set(rows.map((r) => r.acr_nama).filter(Boolean))).sort();
+  const shown = acrFilter ? rows.filter((r) => r.acr_nama === acrFilter) : rows;
 
   return (
     <ScrollView style={{ flex: 1 }} contentContainerStyle={{ padding: spacing.lg, gap: spacing.md, paddingBottom: spacing["2xl"] }}
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} />}>
-      <Text style={s.selfHint}>Asset yang telah dihapus (disetujui ACRM). Anda dapat memulihkannya kembali beserta melihat alasan penghapusan.</Text>
-      {rows.length === 0 ? (
-        <EmptyState icon="trash-2" title="Belum ada asset terhapus" message="Semua asset masih aktif." />
-      ) : rows.map((a) => (
+      <Text style={s.selfHint}>Asset yang telah dihapus (disetujui ACRM). Dapat dipulihkan dalam 30 hari sebelum dibersihkan otomatis.</Text>
+      {acrs.length > 0 && (
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.acrChipRow}>
+          <Pressable onPress={() => setAcrFilter(null)} style={[s.acrChip, !acrFilter && s.acrChipActive]} testID="deleted-acr-all">
+            <Text style={[s.acrChipTxt, !acrFilter && s.acrChipTxtActive]}>Semua ACR</Text>
+          </Pressable>
+          {acrs.map((name) => (
+            <Pressable key={name} onPress={() => setAcrFilter(name)} style={[s.acrChip, acrFilter === name && s.acrChipActive]} testID={`deleted-acr-${name}`}>
+              <Text style={[s.acrChipTxt, acrFilter === name && s.acrChipTxtActive]} numberOfLines={1}>{name}</Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      )}
+      {shown.length === 0 ? (
+        <EmptyState icon="trash-2" title="Belum ada asset terhapus" message={acrFilter ? `Tidak ada asset terhapus untuk ${acrFilter}.` : "Semua asset masih aktif."} />
+      ) : shown.map((a) => (
         <Card key={a.id} testID={`deleted-asset-${a.id}`}>
           <View style={{ flexDirection: "row", gap: spacing.md }}>
             <Image source={{ uri: fileUrl(a.image) }} style={s.delThumb} contentFit="cover" />
             <View style={{ flex: 1 }}>
               <Text style={s.uName} numberOfLines={2}>{a.judul_asset}</Text>
               <Text style={s.uMeta}>{a.nomor_asset}</Text>
-              <Text style={s.uMeta}>{[a.kabupaten_kota, a.provinsi].filter(Boolean).join(", ")}</Text>
+              <Text style={s.uMeta}>{a.acr_nama} • {[a.kabupaten_kota, a.provinsi].filter(Boolean).join(", ")}</Text>
               <Text style={s.delPrice}>{rupiah(a.harga_limit)}</Text>
             </View>
+          </View>
+          <View style={{ flexDirection: "row", marginTop: spacing.sm }}>
+            <Badge label={a.days_left > 0 ? `Dibersihkan dalam ${a.days_left} hari` : "Akan segera dibersihkan"} tone={a.days_left > 7 ? "neutral" : "warning"} />
           </View>
           <View style={s.delReasonBox}>
             <Text style={s.delReasonLabel}>Alasan penghapusan</Text>
@@ -664,6 +682,11 @@ const useStyles = makeStyles((c) => ({
   delReqMeta: { fontSize: 12, color: c.muted },
   delReqReason: { fontSize: 13, color: c.onSurfaceSecondary, fontStyle: "italic", marginTop: 2 },
   delThumb: { width: 72, height: 72, borderRadius: radius.md, backgroundColor: c.surfaceTertiary },
+  acrChipRow: { gap: spacing.sm, paddingRight: spacing.lg, paddingBottom: 2 },
+  acrChip: { height: 36, maxWidth: 200, paddingHorizontal: 14, borderRadius: radius.pill, backgroundColor: c.surfaceTertiary, alignItems: "center", justifyContent: "center", flexShrink: 0, borderWidth: 1, borderColor: c.border },
+  acrChipActive: { backgroundColor: c.brandPrimary, borderColor: c.brandPrimary },
+  acrChipTxt: { fontSize: 12, fontWeight: "700", color: c.onSurfaceSecondary },
+  acrChipTxtActive: { color: c.onBrandPrimary },
   delPrice: { fontSize: 15, fontWeight: "900", color: c.brandPrimary, marginTop: 2 },
   delReasonBox: { backgroundColor: "#FEF2F2", borderWidth: 1, borderColor: "#FECACA", borderRadius: radius.md, padding: spacing.md, marginTop: spacing.md, gap: 2 },
   delReasonLabel: { fontSize: 12, fontWeight: "800", color: c.error },

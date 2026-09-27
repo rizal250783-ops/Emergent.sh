@@ -114,6 +114,12 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Tab "Terhapus" (Aset Terhapus) di Kelola untuk semua role RCG: menampilkan aset yang dihapus lewat alur MA->ACRM beserta alasan penghapusan, pengaju, penyetuju, dan tanggal; tombol "Pulihkan Asset" mengembalikan aset ke katalog. Endpoint: GET /rcg/deleted-assets, POST /rcg/assets/{id}/restore (RCG only; MA/ACRM 403).
 - Verified testing agent: backend 9/9 (setelah fix), frontend mobile 100% (iteration_13.json). Fixed 2 decorator-drop regressions selama iterasi ini (GET /assets/mine dan POST /rcg/assets/{id}/sold) — keduanya sudah dipulihkan & diverifikasi.
 
+## Implemented (Iteration 14, 2026-06)
+- Filter per ACR di tab Terhapus (chip row horizontal, testID deleted-acr-*), memudahkan menelusuri aset terhapus per wilayah/ACR.
+- Retensi 30 hari: tiap aset terhapus menampilkan hitung mundur "Dibersihkan dalam N hari"; setelah 30 hari otomatis diarsipkan (soft purged_at, TIDAK dihancurkan) & keluar dari daftar; restore diblokir 409 bila lewat batas. RETENTION_DAYS=30, purge lazy saat list dibuka.
+- Filter radius pencarian terdekat: 1/5/10/25 km + Semua (muncul saat mode Terdekat/Pilih Titik aktif). Backend param radius_km pada /public/catalog.
+- Verified testing agent: backend 9/9, frontend mobile 100% (iteration_14.json). Regresi lama (/assets/mine, /rcg/sold) dikonfirmasi normal.
+
 ## Backlog / Remaining
 - P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.

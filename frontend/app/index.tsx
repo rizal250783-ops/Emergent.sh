@@ -38,6 +38,7 @@ export default function PublicCatalog() {
   const [priceDrop, setPriceDrop] = useState(false);
   const [filterOpen, setFilterOpen] = useState(false);
   const [origin, setOrigin] = useState<{ lat: number; lng: number; label: string } | null>(null);
+  const [radiusKm, setRadiusKm] = useState<number | null>(null);
   const [locating, setLocating] = useState(false);
   const [mapPickOpen, setMapPickOpen] = useState(false);
   const { share, sheet } = useShareAsset();
@@ -89,10 +90,10 @@ export default function PublicCatalog() {
     if (categoryId) p.set("category_id", categoryId);
     (Object.keys(loc) as (keyof Loc)[]).forEach((k) => { if (loc[k]) p.set(k, loc[k]); });
     if (priceDrop) p.set("price_drop", "true");
-    if (origin) { p.set("sort", "nearest"); p.set("lat", String(origin.lat)); p.set("lng", String(origin.lng)); }
+    if (origin) { p.set("sort", "nearest"); p.set("lat", String(origin.lat)); p.set("lng", String(origin.lng)); if (radiusKm) p.set("radius_km", String(radiusKm)); }
     p.set("limit", String(LIMIT));
     return p.toString();
-  }, [search, categoryId, loc, priceDrop, origin]);
+  }, [search, categoryId, loc, priceDrop, origin, radiusKm]);
 
   const {
     data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isRefetching,
@@ -187,7 +188,7 @@ export default function PublicCatalog() {
 
         {/* Category chips: wrap so every option is visible without horizontal scrolling */}
         <View style={s.chipsWrap}>
-          <Pressable onPress={origin ? () => setOrigin(null) : useMyLocation} style={[s.chip, s.nearChip, origin && s.nearChipActive]} testID="chip-terdekat">
+          <Pressable onPress={origin ? () => { setOrigin(null); setRadiusKm(null); } : useMyLocation} style={[s.chip, s.nearChip, origin && s.nearChipActive]} testID="chip-terdekat">
             <Icon name={locating ? "loader" : "navigation"} size={14} color={origin ? colors.onBrandSecondary : "#FFFFFF"} />
             <Text style={[s.chipTxt, origin && { color: colors.onBrandSecondary }]}>{locating ? "Mencari..." : "Terdekat"}</Text>
           </Pressable>
@@ -204,6 +205,20 @@ export default function PublicCatalog() {
             <Chip key={c.id} label={c.nama_category} active={categoryId === c.id} onPress={() => setCategoryId(c.id)} />
           ))}
         </View>
+
+        {origin && (
+          <View style={s.radiusRow} testID="radius-row">
+            <Text style={s.radiusLabel}>Radius:</Text>
+            {[1, 5, 10, 25].map((km) => (
+              <Pressable key={km} onPress={() => setRadiusKm(radiusKm === km ? null : km)} style={[s.radiusChip, radiusKm === km && s.radiusChipActive]} testID={`radius-${km}`}>
+                <Text style={[s.radiusChipTxt, radiusKm === km && s.radiusChipTxtActive]}>{km} km</Text>
+              </Pressable>
+            ))}
+            <Pressable onPress={() => setRadiusKm(null)} style={[s.radiusChip, !radiusKm && s.radiusChipActive]} testID="radius-all">
+              <Text style={[s.radiusChipTxt, !radiusKm && s.radiusChipTxtActive]}>Semua</Text>
+            </Pressable>
+          </View>
+        )}
       </LinearGradient>
 
       {/* Body */}
@@ -226,7 +241,7 @@ export default function PublicCatalog() {
           title="Tidak ada asset ditemukan"
           subtitle="Coba ubah kata kunci atau hapus filter."
           action={activeFilters > 0 || search || origin ? (
-            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setLoc(EMPTY_LOC); setPriceDrop(false); setKeyword(""); setSearch(""); setOrigin(null); }} testID="reset-filter-empty" />
+            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setLoc(EMPTY_LOC); setPriceDrop(false); setKeyword(""); setSearch(""); setOrigin(null); setRadiusKm(null); }} testID="reset-filter-empty" />
           ) : undefined}
         />
       ) : (
@@ -247,7 +262,7 @@ export default function PublicCatalog() {
                 </Pressable>
               </View>
               {origin ? (
-                <Pressable style={s.originPill} onPress={() => setOrigin(null)} testID="clear-origin-filter">
+                <Pressable style={s.originPill} onPress={() => { setOrigin(null); setRadiusKm(null); }} testID="clear-origin-filter">
                   <Icon name="navigation" size={12} color={colors.onBrandSecondary} />
                   <Text style={s.originPillTxt} numberOfLines={1}>Diurutkan dari: {origin.label}</Text>
                   <Icon name="x" size={12} color={colors.onBrandSecondary} />
@@ -502,6 +517,12 @@ const useStyles = makeStyles((c) => ({
   chipTxtActive: { color: c.onBrandSecondary },
   originPill: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: c.brandSecondarySoft, paddingHorizontal: 10, height: 30, borderRadius: radius.pill, maxWidth: "100%" },
   originPillTxt: { color: c.onBrandSecondary, fontSize: 12, fontWeight: "700", flexShrink: 1 },
+  radiusRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: spacing.sm },
+  radiusLabel: { color: "#FFFFFF", fontSize: 12, fontWeight: "700", opacity: 0.9 },
+  radiusChip: { height: 30, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", flexShrink: 0 },
+  radiusChipActive: { backgroundColor: c.brandSecondary },
+  radiusChipTxt: { color: "#FFFFFF", fontSize: 12, fontWeight: "700" },
+  radiusChipTxtActive: { color: c.onBrandSecondary },
   resultHead: { paddingHorizontal: spacing.lg, paddingBottom: spacing.sm, gap: 6 },
   resultCount: { color: c.muted, fontSize: 13, fontWeight: "600" },
   mapPill: { flexDirection: "row", alignItems: "center", gap: 6, backgroundColor: c.surfaceSecondary, borderWidth: 1, borderColor: c.brandPrimary, paddingHorizontal: 10, height: 30, borderRadius: radius.pill },

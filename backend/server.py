@@ -31,6 +31,9 @@ RCG_CONTROLLER = "rcg_controller"
 RCG_ADMIN = "rcg_admin"
 RCG_ROLES = (RCG_CONTROLLER, RCG_ADMIN)
 
+# Deleted assets stay recoverable in the "Terhapus" tab for this many days.
+RETENTION_DAYS = 30
+
 # Seeded RCG users (idempotent). Full controller + 4 admins.
 RCG_SEED = [
     ("2183008345", "SYAMSU RIZAL", RCG_CONTROLLER),
@@ -463,7 +466,7 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
     kabupaten_kota: Optional[str] = None, kecamatan: Optional[str] = None,
     wilayah_level_4: Optional[str] = None, sort: str = "newest",
     price_drop: bool = False, lat: Optional[float] = None, lng: Optional[float] = None,
-    page: int = 1, limit: int = 20):
+    radius_km: Optional[float] = None, page: int = 1, limit: int = 20):
     q = {"status": {"$in": ASSET_PUBLIC_STATUSES}, "public_ready": True, "deleted_at": None}
     if category_id: q["id_category"] = category_id
     if subcategory_id: q["id_subcategory"] = subcategory_id
@@ -481,6 +484,8 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
         for a in docs:
             a["_dist"] = haversine_km(lat, lng, a["latitude"], a["longitude"])
             a["_sold"] = 1 if a.get("status") == "SOLD" else 0
+        if radius_km:
+            docs = [a for a in docs if a["_dist"] <= radius_km]
         docs.sort(key=lambda a: (a["_sold"], a["_dist"]))
         total = len(docs)
         page_docs = docs[(page - 1) * limit: (page - 1) * limit + limit]
@@ -1113,12 +1118,22 @@ async def rcg_approve(asset_id: str, user=Depends(require(*RCG_ROLES))):
 
 @api.get("/rcg/deleted-assets")
 async def rcg_deleted_assets(user=Depends(require(*RCG_ROLES))):
-    """Assets that were deleted via the MA->ACRM deletion workflow, with reason, for review/restore."""
+    """Assets deleted via the MA->ACRM workflow, with reason + 30-day retention countdown.
+    Items past retention are lazily archived (soft 'purged_at', not physically destroyed)."""
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=RETENTION_DAYS)).isoformat()
+    await db.assets.update_many(
+        {"status": "DELETED", "deleted_at": {"$ne": None, "$lt": cutoff}, "purged_at": None},
+        {"$set": {"purged_at": now_iso(), "public_ready": False}})
     out = []
-    async for a in db.assets.find({"status": "DELETED", "deleted_at": {"$ne": None}}).sort("deleted_at", -1):
+    async for a in db.assets.find({"status": "DELETED", "deleted_at": {"$ne": None}, "purged_at": None}).sort("deleted_at", -1):
         log = await db.approval_logs.find_one({"asset_id": a["id"], "action": "DELETE_APPROVED"}, sort=[("timestamp", -1)])
         req = await db.approval_logs.find_one({"asset_id": a["id"], "action": "REQUEST_DELETE"}, sort=[("timestamp", -1)])
         img = await db.asset_images.find_one({"id_asset": a["id"], "deleted_at": None})
+        try:
+            del_dt = datetime.fromisoformat(a["deleted_at"])
+            days_left = max(0, RETENTION_DAYS - (datetime.now(timezone.utc) - del_dt).days)
+        except Exception:
+            days_left = RETENTION_DAYS
         out.append({
             "id": a["id"], "nomor_asset": a.get("nomor_asset"), "judul_asset": a.get("judul_asset"),
             "harga_limit": a.get("harga_limit"), "provinsi": a.get("provinsi"), "kabupaten_kota": a.get("kabupaten_kota"),
@@ -1126,16 +1141,19 @@ async def rcg_deleted_assets(user=Depends(require(*RCG_ROLES))):
             "delete_reason": a.get("delete_reason"), "deleted_at": a.get("deleted_at"),
             "requested_by": (req or {}).get("reviewer_name"),
             "approved_by": (log or {}).get("reviewer_name"),
+            "days_left": days_left, "retention_days": RETENTION_DAYS,
             "image": img["url"] if img else None,
         })
     return out
 
 @api.post("/rcg/assets/{asset_id}/restore")
 async def rcg_restore_asset(asset_id: str, user=Depends(require(*RCG_ROLES))):
-    """Restore a deleted asset back to its previous published state."""
+    """Restore a deleted asset back to its previous published state (only within retention)."""
     a = await db.assets.find_one({"id": asset_id, "status": "DELETED"})
     if not a:
         raise HTTPException(404, "Asset terhapus tidak ditemukan")
+    if a.get("purged_at"):
+        raise HTTPException(409, "Asset sudah melewati batas 30 hari dan tidak dapat dipulihkan.")
     restore = a.get("status_before_delete") or "PUBLISHED"
     ma_flag = (await db.master_marketing_asset.find_one({"id": a["id_marketing_asset"]}) or {}).get("data_flag")
     await db.assets.update_one({"id": asset_id}, {"$set": {
