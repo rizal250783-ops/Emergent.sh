@@ -159,7 +159,7 @@ export default function AddAsset() {
     longitude: form.longitude.trim() ? Number(form.longitude) : null,
     luas_tanah: form.luas_tanah ? Number(form.luas_tanah) : null,
     luas_bangunan: form.luas_bangunan ? Number(form.luas_bangunan) : null,
-    kondisi_asset: form.kondisi_asset, nilai_appraisal: form.nilai_appraisal ? Number(form.nilai_appraisal) : null,
+    kondisi_asset: form.kondisi_asset, nilai_appraisal: null,
     harga_limit: form.harga_limit ? Number(form.harga_limit) : null, extra: form.extra,
   });
 
@@ -440,7 +440,6 @@ export default function AddAsset() {
               <Select label="Kondisi Asset" required testID="select-kondisi" value={form.kondisi_asset}
                 options={KONDISI.map((k) => ({ value: k, label: k }))} onChange={(v) => set("kondisi_asset", v)} />
               {errors.kondisi_asset && <Text style={s.err}>{errors.kondisi_asset}</Text>}
-              <Field label="Nilai Appraisal (Rp)" value={form.nilai_appraisal} onChangeText={(t) => set("nilai_appraisal", t)} keyboardType="numeric" testID="field-appraisal" />
               <Field label="Harga Limit (Rp)" required value={form.harga_limit} onChangeText={(t) => set("harga_limit", t)} keyboardType="numeric" error={errors.harga_limit} testID="field-harga" />
             </>
           )}

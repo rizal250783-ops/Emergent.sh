@@ -16,6 +16,10 @@ function ZoomableImage({ uri, width, height, onZoomChange }: { uri: string; widt
   const ty = useSharedValue(0);
   const savedTx = useSharedValue(0);
   const savedTy = useSharedValue(0);
+  // Local zoom flag: while NOT zoomed the pan gesture stays disabled so the
+  // horizontal pager receives single-finger swipes between photos.
+  const [isZoomed, setIsZoomed] = useState(false);
+  const setZoom = useCallback((z: boolean) => { setIsZoomed(z); onZoomChange(z); }, [onZoomChange]);
 
   const clamp = (v: number, min: number, max: number) => {
     "worklet";
@@ -26,7 +30,7 @@ function ZoomableImage({ uri, width, height, onZoomChange }: { uri: string; widt
     if (scale.value < 1.05) {
       scale.value = withTiming(1); tx.value = withTiming(0); ty.value = withTiming(0);
       savedScale.value = 1; savedTx.value = 0; savedTy.value = 0;
-      runOnJS(onZoomChange)(false);
+      runOnJS(setZoom)(false);
       return;
     }
     const maxX = (width * (scale.value - 1)) / 2;
@@ -34,7 +38,7 @@ function ZoomableImage({ uri, width, height, onZoomChange }: { uri: string; widt
     tx.value = withTiming(clamp(tx.value, -maxX, maxX));
     ty.value = withTiming(clamp(ty.value, -maxY, maxY));
     savedScale.value = scale.value; savedTx.value = tx.value; savedTy.value = ty.value;
-    runOnJS(onZoomChange)(true);
+    runOnJS(setZoom)(true);
   };
 
   const pinch = Gesture.Pinch()
@@ -43,9 +47,8 @@ function ZoomableImage({ uri, width, height, onZoomChange }: { uri: string; widt
 
   const pan = Gesture.Pan()
     .minPointers(1)
-    .onStart(() => { if (scale.value <= 1.05) return; })
+    .enabled(isZoomed)
     .onUpdate((e) => {
-      if (scale.value <= 1.05) return;
       tx.value = savedTx.value + e.translationX;
       ty.value = savedTy.value + e.translationY;
     })
@@ -57,16 +60,15 @@ function ZoomableImage({ uri, width, height, onZoomChange }: { uri: string; widt
       if (scale.value > 1.05) {
         scale.value = withTiming(1); tx.value = withTiming(0); ty.value = withTiming(0);
         savedScale.value = 1; savedTx.value = 0; savedTy.value = 0;
-        runOnJS(onZoomChange)(false);
+        runOnJS(setZoom)(false);
       } else {
         const target = 2.5;
         scale.value = withTiming(target);
-        // zoom towards tap point
         const dx = (width / 2 - e.x) * (target - 1);
         const dy = (height / 2 - e.y) * (target - 1);
         tx.value = withTiming(dx); ty.value = withTiming(dy);
         savedScale.value = target; savedTx.value = dx; savedTy.value = dy;
-        runOnJS(onZoomChange)(true);
+        runOnJS(setZoom)(true);
       }
     });
 

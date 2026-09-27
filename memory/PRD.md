@@ -124,6 +124,11 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Opsi urutkan hasil "terdekat": toggle "Urutkan: Terdekat | Harga Termurah" muncul saat mode Terdekat/Pilih Titik aktif. Backend param near_sort (distance default, price = harga naik, SOLD tetap di akhir). Kombinasi dengan radius_km berfungsi.
 - Verified testing agent: backend 9/9, frontend mobile 100% (iteration_15.json). Fix kosmetik padding kiri baris Radius/Urutkan.
 
+## Implemented (Iteration 16, 2026-06)
+- Field "Nilai Appraisal" dihapus dari form Tambah/Edit Asset (MA); payload selalu kirim nilai_appraisal=null; tampilan detail internal tidak lagi menampilkan Nilai Appraisal (backend field tetap optional, harmless).
+- Fix galeri foto layar penuh (/asset/[id]): gesture pan digate `.enabled(isZoomed)` sehingga geser antar foto (paging horizontal) berfungsi saat tidak di-zoom; zoom cubit/ketuk-2x tetap jalan.
+- Verified testing agent: backend 5/5, frontend 100% (iteration_16.json).
+
 ## Backlog / Remaining
 - P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.

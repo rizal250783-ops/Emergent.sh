@@ -179,7 +179,7 @@ export default function InternalDetail() {
             {data.luas_tanah != null && <Info label="Luas Tanah" value={`${data.luas_tanah} m²`} />}
             {data.luas_bangunan != null && <Info label="Luas Bangunan" value={`${data.luas_bangunan} m²`} />}
             {data.kondisi_asset && <Info label="Kondisi" value={data.kondisi_asset} />}
-            {data.nilai_appraisal != null && <Info label="Nilai Appraisal" value={rupiah(data.nilai_appraisal)} />}
+            {data.harga_limit != null && <Info label="Harga Limit" value={rupiah(data.harga_limit)} />}
           </Card>
 
           <Text style={s.section}>Statistik Minat Pembeli</Text>
