@@ -466,7 +466,7 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
     kabupaten_kota: Optional[str] = None, kecamatan: Optional[str] = None,
     wilayah_level_4: Optional[str] = None, sort: str = "newest",
     price_drop: bool = False, lat: Optional[float] = None, lng: Optional[float] = None,
-    radius_km: Optional[float] = None, page: int = 1, limit: int = 20):
+    radius_km: Optional[float] = None, near_sort: str = "distance", page: int = 1, limit: int = 20):
     q = {"status": {"$in": ASSET_PUBLIC_STATUSES}, "public_ready": True, "deleted_at": None}
     if category_id: q["id_category"] = category_id
     if subcategory_id: q["id_subcategory"] = subcategory_id
@@ -486,7 +486,10 @@ async def public_catalog(keyword: Optional[str] = None, category_id: Optional[st
             a["_sold"] = 1 if a.get("status") == "SOLD" else 0
         if radius_km:
             docs = [a for a in docs if a["_dist"] <= radius_km]
-        docs.sort(key=lambda a: (a["_sold"], a["_dist"]))
+        if near_sort == "price":
+            docs.sort(key=lambda a: (a["_sold"], a.get("harga_limit") or 0, a["_dist"]))
+        else:
+            docs.sort(key=lambda a: (a["_sold"], a["_dist"]))
         total = len(docs)
         page_docs = docs[(page - 1) * limit: (page - 1) * limit + limit]
         items = []

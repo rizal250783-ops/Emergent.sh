@@ -1,11 +1,10 @@
 import React, { useState, useMemo } from "react";
 import {
-  View, Text, FlatList, Pressable, ScrollView, Modal, TextInput, RefreshControl, useWindowDimensions,
+  View, Text, FlatList, Pressable, ScrollView, Modal, TextInput, RefreshControl, useWindowDimensions, Linking,
 } from "react-native";
 import { Image } from "expo-image";
 import { LinearGradient } from "expo-linear-gradient";
 import * as Location from "expo-location";
-import { Linking } from "react-native";
 import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
@@ -39,6 +38,7 @@ export default function PublicCatalog() {
   const [filterOpen, setFilterOpen] = useState(false);
   const [origin, setOrigin] = useState<{ lat: number; lng: number; label: string } | null>(null);
   const [radiusKm, setRadiusKm] = useState<number | null>(null);
+  const [nearSort, setNearSort] = useState<"distance" | "price">("distance");
   const [locating, setLocating] = useState(false);
   const [mapPickOpen, setMapPickOpen] = useState(false);
   const { share, sheet } = useShareAsset();
@@ -90,10 +90,10 @@ export default function PublicCatalog() {
     if (categoryId) p.set("category_id", categoryId);
     (Object.keys(loc) as (keyof Loc)[]).forEach((k) => { if (loc[k]) p.set(k, loc[k]); });
     if (priceDrop) p.set("price_drop", "true");
-    if (origin) { p.set("sort", "nearest"); p.set("lat", String(origin.lat)); p.set("lng", String(origin.lng)); if (radiusKm) p.set("radius_km", String(radiusKm)); }
+    if (origin) { p.set("sort", "nearest"); p.set("lat", String(origin.lat)); p.set("lng", String(origin.lng)); if (radiusKm) p.set("radius_km", String(radiusKm)); if (nearSort) p.set("near_sort", nearSort); }
     p.set("limit", String(LIMIT));
     return p.toString();
-  }, [search, categoryId, loc, priceDrop, origin, radiusKm]);
+  }, [search, categoryId, loc, priceDrop, origin, radiusKm, nearSort]);
 
   const {
     data, isLoading, isError, refetch, fetchNextPage, hasNextPage, isFetchingNextPage, isRefetching,
@@ -188,7 +188,7 @@ export default function PublicCatalog() {
 
         {/* Category chips: wrap so every option is visible without horizontal scrolling */}
         <View style={s.chipsWrap}>
-          <Pressable onPress={origin ? () => { setOrigin(null); setRadiusKm(null); } : useMyLocation} style={[s.chip, s.nearChip, origin && s.nearChipActive]} testID="chip-terdekat">
+          <Pressable onPress={origin ? () => { setOrigin(null); setRadiusKm(null); setNearSort("distance"); } : useMyLocation} style={[s.chip, s.nearChip, origin && s.nearChipActive]} testID="chip-terdekat">
             <Icon name={locating ? "loader" : "navigation"} size={14} color={origin ? colors.onBrandSecondary : "#FFFFFF"} />
             <Text style={[s.chipTxt, origin && { color: colors.onBrandSecondary }]}>{locating ? "Mencari..." : "Terdekat"}</Text>
           </Pressable>
@@ -219,6 +219,19 @@ export default function PublicCatalog() {
             </Pressable>
           </View>
         )}
+        {origin && (
+          <View style={s.radiusRow} testID="nearsort-row">
+            <Text style={s.radiusLabel}>Urutkan:</Text>
+            <Pressable onPress={() => setNearSort("distance")} style={[s.radiusChip, nearSort === "distance" && s.radiusChipActive]} testID="nearsort-distance">
+              <Icon name="navigation" size={11} color={nearSort === "distance" ? colors.onBrandSecondary : "#FFFFFF"} />
+              <Text style={[s.radiusChipTxt, nearSort === "distance" && s.radiusChipTxtActive]}> Terdekat</Text>
+            </Pressable>
+            <Pressable onPress={() => setNearSort("price")} style={[s.radiusChip, nearSort === "price" && s.radiusChipActive]} testID="nearsort-price">
+              <Icon name="trending-up" size={11} color={nearSort === "price" ? colors.onBrandSecondary : "#FFFFFF"} />
+              <Text style={[s.radiusChipTxt, nearSort === "price" && s.radiusChipTxtActive]}> Harga Termurah</Text>
+            </Pressable>
+          </View>
+        )}
       </LinearGradient>
 
       {/* Body */}
@@ -241,7 +254,7 @@ export default function PublicCatalog() {
           title="Tidak ada asset ditemukan"
           subtitle="Coba ubah kata kunci atau hapus filter."
           action={activeFilters > 0 || search || origin ? (
-            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setLoc(EMPTY_LOC); setPriceDrop(false); setKeyword(""); setSearch(""); setOrigin(null); setRadiusKm(null); }} testID="reset-filter-empty" />
+            <Button title="Reset Filter" variant="outline" full={false} onPress={() => { setCategoryId(null); setLoc(EMPTY_LOC); setPriceDrop(false); setKeyword(""); setSearch(""); setOrigin(null); setRadiusKm(null); setNearSort("distance"); }} testID="reset-filter-empty" />
           ) : undefined}
         />
       ) : (
@@ -262,7 +275,7 @@ export default function PublicCatalog() {
                 </Pressable>
               </View>
               {origin ? (
-                <Pressable style={s.originPill} onPress={() => { setOrigin(null); setRadiusKm(null); }} testID="clear-origin-filter">
+                <Pressable style={s.originPill} onPress={() => { setOrigin(null); setRadiusKm(null); setNearSort("distance"); }} testID="clear-origin-filter">
                   <Icon name="navigation" size={12} color={colors.onBrandSecondary} />
                   <Text style={s.originPillTxt} numberOfLines={1}>Diurutkan dari: {origin.label}</Text>
                   <Icon name="x" size={12} color={colors.onBrandSecondary} />
@@ -365,8 +378,8 @@ function LocationBar({ loc, onChange }: { loc: Loc; onChange: (l: Loc) => void }
   const kecs = useLocOptions({ provinsi: loc.provinsi, kabupaten_kota: loc.kabupaten_kota }, !!loc.kabupaten_kota);
   const opts = (d?: { options: string[] }) => (d?.options || []).map((v) => ({ value: v, label: v }));
 
-  // eslint-disable-next-line react/display-name
   const chip = (lbl: string, value: string, placeholder: string, disabled: boolean, onClear: () => void, testID: string) =>
+    // eslint-disable-next-line react/display-name
     (open: () => void) => (
       <Pressable style={[s.locChip, value ? s.locChipActive : null, disabled ? s.locChipDisabled : null]} onPress={open} disabled={disabled} testID={testID}>
         <View style={{ flex: 1 }}>
@@ -517,7 +530,7 @@ const useStyles = makeStyles((c) => ({
   chipTxtActive: { color: c.onBrandSecondary },
   originPill: { flexDirection: "row", alignItems: "center", gap: 6, alignSelf: "flex-start", backgroundColor: c.brandSecondarySoft, paddingHorizontal: 10, height: 30, borderRadius: radius.pill, maxWidth: "100%" },
   originPillTxt: { color: c.onBrandSecondary, fontSize: 12, fontWeight: "700", flexShrink: 1 },
-  radiusRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: spacing.sm },
+  radiusRow: { flexDirection: "row", alignItems: "center", gap: 8, marginTop: spacing.sm, paddingHorizontal: spacing.lg },
   radiusLabel: { color: "#FFFFFF", fontSize: 12, fontWeight: "700", opacity: 0.9 },
   radiusChip: { height: 30, paddingHorizontal: 12, borderRadius: radius.pill, backgroundColor: "rgba(255,255,255,0.18)", alignItems: "center", justifyContent: "center", flexShrink: 0 },
   radiusChipActive: { backgroundColor: c.brandSecondary },

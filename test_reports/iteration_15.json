@@ -1,0 +1,41 @@
+{
+  "summary": "Iteration 15 near_sort=price feature fully verified. Backend: 9/9 pytest tests passed (price ascending with SOLD last, distance default, radius_km combination, pagination, regression total=45, nearest-without-coords fallback). Frontend (mobile 390): Pilih Titik apply shows 'Urutkan:' row (nearsort-row/nearsort-distance/nearsort-price); Harga Termurah re-orders list exactly matching API price order with first card = lowest price (Rp 16.5 Jt); Terdekat restores distance order; clearing origin (X pill) hides both Radius and Urutkan rows; re-enabling nearest defaults to Terdekat; radius 25km + price sort works (10 cards). No credentials needed (public catalog).",
+  "backend_issues": {
+    "critical": [],
+    "minor": [
+      {"endpoint": "GET /api/public/catalog", "issue": "near_sort accepts any arbitrary string and silently falls back to distance ordering instead of validating (e.g. 400 for invalid value). Low risk since only the frontend sends it."}
+    ]
+  },
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {"screen": "Home / PublicCatalog", "issues": ["radiusRow style (shared by Radius and new Urutkan rows) has no paddingHorizontal, so 'Radius:'/'Urutkan:' labels start flush at the screen's left edge (visible slight clipping at 390px). All other header rows use spacing.lg horizontal padding. Minor cosmetic inconsistency."]}
+    ],
+    "react_native_issues": []
+  },
+  "test_report_links": [
+    "/app/backend/tests/test_iteration15.py",
+    "/app/test_reports/pytest/pytest_results_iter15.xml",
+    ".screenshots/nearsort_price.png",
+    ".screenshots/nearsort_final.png"
+  ],
+  "action_items": [
+    "Optional: add paddingHorizontal: spacing.lg to radiusRow style in /app/frontend/app/index.tsx so Radius/Urutkan labels align with the rest of the header.",
+    "Optional: validate near_sort query param (distance|price) in public_catalog and return 400 on invalid values."
+  ],
+  "critical_code_review_comments": [
+    "Backend nearest branch loads all matching assets into memory for haversine sorting before paginating (pre-existing pattern); fine at current 45-asset scale but will not scale to thousands of assets.",
+    "Frontend correctly resets nearSort to 'distance' on all three origin-clear paths (chip-terdekat toggle, clear-origin-filter pill, reset-filter-empty).",
+    "No deprecated Expo packages, no _id leakage, no hardcoded URLs found in reviewed code."
+  ],
+  "updated_files": [
+    "/app/backend/tests/test_iteration15.py"
+  ],
+  "success_rate": {"backend": "100%", "frontend": "100%"},
+  "seed_data_creation": "None - used existing 45 published demo assets (includes SOLD items and assets across Indonesia for distance/price variation).",
+  "retest_needed": false,
+  "should_main_agent_self_test": true,
+  "context_for_next_testing_agent": "near_sort=price verified end-to-end. Backend test file: /app/backend/tests/test_iteration15.py (9 tests, all green). Frontend flow: chip-pilih-titik -> apply-map-pick -> nearsort-row; default modal point is lat=-6.2,lng=106.8166. Catalog total without origin is 45. Public URL via EXPO_PUBLIC_BACKEND_URL in frontend/.env.",
+  "rca_of_issue": "No bugs found. Feature works as specified."
+}

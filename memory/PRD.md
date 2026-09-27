@@ -120,6 +120,10 @@ Enterprise mobile app for PT Bank Syariah Indonesia (RCG division) to manage, re
 - Filter radius pencarian terdekat: 1/5/10/25 km + Semua (muncul saat mode Terdekat/Pilih Titik aktif). Backend param radius_km pada /public/catalog.
 - Verified testing agent: backend 9/9, frontend mobile 100% (iteration_14.json). Regresi lama (/assets/mine, /rcg/sold) dikonfirmasi normal.
 
+## Implemented (Iteration 15, 2026-06)
+- Opsi urutkan hasil "terdekat": toggle "Urutkan: Terdekat | Harga Termurah" muncul saat mode Terdekat/Pilih Titik aktif. Backend param near_sort (distance default, price = harga naik, SOLD tetap di akhir). Kombinasi dengan radius_km berfungsi.
+- Verified testing agent: backend 9/9, frontend mobile 100% (iteration_15.json). Fix kosmetik padding kiri baris Radius/Urutkan.
+
 ## Backlog / Remaining
 - P1 (user postponed): Push notification favorit via Emergent managed push — requires google-services.json from user + deploy/build. Playbook already retrieved (register-push relay, send_push on price drop/schedule).
 - P2: Web desktop sidebar layout & responsive breakpoints polish.
