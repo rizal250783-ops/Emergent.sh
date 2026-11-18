@@ -26,8 +26,8 @@ export default function RootLayout() {
   });
   if (!fontsLoaded && !fontError) {
     return (
-      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#00A39D" }}>
-        <ActivityIndicator color="#FFFFFF" />
+      <View style={{ flex: 1, alignItems: "center", justifyContent: "center", backgroundColor: "#004D4D" }}>
+        <ActivityIndicator color="#F0B43C" />
       </View>
     );
   }

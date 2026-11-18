@@ -68,7 +68,10 @@ export function AssetCard({ item, onPress, onShare, fav, onFav, width, distanceK
 }
 
 const useStyles = makeStyles((c) => ({
-  cardWrap: { backgroundColor: c.surfaceSecondary, borderRadius: radius.md, overflow: "hidden", borderWidth: 1, borderColor: c.border },
+  cardWrap: {
+    backgroundColor: c.surfaceSecondary, borderRadius: radius.lg, overflow: "hidden", borderWidth: 1, borderColor: c.border,
+    shadowColor: "#004D4D", shadowOpacity: 0.1, shadowRadius: 12, shadowOffset: { width: 0, height: 4 }, elevation: 3,
+  },
   cardFlex: { flex: 1 },
   cardImgWrap: { position: "relative" },
   cardImg: { width: "100%", height: 130, backgroundColor: c.surfaceTertiary },

@@ -9,7 +9,7 @@ export function fileUrl(path?: string | null): string | undefined {
   return `${process.env.EXPO_PUBLIC_BACKEND_URL}${path}`;
 }
 
-async function authHeader() {
+async function authHeader(): Promise<Record<string, string>> {
   const token = await storage.secureGet(TOKEN_KEY, "");
   return token ? { Authorization: `Bearer ${token}` } : {};
 }

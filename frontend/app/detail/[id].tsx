@@ -68,35 +68,35 @@ export default function InternalDetail() {
 
   const submit = () =>
     confirm({ title: "Kirim Asset", message: "Asset akan dikirim ke ACRM untuk direview. Lanjutkan?", confirmText: "Kirim" })
-      .then((r) => r.ok && doAction(() => apiPost(`/assets/${id}/submit`), "Asset berhasil disubmit"));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/assets/${id}/submit`), "Asset berhasil disubmit")) };
 
   const acrmApprove = () =>
     confirm({ title: "Setujui Asset", message: "Asset akan diteruskan ke Admin RCG untuk approval final.", confirmText: "Setujui" })
-      .then((r) => r.ok && doAction(() => apiPost(`/acrm/assets/${id}/approve`), "Asset disetujui, diteruskan ke RCG"));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/acrm/assets/${id}/approve`), "Asset disetujui, diteruskan ke RCG")) };
 
   const acrmReturn = () =>
     confirm({ title: "Kembalikan Asset", tone: "danger", confirmText: "Kembalikan", requireNote: true, noteLabel: "Catatan Koreksi (wajib)", notePlaceholder: "Jelaskan yang perlu diperbaiki..." })
-      .then((r) => r.ok && doAction(() => apiPost(`/acrm/assets/${id}/return`, { notes: r.note }), "Asset dikembalikan ke Marketing"));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/acrm/assets/${id}/return`, { notes: r.note }), "Asset dikembalikan ke Marketing")) };
 
   const rcgApprove = () =>
     confirm({ title: "Publikasikan Asset", message: "Asset akan dipublikasikan ke katalog publik.", confirmText: "Publikasikan" })
-      .then((r) => r.ok && doAction(() => apiPost(`/rcg/assets/${id}/approve`), "Asset dipublikasikan"));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/rcg/assets/${id}/approve`), "Asset dipublikasikan")) };
 
   const rcgReturn = () =>
     confirm({ title: "Kembalikan Asset", tone: "danger", confirmText: "Kembalikan", requireNote: true, noteLabel: "Catatan Koreksi (wajib)", notePlaceholder: "Jelaskan yang perlu diperbaiki..." })
-      .then((r) => r.ok && doAction(() => apiPost(`/rcg/assets/${id}/return`, { notes: r.note }), "Asset dikembalikan"));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/rcg/assets/${id}/return`, { notes: r.note }), "Asset dikembalikan")) };
 
   const requestDelete = () =>
     confirm({ title: "Ajukan Hapus Asset", tone: "danger", confirmText: "Ajukan Hapus", requireNote: true, noteLabel: "Alasan penghapusan (wajib)", notePlaceholder: "Mis. aset ditarik pemilik / dobel input / batal lelang..." })
-      .then((r) => r.ok && doAction(() => apiPost(`/assets/${id}/request-delete`, { reason: r.note }), "Permintaan hapus dikirim ke ACRM"));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/assets/${id}/request-delete`, { reason: r.note }), "Permintaan hapus dikirim ke ACRM")) };
 
   const acrmApproveDelete = () =>
     confirm({ title: "Setujui Penghapusan", tone: "danger", message: "Asset akan dihapus dari katalog. Penghapusan cukup di level ACRM, tidak perlu approval RCG.", confirmText: "Setujui Hapus" })
-      .then((r) => r.ok && doAction(() => apiPost(`/acrm/assets/${id}/approve-delete`), "Asset berhasil dihapus"));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/acrm/assets/${id}/approve-delete`), "Asset berhasil dihapus")) };
 
   const acrmRejectDelete = () =>
     confirm({ title: "Tolak Penghapusan", confirmText: "Tolak Hapus", requireNote: true, noteLabel: "Alasan penolakan (wajib)", notePlaceholder: "Jelaskan alasan menolak permintaan hapus..." })
-      .then((r) => r.ok && doAction(() => apiPost(`/acrm/assets/${id}/reject-delete`, { notes: r.note }), "Permintaan hapus ditolak"));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/acrm/assets/${id}/reject-delete`, { notes: r.note }), "Permintaan hapus ditolak")) };
 
   if (isLoading) return <View style={s.screen}><View style={{ paddingTop: insets.top }}><ScreenHeader title="Detail Asset" onBack={() => router.back()} /></View><Loading /></View>;
   if (isError || !data) return <View style={s.screen}><View style={{ paddingTop: insets.top }}><ScreenHeader title="Detail Asset" onBack={() => router.back()} /></View><ErrorState onRetry={refetch} /></View>;
@@ -119,11 +119,11 @@ export default function InternalDetail() {
 
   const markSold = () =>
     confirm({ title: "Tandai Terjual", message: "Asset akan ditandai TERJUAL di katalog publik dan kontak WhatsApp PIC disembunyikan agar tidak menerima pertanyaan lagi.", confirmText: "Tandai Terjual", optionalNote: true, noteLabel: "Catatan (opsional)", notePlaceholder: "Mis. terjual di lelang KPKNL tgl ..." })
-      .then((r) => r.ok && doAction(() => apiPost(`/rcg/assets/${id}/sold`, { notes: r.note || null }), "Asset ditandai terjual", false));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/rcg/assets/${id}/sold`, { notes: r.note || null }), "Asset ditandai terjual", false));
 
   const unmarkSold = () =>
     confirm({ title: "Batalkan Status Terjual", message: "Asset akan kembali berstatus PUBLISHED dan kontak PIC tampil lagi.", confirmText: "Batalkan", tone: "danger" })
-      .then((r) => r.ok && doAction(() => apiPost(`/rcg/assets/${id}/unsold`), "Status terjual dibatalkan", false));
+      .then(async (r) => { if (r.ok) await doAction(() => apiPost(`/rcg/assets/${id}/unsold`), "Status terjual dibatalkan", false));
 
   return (
     <View style={s.screen}>

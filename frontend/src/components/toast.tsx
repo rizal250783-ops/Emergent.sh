@@ -10,6 +10,10 @@ interface ToastState { message: string; type: ToastType }
 const Ctx = createContext<(msg: string, type?: ToastType) => void>(() => {});
 export const useToast = () => useContext(Ctx);
 
+const styles = StyleSheet.create({
+  toastHost: { position: "absolute", left: 0, right: 0 },
+});
+
 export function ToastProvider({ children }: { children: React.ReactNode }) {
   const [toast, setToast] = useState<ToastState | null>(null);
   const opacity = useRef(new Animated.Value(0)).current;
@@ -34,8 +38,8 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
         <Animated.View
           pointerEvents="none"
           style={[
-            StyleSheet.absoluteFillObject,
-            { top: insets.top + 12, bottom: undefined, alignItems: "center", zIndex: 9999, opacity },
+            styles.toastHost,
+            { top: insets.top + 12, alignItems: "center", zIndex: 9999, opacity },
           ]}
         >
           <View style={{

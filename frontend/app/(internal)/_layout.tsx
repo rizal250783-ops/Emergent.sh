@@ -25,15 +25,21 @@ export default function InternalLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.brandPrimary,
+        tabBarActiveTintColor: colors.brandPrimaryDark,
         tabBarInactiveTintColor: colors.muted,
         tabBarStyle: {
           backgroundColor: colors.surfaceSecondary,
-          borderTopColor: colors.border,
+          borderTopColor: colors.divider,
+          borderTopWidth: 1,
+          elevation: 8,
+          shadowColor: "#004D4D",
+          shadowOpacity: 0.08,
+          shadowRadius: 12,
+          shadowOffset: { width: 0, height: -2 },
           ...(typeof window !== "undefined" ? { height: 64 } : {}),
         },
-        tabBarItemStyle: { alignSelf: "center" },
-        tabBarLabelStyle: { fontSize: 11, fontWeight: "600" },
+        tabBarItemStyle: { alignSelf: "center", paddingVertical: 4 },
+        tabBarLabelStyle: { fontSize: 11, fontWeight: "700" },
       }}
     >
       <Tabs.Screen

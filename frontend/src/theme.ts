@@ -1,34 +1,5 @@
-// Design tokens for this app. Light theme only.Always modify the colors and theme to Dark, Light or Dark and Light according to the design guidelines.
-//
-// The keys match the "color" block of /app/design_guidelines.json. Fill the
-// values from that file (or from the user's brand colors). Keep every key; do
-// not add a second theme or colors file; do not write color literals in
-// components.
-//
-// How the names work: a plain key is a background, and its `on` partner is the
-// text or icon color that sits on top of it. Always use them as a pair.
-//   <View style={{ backgroundColor: colors.brandPrimary }}>
-//     <Text style={{ color: colors.onBrandPrimary }}>Continue</Text>
-//   </View>
-//
-// Styling a screen or component: build the sheet with makeStyles so colors
-// and layout live together and follow the active scheme:
-//   const useStyles = makeStyles((colors) => ({
-//     card: { backgroundColor: colors.surfaceSecondary, padding: 16 },
-//     title: { color: colors.onSurfaceSecondary, fontSize: 16 },
-//   }));
-//   function Screen() {
-//     const styles = useStyles();
-//     return <View style={styles.card}><Text style={styles.title}>Hi</Text></View>;
-//   }
-// For color props that are not styles (icon color, placeholderTextColor,
-// ActivityIndicator) read useTheme().colors inside the component.
-// Never call StyleSheet.create with color values at module level; it cannot
-// follow the scheme.
-//
-// To support dark mode later: add `dark` to `themes` with every key filled.
-// Nothing else changes; the device setting takes over automatically.
-// Feel free to add as many new colors as you need to support the design guidelines.
+// Design tokens — BSI Asset Deal premium theme (light).
+// Palet korporat BSI: Teal #00A0A0 (dominan) + Emas #F0B43C (aksen premium).
 
 import { useMemo } from "react";
 import { Appearance, StyleSheet, useColorScheme, TextStyle } from "react-native";
@@ -36,41 +7,46 @@ import { Appearance, StyleSheet, useColorScheme, TextStyle } from "react-native"
 export type ColorScheme = "light" | "dark";
 
 const light = {
-  surface: "#F7F8FA",
-  onSurface: "#1F2937",
+  surface: "#F7FAFA",
+  onSurface: "#0F2A2A",
   surfaceSecondary: "#FFFFFF",
-  onSurfaceSecondary: "#1F2937",
-  surfaceTertiary: "#E5E7EB",
-  onSurfaceTertiary: "#1F2937",
-  surfaceInverse: "#1F2937",
+  onSurfaceSecondary: "#0F2A2A",
+  surfaceTertiary: "#E0F5F5",
+  onSurfaceTertiary: "#006666",
+  surfaceInverse: "#002E2E",
   onSurfaceInverse: "#FFFFFF",
-  muted: "#6B7280",
+  muted: "#5B7373",
 
-  brand: "#00A39D",
+  brand: "#00A0A0",
   onBrand: "#FFFFFF",
-  brandPrimary: "#00A39D",
+  brandPrimary: "#00A0A0",
   onBrandPrimary: "#FFFFFF",
-  brandPrimaryDark: "#007C77",
-  brandSecondary: "#F8AD3C",
-  onBrandSecondary: "#3A2A00",
-  brandSecondaryDark: "#E0961F",
-  brandSecondarySoft: "#FEF3DC",
+  brandPrimaryDark: "#004D4D",
+  brandSecondary: "#F0B43C",
+  onBrandSecondary: "#004D4D",
+  brandSecondaryDark: "#C98F1F",
+  brandSecondarySoft: "#FFF4DC",
   onBrandSecondarySoft: "#8A5A00",
-  brandTertiary: "#E4F5F3",
-  onBrandTertiary: "#007C77",
+  brandTertiary: "#E0F5F5",
+  onBrandTertiary: "#006666",
+  brandDeep: "#006666",
+  brandDeepDark: "#004D4D",
+  brandDarkSurface: "#002E2E",
+  brandSoftMid: "#B2E4E4",
 
-  success: "#059669",
+  success: "#1FA67A",
   onSuccess: "#FFFFFF",
-  warning: "#D97706",
-  onWarning: "#FFFFFF",
-  error: "#DC2626",
+  warning: "#F0B43C",
+  onWarning: "#004D4D",
+  error: "#D64545",
   onError: "#FFFFFF",
-  info: "#475569",
+  info: "#5B7373",
   onInfo: "#FFFFFF",
 
-  border: "#E5E7EB",
-  borderStrong: "#9CA3AF",
-  divider: "#E5E7EB",
+  border: "#DDEAEA",
+  borderStrong: "#B2E4E4",
+  divider: "#E4F0F0",
+  goldBorder: "#F0B43C",
 };
 
 export type ThemeColors = typeof light;
@@ -79,33 +55,27 @@ export const defaultScheme = "light" satisfies ColorScheme;
 
 export const themes: { light: ThemeColors; dark?: ThemeColors } = { light };
 
-// In-app theme toggle, only after `dark` exists in `themes`. Call
-// setColorScheme("dark"), setColorScheme("light"), or setColorScheme(null) to
-// follow the device. Every useTheme() consumer re-renders. Persisting the
-// choice and re-applying it on launch is the toggle's job.
 export function setColorScheme(scheme: ColorScheme | null) {
-  // RN 0.86 re-reads the device scheme only for the literal "unspecified";
-  // null would pin useColorScheme() to null and the app to light.
   Appearance.setColorScheme?.(scheme ?? "unspecified");
 }
 
-// Keep native surfaces (alerts, pickers, navigation chrome) on the schemes this
-// app ships: light only forces light; once `dark` exists the device decides.
-// Optional call because react-native-web does not implement it.
 setColorScheme?.(themes.dark ? null : defaultScheme);
 
 export function useTheme(): { scheme: ColorScheme; colors: ThemeColors } {
   const system = useColorScheme();
-  const scheme: ColorScheme = system && themes[system] ? system : defaultScheme;
+  const scheme: ColorScheme = system === "light" || system === "dark" ? system : defaultScheme;
   return { scheme, colors: themes[scheme] ?? themes.light };
 }
 
-// Themed StyleSheet: returns a hook that builds the sheet from the active
-// scheme's colors and memoizes it until the scheme changes.
-// ---------- Typography: Lato everywhere ----------
-// Fonts are loaded in app/_layout.tsx via expo-font. Because custom fonts on
-// native need an explicit face per weight, makeStyles maps fontWeight to the
-// matching Lato face and drops fontWeight. Use `font(weight)` for inline styles.
+// Signature BSI gradients (for LinearGradient colors prop).
+export const gradients = {
+  teal: ["#004D4D", "#00A0A0"] as const,
+  tealSoft: ["#006666", "#00A0A0"] as const,
+  gold: ["#F0B43C", "#FFD98A", "#C98F1F"] as const,
+  goldSoft: ["#F0B43C", "#FFD98A"] as const,
+};
+
+// ---------- Typography: Lato body / Lato-Black display ----------
 export const FONTS = {
   regular: "Lato-Regular",
   bold: "Lato-Bold",
@@ -146,5 +116,3 @@ export function makeStyles<T extends StyleSheet.NamedStyles<T> | StyleSheet.Name
     return useMemo(() => StyleSheet.create(withLato(factory(colors))), [colors]);
   };
 }
-
-

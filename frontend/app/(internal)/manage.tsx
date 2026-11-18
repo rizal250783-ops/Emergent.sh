@@ -377,7 +377,7 @@ function DeletedTab() {
         </ScrollView>
       )}
       {shown.length === 0 ? (
-        <EmptyState icon="trash-2" title="Belum ada asset terhapus" message={acrFilter ? `Tidak ada asset terhapus untuk ${acrFilter}.` : "Semua asset masih aktif."} />
+        <EmptyState icon="trash-2" title="Belum ada asset terhapus" subtitle={acrFilter ? `Tidak ada asset terhapus untuk ${acrFilter}.` : "Semua asset masih aktif."} />
       ) : shown.map((a) => (
         <Card key={a.id} testID={`deleted-asset-${a.id}`}>
           <View style={{ flexDirection: "row", gap: spacing.md }}>
